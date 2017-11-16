@@ -2,18 +2,22 @@ package main
 
 import "C"
 
+var jsonJwtOpts []string
+var pgOpts []string
+var redisOpts []string
+
 //export AuthPluginInit
-func AuthPluginInit() {
+func AuthPluginInit(authOpts []string, authOptsNum int) {
 
 }
 
 //export AuthUnpwdCheck
-func AuthUnpwdCheck() {
+func AuthUnpwdCheck(username, password string) bool {
 
 }
 
 //export AuthAclCheck
-func AuthAclCheck() {
+func AuthAclCheck(clientid, username, topic string, acc int) bool {
 
 }
 
