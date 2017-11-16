@@ -16,7 +16,9 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
   /*
     Pass auth_opts hash to Go in order to initialize them there.
   */
-  AuthPluginInit();
+  GoSlice auth_opts = {mosquitto_auth_opt, auth_opt_count, auth_opt_count};
+  GoInt32 opts_count = auth_opt_count;
+  AuthPluginInit(auth_opts, opts_count);
   return MOSQ_ERR_SUCCESS;
 }
 
@@ -34,7 +36,10 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_auth_opt *
 
 int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char *password) {
   
-  if(AuthUnpwdCheck()){
+  GoString go_username = {username, strlen(username)};
+  GoString go_password = {password, strlen(password)};
+
+  if(AuthUnpwdCheck(go_username, go_password)){
     return MOSQ_ERR_SUCCESS;
   }
 
@@ -43,7 +48,12 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
 
 int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
   
-  if(AuthAclCheck()){
+  GoString go_clientid = {clientid, strlen(clientid)};
+  GoString go_username = {username, strlen(username)};
+  GoString go_topic = {topic, strlen(topic)};
+  GoInt32 go_access = access;
+
+  if(AuthAclCheck(go_clientid, go_username, go_topic, go_access)){
     return MOSQ_ERR_SUCCESS;
   }
 

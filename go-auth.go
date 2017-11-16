@@ -13,17 +13,17 @@ func AuthPluginInit(authOpts []string, authOptsNum int) {
 
 //export AuthUnpwdCheck
 func AuthUnpwdCheck(username, password string) bool {
-
+	return true
 }
 
 //export AuthAclCheck
 func AuthAclCheck(clientid, username, topic string, acc int) bool {
-
+	return true
 }
 
-//export AuthPskKeyGet()
-func AuthPskKeyGet() {
-
+//export AuthPskKeyGet
+func AuthPskKeyGet() bool {
+	return true
 }
 
 func main() {}
