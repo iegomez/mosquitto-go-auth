@@ -3,15 +3,14 @@ package main
 import "C"
 
 import "fmt"
-import "unsafe"
 
 var jsonJwtOpts []string
 var pgOpts []string
 var redisOpts []string
 
 //export AuthPluginInit
-func AuthPluginInit(authOpts map[string]string, authOptsNum int) {
-	fmt.Printf("authOpts: %v\n", unsafe.Pointer(&authOpts))
+func AuthPluginInit(keys []string, values []string, authOptsNum int) {
+	fmt.Printf("authOpts: %v\n%v\n", keys, values)
 }
 
 //export AuthUnpwdCheck

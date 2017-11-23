@@ -53,7 +53,7 @@ extern "C" {
 #endif
 
 
-extern void AuthPluginInit(GoMap p0, GoInt p1);
+extern void AuthPluginInit(GoSlice p0, GoSlice p1, GoInt p2);
 
 extern GoUint8 AuthUnpwdCheck(GoString p0, GoString p1);
 

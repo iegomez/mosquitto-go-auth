@@ -13,12 +13,26 @@ int mosquitto_auth_plugin_version(void) {
 
 int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth_opts, int auth_opt_count) {
   /*
-    Pass auth_opts hash to Go in order to initialize them there.
+    Pass auth_opts hash as keys and values char* arrays to Go in order to initialize them there.
   */
-  //GoSlice auth_opts = {mosquitto_auth_opt, auth_opt_count, auth_opt_count};
+
   GoInt32 opts_count = auth_opt_count;
-  GoMap opts = auth_opts;
-  AuthPluginInit(opts, opts_count);
+  
+  GoString keys[auth_opt_count];
+  GoString values[auth_opt_count];
+  int i;
+  struct mosquitto_auth_opt *o;
+  for (i = 0, o = auth_opts; i < auth_opt_count; i++, o++) {
+    GoString opt_key = {o->key, strlen(o->key)};
+    GoString opt_value = {o->value, strlen(o->value)};
+    keys[i] = opt_key;
+    values[i] = opt_value;
+  }
+
+  GoSlice keysSlice = {keys, auth_opt_count, auth_opt_count};
+  GoSlice valuesSlice = {values, auth_opt_count, auth_opt_count};
+
+  AuthPluginInit(keysSlice, valuesSlice, opts_count);
   return MOSQ_ERR_SUCCESS;
 }
 
