@@ -2,11 +2,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
-#include <curl/curl.h>
 
 #include <mosquitto.h>
 #include <mosquitto_plugin.h>
-#include "auth-plugin.h"
+#include "go-auth.h"
 
 int mosquitto_auth_plugin_version(void) {
   return MOSQ_AUTH_PLUGIN_VERSION;
@@ -16,9 +15,10 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
   /*
     Pass auth_opts hash to Go in order to initialize them there.
   */
-  GoSlice auth_opts = {mosquitto_auth_opt, auth_opt_count, auth_opt_count};
+  //GoSlice auth_opts = {mosquitto_auth_opt, auth_opt_count, auth_opt_count};
   GoInt32 opts_count = auth_opt_count;
-  AuthPluginInit(auth_opts, opts_count);
+  GoMap opts = auth_opts;
+  AuthPluginInit(opts, opts_count);
   return MOSQ_ERR_SUCCESS;
 }
 
