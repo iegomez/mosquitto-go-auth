@@ -2,30 +2,45 @@ package backends
 
 import (
 	"bufio"
+	"bytes"
+	"crypto/rand"
+	"crypto/sha512"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
+	"golang.org/x/crypto/pbkdf2"
 )
+
+// saltSize defines the salt size
+const saltSize = 16
+
+// HashIterations defines the number of hash iterations.
+var HashIterations = 100000
 
 //FileUer keeps a user password and acl records.
 type FileUser struct {
 	Password   string
-	ACLRecords []ACLRecord
+	AclRecords []AclRecord
 }
 
-//ACLRecord holds nd array of acl access records.
-type ACLRecord struct {
-	ClientID string
-	Topic    string
-	ACC      int32 //Read 0, Write 1
+//AclRecord holds a topic and access privileges.
+type AclRecord struct {
+	Topic string
+	Acc   byte //None 0x00, Read 0x01, Write 0x02, ReadWrite: Read | Write : 0x03
 }
 
-//FileBE holds paths to files, list of passwords and acl records.
+//FileBE holds paths to files, list of file users and general (no user or pattern) acl records.
 type Files struct {
 	PasswordPath string
-	ACLPath      string
-	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and ACL records.
+	AclPath      string
+	CheckAcls    bool
+	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
+	AclRecords   []AclRecord
 }
 
 //NewFiles initializes a files backend.
@@ -33,8 +48,10 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 
 	var files = Files{
 		PasswordPath: "",
-		ACLPath:      "",
-		Users:        make(map[string]FileUser),
+		AclPath:      "",
+		CheckAcls:    false,
+		Users:        make(map[string]*FileUser),
+		AclRecords:   make([]AclRecord),
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
@@ -44,17 +61,35 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {
-		files.ACLPath = aclPath
+		files.AclPath = aclPath
+		files.CheckAcls = true
 	} else {
-		log.Fatal("Files backend error: no password path given.\n")
+		files.CheckAcls = false
+		log.Print("Acls won't be checked.\n")
 	}
 
 	//Now initialize FileUsers by reading from password and acl files.
+	uCount, uErr := files.readPasswords()
+	if uErr != nil {
+		log.Fatalf("Fatal: %s\n", uErr)
+	} else {
+		log.Printf("Got %d users from passwords file.\n", uCount)
+	}
+
+	//Only read acls if path was given.
+	if files.CheckAcls {
+		aclCount, aclErr := files.readAcls()
+		if aclErr != nil {
+			log.Fatalf("Fatal: %s\n", aclErr)
+		} else {
+			log.Printf("Got %d lines from acl file.\n", aclCount)
+		}
+	}
 
 }
 
 //ReadPasswords read file and populates FileUsers. Return amount of users seen and possile error.
-func (o Files) ReadPasswords() (int, error) {
+func (o Files) readPasswords() (int, error) {
 
 	usersCount := 0
 
@@ -70,6 +105,12 @@ func (o Files) ReadPasswords() (int, error) {
 	//Read line by line
 	for scanner.Scan() {
 		index++
+
+		//Check comment or empty line to skip them.
+		if checkCommentOrEmpty(scanner.text()) {
+			continue
+		}
+
 		lineArr := strings.Split(scanner.Text(), ":")
 		if len(lineArr) != 2 {
 			log.Errorf("Read passwords error: line %d is not well formatted.\n", index)
@@ -85,7 +126,7 @@ func (o Files) ReadPasswords() (int, error) {
 			usersCount++
 			fileUser = *FileUser{
 				Password:   lineArr[1],
-				ACLRecords: make([]ACLRecord, 3, 3),
+				AclRecords: make([]AclRecord, 3, 3),
 			}
 			o.Users[lineArr[0]] = fileUser
 		}
@@ -95,8 +136,8 @@ func (o Files) ReadPasswords() (int, error) {
 
 }
 
-//ReadACLs reads the ACL file and associates them to existing users. It omits any non existing users.
-func (o Files) ReadACLs() (int, error) {
+//ReadAcls reads the Acl file and associates them to existing users. It omits any non existing users.
+func (o Files) readAcls() (int, error) {
 
 	linesCount := 0
 
@@ -115,6 +156,12 @@ func (o Files) ReadACLs() (int, error) {
 
 	for scanner.Scan() {
 		index++
+
+		//Check comment or empty line to skip them.
+		if checkCommentOrEmpty(scanner.text()) {
+			continue
+		}
+
 		line := scanner.Text()
 
 		//If we see a user line, change the current user.
@@ -128,23 +175,248 @@ func (o Files) ReadACLs() (int, error) {
 
 				//Check that user exists
 				if !ok {
-					log.Fatalf("Files backend error: user %s does not exist, omitting acl at line %d\n", lineArr[1], index)
+					log.Fatalf("Files backend error: user %s does not exist for acl at line %d\n", lineArr[1], index)
 
 				}
 
 				currentUser = lineArr[1]
 
 			} else {
-				log.Fatalf("Files backend error: bad acl format, omitting user at line %d\n", index)
+				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
 
 			}
 		} else if strings.Contains(line, "topic") {
-			var aclRecord _ = ACLRecord{
-				ClientID: "",
-				Topic:    "",
-				Acc:      0,
+
+			//Split and check for read, write or empty (readwwrite) privileges.
+			lineArr := strings.Fields(line)
+
+			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "topic" {
+
+				var aclRecord = AclRecord{
+					Topic: "",
+					Acc:   0x00,
+				}
+
+				//If len is 2, then we assume ReadWrite privileges.
+				if len(lineArr) == 2 {
+					aclRecord.Topic = lineArr[1]
+					aclRecord.Acc = 0x03
+				} else {
+					aclRecord.Topic = lineArr[2]
+					if lineArr[1] == "read" {
+						aclRecord.Acc = 0x01
+					} else if lineArr[1] == "write" {
+						aclRecord.Acc = 0x02
+					} else if lineArr[1] == "readwrite" {
+						aclRecord = 0x03
+					} else {
+						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+					}
+				}
+
+				//Append to user or general depending on currentUser.
+				if currentUser != "" {
+					fUser, _ := o.Users[currentUser]
+					fUser.AclRecords = append(fUser.AclRecords, aclRecord)
+				} else {
+					o.AclRecords = append(o.AclRecords, aclRecord)
+				}
+
+				linesCount++
+
+			} else {
+				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+			}
+
+		} else if strings.Contains(line, "pattern") {
+
+			//Split and check for read, write or empty (readwwrite) privileges.
+			lineArr := strings.Fields(line)
+
+			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "pattern" {
+
+				var aclRecord = AclRecord{
+					Topic: "",
+					Acc:   0x00,
+				}
+
+				//If len is 2, then we assume ReadWrite privileges.
+				if len(lineArr) == 2 {
+					aclRecord.Topic = lineArr[1]
+					aclRecord.Acc = 0x03
+				} else {
+					aclRecord.Topic = lineArr[2]
+					if lineArr[1] == "read" {
+						aclRecord.Acc = 0x01
+					} else if lineArr[1] == "write" {
+						aclRecord.Acc = 0x02
+					} else if lineArr[1] == "readwrite" {
+						aclRecord = 0x03
+					} else {
+						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+					}
+				}
+
+				//Append to general acls.
+				o.AclRecords = append(o.AclRecords, aclRecord)
+
+				linesCount++
+
+			} else {
+				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+			}
+
+		}
+	}
+
+	return linesCount, nil
+
+}
+
+func checkCommentOrEmpty(line string) bool {
+	if len(strings.Replace(line, " ", "", -1)) == 0 || line[0:1] == "#" {
+		return true
+	}
+	return false
+}
+
+//GetUser checks that user exists and password is correct.
+func (o Files) GetUser(username, password string) bool {
+	fileUser, ok := o.Users[username]
+	if !ok {
+		log.Errorf("no such user: %s\n", username)
+		return false
+	}
+
+	if hashCompare(password, fileUser.Password) {
+		return true
+	}
+
+	log.Errorf("wrong password for user %s\n", username)
+
+	return false
+
+}
+
+//GetSuperuser returns false for files backend.
+func (o Files) GetSuperuser(username) bool {
+	return false
+}
+
+//CheckAcl checks that the topic may be read/written by the given user/clientid.
+func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
+	//If there are no acls, all access is allowed.
+	if !o.CheckAcls {
+		return true
+	}
+
+	fileUser, ok := o.Users[username]
+
+	//If user exists, check against his acls. If not, check against common acls.
+	if ok {
+		for _, aclRecord := range fileUser.AclRecords {
+			if topicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
+				return true
+			}
+		}
+	} else {
+		for _, aclRecord := range o.AclRecords {
+			//Replace all occurrences of %c for clientid and %u for username
+			aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
+			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
+			if topicsMatch(aclTopic, topic) {
+				return true
 			}
 		}
 	}
 
+	return false
+
+}
+
+func topicsMatch(savedTopic, givenTopic string) bool {
+	return givenTopic == savedTopic || match(strings.Split(savedTopic, "/"), strings.Split(givenTopic, "/"))
+}
+
+func match(route []string, topic []string) bool {
+	if len(route) == 0 {
+		if len(topic) == 0 {
+			return true
+		}
+		return false
+	}
+
+	if len(topic) == 0 {
+		if route[0] == "#" {
+			return true
+		}
+		return false
+	}
+
+	if route[0] == "#" {
+		return true
+	}
+
+	if (route[0] == "+") || (route[0] == topic[0]) {
+		return match(route[1:], topic[1:])
+	}
+
+	return false
+}
+
+/*
+* PBKDF2 passwords usage taken from github.com/brocaar/lora-app-server, comments included.
+ */
+
+// Generate the hash of a password for storage in the database.
+// NOTE: We store the details of the hashing algorithm with the hash itself,
+// making it easy to recreate the hash for password checking, even if we change
+// the default criteria here.
+func hash(password string, saltSize int, iterations int) (string, error) {
+	// Generate a random salt value, 128 bits.
+	salt := make([]byte, saltSize)
+	_, err := rand.Read(salt)
+	if err != nil {
+		return "", errors.Wrap(err, "read random bytes error")
+	}
+
+	return hashWithSalt(password, salt, iterations), nil
+}
+
+func hashWithSalt(password string, salt []byte, iterations int) string {
+	// Generate the hash.  This should be a little painful, adjust ITERATIONS
+	// if it needs performance tweeking.  Greatly depends on the hardware.
+	// NOTE: We store these details with the returned hash, so changes will not
+	// affect our ability to do password compares.
+	hash := pbkdf2.Key([]byte(password), salt, iterations, sha512.Size, sha512.New)
+
+	// Build up the parameters and hash into a single string so we can compare
+	// other string to the same hash.  Note that the hash algorithm is hard-
+	// coded here, as it is above.  Introducing alternate encodings must support
+	// old encodings as well, and build this string appropriately.
+	var buffer bytes.Buffer
+
+	buffer.WriteString("PBKDF2$")
+	buffer.WriteString("sha512$")
+	buffer.WriteString(strconv.Itoa(iterations))
+	buffer.WriteString("$")
+	buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+	buffer.WriteString("$")
+	buffer.WriteString(base64.StdEncoding.EncodeToString(hash))
+
+	return buffer.String()
+}
+
+// HashCompare verifies that passed password hashes to the same value as the
+// passed passwordHash.
+func hashCompare(password string, passwordHash string) bool {
+	// SPlit the hash string into its parts.
+	hashSplit := strings.Split(passwordHash, "$")
+
+	// Get the iterations and the salt and use them to encode the password
+	// being compared.cre
+	iterations, _ := strconv.Atoi(hashSplit[2])
+	salt, _ := base64.StdEncoding.DecodeString(hashSplit[3])
+	newHash := hashWithSalt(password, salt, iterations)
+	return newHash == passwordHash
 }
