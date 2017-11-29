@@ -45,7 +45,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 		AclPath:      "",
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
-		AclRecords:   make([]AclRecord),
+		AclRecords:   make([]AclRecord, 5, 5),
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
@@ -80,6 +80,8 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 		}
 	}
 
+	return files, nil
+
 }
 
 //ReadPasswords read file and populates FileUsers. Return amount of users seen and possile error.
@@ -101,13 +103,13 @@ func (o Files) readPasswords() (int, error) {
 		index++
 
 		//Check comment or empty line to skip them.
-		if checkCommentOrEmpty(scanner.text()) {
+		if checkCommentOrEmpty(scanner.Text()) {
 			continue
 		}
 
 		lineArr := strings.Split(scanner.Text(), ":")
 		if len(lineArr) != 2 {
-			log.Errorf("Read passwords error: line %d is not well formatted.\n", index)
+			log.Printf("Read passwords error: line %d is not well formatted.\n", index)
 			continue
 		}
 		//Create user if it doesn't exist and save password; override password if user existed.
@@ -118,7 +120,7 @@ func (o Files) readPasswords() (int, error) {
 			fileUser.Password = lineArr[1]
 		} else {
 			usersCount++
-			fileUser = *FileUser{
+			fileUser = &FileUser{
 				Password:   lineArr[1],
 				AclRecords: make([]AclRecord, 3, 3),
 			}
@@ -141,7 +143,7 @@ func (o Files) readAcls() (int, error) {
 	file, fErr := os.Open(o.PasswordPath)
 	defer file.Close()
 	if fErr != nil {
-		return usersCount, fmt.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
+		return linesCount, fmt.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
 	}
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -152,7 +154,7 @@ func (o Files) readAcls() (int, error) {
 		index++
 
 		//Check comment or empty line to skip them.
-		if checkCommentOrEmpty(scanner.text()) {
+		if checkCommentOrEmpty(scanner.Text()) {
 			continue
 		}
 
@@ -202,7 +204,7 @@ func (o Files) readAcls() (int, error) {
 					} else if lineArr[1] == "write" {
 						aclRecord.Acc = 0x02
 					} else if lineArr[1] == "readwrite" {
-						aclRecord = 0x03
+						aclRecord.Acc = 0x03
 					} else {
 						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
 					}
@@ -245,7 +247,7 @@ func (o Files) readAcls() (int, error) {
 					} else if lineArr[1] == "write" {
 						aclRecord.Acc = 0x02
 					} else if lineArr[1] == "readwrite" {
-						aclRecord = 0x03
+						aclRecord.Acc = 0x03
 					} else {
 						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
 					}
@@ -278,22 +280,22 @@ func checkCommentOrEmpty(line string) bool {
 func (o Files) GetUser(username, password string) bool {
 	fileUser, ok := o.Users[username]
 	if !ok {
-		log.Errorf("no such user: %s\n", username)
+		log.Printf("no such user: %s\n", username)
 		return false
 	}
 
-	if common.hashCompare(password, fileUser.Password) {
+	if common.HashCompare(password, fileUser.Password) {
 		return true
 	}
 
-	log.Errorf("wrong password for user %s\n", username)
+	log.Printf("wrong password for user %s\n", username)
 
 	return false
 
 }
 
 //GetSuperuser returns false for files backend.
-func (o Files) GetSuperuser(username) bool {
+func (o Files) GetSuperuser(username string) bool {
 	return false
 }
 
@@ -309,7 +311,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If user exists, check against his acls. If not, check against common acls.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			if common.topicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
+			if common.TopicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
 				return true
 			}
 		}
@@ -318,7 +320,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 			//Replace all occurrences of %c for clientid and %u for username
 			aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-			if common.topicsMatch(aclTopic, topic) {
+			if common.TopicsMatch(aclTopic, topic) {
 				return true
 			}
 		}
@@ -326,4 +328,9 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	return false
 
+}
+
+//GetName return the backend's name
+func (o Files) GetName() string {
+	return "Files"
 }

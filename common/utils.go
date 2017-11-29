@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/pbkdf2"
 )
 
-func topicsMatch(savedTopic, givenTopic string) bool {
+func TopicsMatch(savedTopic, givenTopic string) bool {
 	return givenTopic == savedTopic || match(strings.Split(savedTopic, "/"), strings.Split(givenTopic, "/"))
 }
 
@@ -86,7 +87,7 @@ func hashWithSalt(password string, salt []byte, iterations int) string {
 
 // HashCompare verifies that passed password hashes to the same value as the
 // passed passwordHash.
-func hashCompare(password string, passwordHash string) bool {
+func HashCompare(password string, passwordHash string) bool {
 	// SPlit the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
 
