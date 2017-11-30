@@ -33,11 +33,20 @@ It makes use of some Go packages (just go get them before building):
 
 github.com/pkg/errors
 github.com/dgrijalva/jwt-go
-github.com/jmoiron/sqlx"
+github.com/jmoiron/sqlx
 github.com/lib/pq
 github.com/go-redis/redis
+golang.org/x/crypto/pbkdf2
 
-Also, it uses Redis for cache purposes.
+You cant install all the dependencies with:
+
+```
+make requirements
+```
+
+
+Finally, it uses Redis for cache purposes.
+
 
 #### Configuration
 
