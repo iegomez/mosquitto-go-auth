@@ -154,11 +154,8 @@ func (o Files) readAcls() (int, error) {
 		index++
 		line := scanner.Text()
 
-		log.Printf("Read: %s %s\n", index, line)
-
 		//Check comment or empty line to skip them.
 		if checkCommentOrEmpty(scanner.Text()) {
-			log.Printf("Found empty line at %d\n", index)
 			continue
 		}
 
@@ -283,7 +280,7 @@ func checkCommentOrEmpty(line string) bool {
 //GetUser checks that user exists and password is correct.
 func (o Files) GetUser(username, password string) bool {
 
-	log.Printf("checking user %s with pass %s\n", username, password)
+	log.Printf("checking user %s\n", username)
 
 	fileUser, ok := o.Users[username]
 	if !ok {

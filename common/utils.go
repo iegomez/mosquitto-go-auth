@@ -7,7 +7,6 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 
@@ -106,6 +105,5 @@ func HashCompare(password string, passwordHash string) bool {
 	salt, _ := base64.StdEncoding.DecodeString(hashSplit[3])
 	algorithm := hashSplit[1]
 	newHash := hashWithSalt(password, salt, iterations, algorithm)
-	log.Printf("Comparing:\nnewHash: %s\npwHash: %s\n", newHash, passwordHash)
 	return newHash == passwordHash
 }

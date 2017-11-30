@@ -5,7 +5,11 @@ import "C"
 import (
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
+	"time"
+
+	b64 "encoding/base64"
 
 	"github.com/go-redis/redis"
 	bes "github.com/iegomez/mosquitto-go-auth-plugin/backends"
@@ -24,8 +28,9 @@ type CommonData struct {
 	Files            bes.Files
 	Jwt              bes.JWT
 	Superusers       []string
-	AclCacheSeconds  int32
-	AuthCacheSeconds int32
+	AclCacheSeconds  int64
+	AuthCacheSeconds int64
+	UseCache         bool
 	Redis            *redis.Client
 }
 
@@ -34,7 +39,7 @@ type Cache struct {
 	Host     string
 	Port     string
 	Password string
-	DB       string
+	DB       int32
 }
 
 var allowedBackends = map[string]bool{
@@ -57,7 +62,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		Host:     "localhost",
 		Port:     "6379",
 		Password: "",
-		DB:       "0",
+		DB:       0,
 	}
 
 	commonBackends := make([]Backend, len(allowedBackends), len(allowedBackends))
@@ -71,7 +76,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		AuthCacheSeconds: 30,
 	}
 
-	log.Printf("authOpts: %v\n%v\n", keys, values)
 	//First, get backends
 	backendsOk := false
 	authOpts = make(map[string]string)
@@ -88,12 +92,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				}
 				backendsOk = backendsCheck
 			}
-		} else if strings.Contains(keys[i], "cache") {
-			//Get all cache options.
-			/*if keys[i] == "cache_aut_seconds" {
-
-			}*/
-
 		} else {
 			authOpts[keys[i]] = values[i]
 		}
@@ -103,8 +101,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	if !backendsOk {
 		log.Fatal("\nbackends error\n")
 	}
-
-	log.Printf("authOpts are: %v\n", authOpts)
 
 	//Initialize backends
 	for _, bename := range backends {
@@ -130,6 +126,70 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	}
 
+	if cache, ok := authOpts["cache"]; ok && cache == "true" {
+		log.Println("Cache set")
+		commonData.UseCache = true
+	} else {
+		log.Printf("No cache, got %s", cache)
+		commonData.UseCache = false
+	}
+
+	if commonData.UseCache {
+		if cacheHost, ok := authOpts["cache_host"]; ok {
+			cache.Host = cacheHost
+		}
+
+		if cachePort, ok := authOpts["cache_port"]; ok {
+			cache.Port = cachePort
+		}
+
+		if cachePassword, ok := authOpts["cache_password"]; ok {
+			cache.Password = cachePassword
+		}
+
+		if cacheDB, ok := authOpts["cache_db"]; ok {
+			db, err := strconv.ParseInt(cacheDB, 10, 32)
+			if err != nil {
+				cache.DB = int32(db)
+			}
+		}
+
+		if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
+			authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
+			if err != nil {
+				commonData.AuthCacheSeconds = authSec
+			}
+
+		}
+
+		if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
+			aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
+			if err != nil {
+				commonData.AclCacheSeconds = aclSec
+			}
+
+		}
+
+		addr := fmt.Sprintf("%s:%s", cache.Host, cache.Port)
+
+		//If cache is on, try to start redis.
+		redisClient := redis.NewClient(&redis.Options{
+			Addr:     addr,
+			Password: cache.Password, // no password set
+			DB:       int(cache.DB),  // use default DB
+		})
+
+		_, err := redisClient.Ping().Result()
+		if err != nil {
+			log.Printf("couldn't start Redis, defaulting to no cache. error: %s\n", err)
+			commonData.UseCache = false
+		} else {
+			commonData.Redis = redisClient
+			log.Printf("started redis client")
+		}
+
+	}
+
 }
 
 //export AuthUnpwdCheck
@@ -138,6 +198,16 @@ func AuthUnpwdCheck(username, password string) bool {
 	//Loop through backends checking for user.
 
 	authenticated := false
+	var cached = false
+	var granted = false
+	if commonData.UseCache {
+		log.Printf("checking auth cache for %s\n", username)
+		cached, granted = CheckAuthCache(username, password)
+		if cached {
+			log.Printf("found in cache: %s\n", username)
+			return granted
+		}
+	}
 
 	for _, bename := range backends {
 
@@ -158,6 +228,15 @@ func AuthUnpwdCheck(username, password string) bool {
 		}
 	}
 
+	if commonData.UseCache {
+		authGranted := "false"
+		if authenticated {
+			authGranted = "true"
+		}
+		log.Printf("setting auth cache for %s\n", username)
+		SetAuthCache(username, password, authGranted)
+	}
+
 	return authenticated
 }
 
@@ -165,6 +244,16 @@ func AuthUnpwdCheck(username, password string) bool {
 func AuthAclCheck(clientid, username, topic string, acc int) bool {
 
 	aclCheck := false
+	var cached = false
+	var granted = false
+	if commonData.UseCache {
+		log.Printf("checking acl cache for %s\n", username)
+		cached, granted = CheckAclCache(username, topic, clientid, acc)
+		if cached {
+			log.Printf("found in cache: %s\n", username)
+			return granted
+		}
+	}
 
 	//Check superusers first
 
@@ -210,12 +299,73 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		}
 	}
 
+	if commonData.UseCache {
+		authGranted := "false"
+		if aclCheck {
+			authGranted = "true"
+		}
+		log.Printf("setting acl cache for %s\n", username)
+		SetAclCache(username, topic, clientid, acc, authGranted)
+	}
+
 	return aclCheck
 }
 
 //export AuthPskKeyGet
 func AuthPskKeyGet() bool {
 	return true
+}
+
+//CheckAuthCache checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges.
+func CheckAuthCache(username, password string) (bool, bool) {
+	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
+	val, err := commonData.Redis.Get(pair).Result()
+	if err != nil {
+		return false, false
+	}
+	//refresh expiration
+	commonData.Redis.Expire(pair, time.Duration(commonData.AuthCacheSeconds)*time.Second)
+	if val == "true" {
+		return true, true
+	}
+	return true, false
+}
+
+//SetAuthCache sets a pair, granted option and expiration time.
+func SetAuthCache(username, password string, granted string) error {
+	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
+	err := commonData.Redis.Set(pair, granted, time.Duration(commonData.AuthCacheSeconds)*time.Second).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
+func CheckAclCache(username, topic, clientid string, acc int) (bool, bool) {
+	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
+	val, err := commonData.Redis.Get(pair).Result()
+	if err != nil {
+		return false, false
+	}
+	//refresh expiration
+	commonData.Redis.Expire(pair, time.Duration(commonData.AclCacheSeconds)*time.Second)
+	if val == "true" {
+		return true, true
+	}
+	return true, false
+}
+
+//SetAclCache sets a mix, granted option and expiration time.
+func SetAclCache(username, topic, clientid string, acc int, granted string) error {
+	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
+	err := commonData.Redis.Set(pair, granted, time.Duration(commonData.AclCacheSeconds)*time.Second).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func main() {}
