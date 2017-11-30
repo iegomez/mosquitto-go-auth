@@ -11,6 +11,20 @@ As it was intended for use with @brocaar's Loraserver project (https://www.loras
 * PostgreSQL
 * JWT (with local DB or remote json api)
 
+
+#### Requirements
+
+This projects is tested against Go 1.9.2 and makes use of cgo.
+
+It makes use of some Go packages as well. You cant install all the dependencies with:
+
+```
+make requirements
+```
+
+Finally, it uses Redis for cache purposes.
+
+
 #### Build
 
 Building the project is fairly simple given that you meet the requirements. Just run this command:
@@ -24,28 +38,6 @@ or simply:
 ```
 make
 ```
-
-#### Requirements
-
-This projects is tested against Go 1.9.2 and makes use of cgo.
-
-It makes use of some Go packages (just go get them before building):
-
-github.com/pkg/errors
-github.com/dgrijalva/jwt-go
-github.com/jmoiron/sqlx
-github.com/lib/pq
-github.com/go-redis/redis
-golang.org/x/crypto/pbkdf2
-
-You cant install all the dependencies with:
-
-```
-make requirements
-```
-
-
-Finally, it uses Redis for cache purposes.
 
 
 #### Configuration
