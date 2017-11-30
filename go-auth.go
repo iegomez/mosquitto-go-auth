@@ -153,6 +153,7 @@ func AuthUnpwdCheck(username, password string) bool {
 
 		if backend.GetUser(username, password) {
 			authenticated = true
+			log.Printf("user %s authenticated with backend %s\n", username, backend.GetName())
 			break
 		}
 	}
@@ -181,6 +182,7 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 
 		fmt.Printf("Superuser check with backend %s\n", backend.GetName())
 		if backend.GetSuperuser(username) {
+			log.Printf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
 			aclCheck = true
 			break
 		}
@@ -201,6 +203,7 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 
 			fmt.Printf("Acl check with backend %s\n", backend.GetName())
 			if backend.CheckAcl(username, topic, clientid, int32(acc)) {
+				log.Printf("user %s acl authenticated with backend %s\n", username, backend.GetName())
 				aclCheck = true
 				break
 			}

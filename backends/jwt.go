@@ -32,20 +32,6 @@ type Response struct {
 	Error string `json:"error"`
 }
 
-/*var allowedOpts = map[string]bool{
-	"remote":        true,
-	"secret":        true,
-	"method":        true,
-	"user_uri":      true,
-	"superuser_uri": true,
-	"acl_uri":       true,
-	"hostname":      true,
-	"port":          true,
-	"ip":            true,
-	"with_tls":      true,
-	"verify_peer":   true,
-}*/
-
 func NewJWT(authOpts map[string]string) (JWT, error) {
 
 	//Initialize with defaults
@@ -138,6 +124,7 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 
 func (o JWT) GetUser(token, password string) bool {
 
+	log.Printf("jwt getuser for %s\n", token)
 	if o.Remote {
 		dataMap := map[string]interface{}{
 			"password": token,
@@ -152,6 +139,7 @@ func (o JWT) GetUser(token, password string) bool {
 
 func (o JWT) GetSuperuser(token string) bool {
 
+	log.Printf("jwt superuser for %s\n", token)
 	if o.Remote {
 		var dataMap map[string]interface{}
 		return httpRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
@@ -164,6 +152,7 @@ func (o JWT) GetSuperuser(token string) bool {
 
 func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
+	log.Printf("jwt acl for %s\n", token)
 	if o.Remote {
 		dataMap := map[string]interface{}{
 			"clientid": clientid,
@@ -246,6 +235,7 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 		return false
 	}
 
+	log.Printf("jwt request approved for %s\n", token)
 	return true
 
 }

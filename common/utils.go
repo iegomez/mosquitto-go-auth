@@ -3,8 +3,11 @@ package common
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
+	"fmt"
+	"log"
 	"strconv"
 	"strings"
 
@@ -50,7 +53,7 @@ func match(route []string, topic []string) bool {
 // NOTE: We store the details of the hashing algorithm with the hash itself,
 // making it easy to recreate the hash for password checking, even if we change
 // the default criteria here.
-func hash(password string, saltSize int, iterations int) (string, error) {
+func Hash(password string, saltSize int, iterations int, algorithm string) (string, error) {
 	// Generate a random salt value, 128 bits.
 	salt := make([]byte, saltSize)
 	_, err := rand.Read(salt)
@@ -58,15 +61,21 @@ func hash(password string, saltSize int, iterations int) (string, error) {
 		return "", errors.Wrap(err, "read random bytes error")
 	}
 
-	return hashWithSalt(password, salt, iterations), nil
+	return hashWithSalt(password, salt, iterations, algorithm), nil
 }
 
-func hashWithSalt(password string, salt []byte, iterations int) string {
+func hashWithSalt(password string, salt []byte, iterations int, algorithm string) string {
 	// Generate the hash.  This should be a little painful, adjust ITERATIONS
 	// if it needs performance tweeking.  Greatly depends on the hardware.
 	// NOTE: We store these details with the returned hash, so changes will not
 	// affect our ability to do password compares.
-	hash := pbkdf2.Key([]byte(password), salt, iterations, sha512.Size, sha512.New)
+	shaSize := sha512.Size
+	shaHash := sha512.New
+	if algorithm == "sha256" {
+		shaSize = sha256.Size
+		shaHash = sha256.New
+	}
+	hash := pbkdf2.Key([]byte(password), salt, iterations, shaSize, shaHash)
 
 	// Build up the parameters and hash into a single string so we can compare
 	// other string to the same hash.  Note that the hash algorithm is hard-
@@ -75,7 +84,7 @@ func hashWithSalt(password string, salt []byte, iterations int) string {
 	var buffer bytes.Buffer
 
 	buffer.WriteString("PBKDF2$")
-	buffer.WriteString("sha512$")
+	buffer.WriteString(fmt.Sprintf("%s$", algorithm))
 	buffer.WriteString(strconv.Itoa(iterations))
 	buffer.WriteString("$")
 	buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
@@ -95,6 +104,8 @@ func HashCompare(password string, passwordHash string) bool {
 	// being compared.cre
 	iterations, _ := strconv.Atoi(hashSplit[2])
 	salt, _ := base64.StdEncoding.DecodeString(hashSplit[3])
-	newHash := hashWithSalt(password, salt, iterations)
+	algorithm := hashSplit[1]
+	newHash := hashWithSalt(password, salt, iterations, algorithm)
+	log.Printf("Comparing:\nnewHash: %s\npwHash: %s\n", newHash, passwordHash)
 	return newHash == passwordHash
 }

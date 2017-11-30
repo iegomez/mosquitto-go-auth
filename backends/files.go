@@ -140,7 +140,7 @@ func (o Files) readAcls() (int, error) {
 	//Set currentUser as empty string
 	currentUser := ""
 
-	file, fErr := os.Open(o.PasswordPath)
+	file, fErr := os.Open(o.AclPath)
 	defer file.Close()
 	if fErr != nil {
 		return linesCount, fmt.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
@@ -152,13 +152,15 @@ func (o Files) readAcls() (int, error) {
 
 	for scanner.Scan() {
 		index++
+		line := scanner.Text()
+
+		log.Printf("Read: %s %s\n", index, line)
 
 		//Check comment or empty line to skip them.
 		if checkCommentOrEmpty(scanner.Text()) {
+			log.Printf("Found empty line at %d\n", index)
 			continue
 		}
-
-		line := scanner.Text()
 
 		//If we see a user line, change the current user.
 		if strings.Contains(line, "user") {
@@ -217,6 +219,8 @@ func (o Files) readAcls() (int, error) {
 				} else {
 					o.AclRecords = append(o.AclRecords, aclRecord)
 				}
+
+				log.Printf("created aclrecord %v for user %s\n", aclRecord, currentUser)
 
 				linesCount++
 
@@ -278,6 +282,9 @@ func checkCommentOrEmpty(line string) bool {
 
 //GetUser checks that user exists and password is correct.
 func (o Files) GetUser(username, password string) bool {
+
+	log.Printf("checking user %s with pass %s\n", username, password)
+
 	fileUser, ok := o.Users[username]
 	if !ok {
 		log.Printf("no such user: %s\n", username)
@@ -302,6 +309,7 @@ func (o Files) GetSuperuser(username string) bool {
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
 func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If there are no acls, all access is allowed.
+	log.Printf("Files acl check with user %s, topic: %s, clientid: %s and acc: %d\n", username, topic, clientid, acc)
 	if !o.CheckAcls {
 		return true
 	}
@@ -312,6 +320,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
 			if common.TopicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
+				log.Printf("Files acl check passed.")
 				return true
 			}
 		}
@@ -321,11 +330,13 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 			aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
 			if common.TopicsMatch(aclTopic, topic) {
+				log.Printf("Files acl check passed.")
 				return true
 			}
 		}
 	}
 
+	log.Printf("Files acl check failed.")
 	return false
 
 }

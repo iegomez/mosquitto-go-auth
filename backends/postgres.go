@@ -214,7 +214,9 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	var acls []string
 
-	err := o.DB.Select(&acls, o.SuperuserQuery, username, acc)
+	log.Printf("PG superuser query: %s\n", o.AclQuery)
+
+	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
 		log.Printf("PG check acl error: %s\n", err)
