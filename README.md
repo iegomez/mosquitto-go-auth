@@ -13,7 +13,7 @@ As it was intended for use with @brocaar's Loraserver project (https://www.loras
 
 #### Build
 
-Building the project is fairly simple given that you meet the requirements. Just ran this command:
+Building the project is fairly simple given that you meet the requirements. Just run this command:
 
 ```
 go build -buildmode=c-shared -o go-auth.so
@@ -60,9 +60,18 @@ Also, set cache option to true to use redis cache:
 ```
 auth_opt_cache true
 ```
+Redis will use some default if no values are given. The following are possible configuration values for the cache:
 
+```
+auth_opt_cache_host localhost
+auth_opt_cache_port 6379
+auth_opt_cache_password pwd
+auth_opt_cache_db 0
+auth_opt_auth_cache_seconds 30
+auth_opt_acl_cache_seconds 30
+```
 
-Options therein with a leading ```auth_opt_``` are handed to the plugin.
+Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
 
 ### PostgreSQL
