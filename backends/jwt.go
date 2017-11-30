@@ -3,18 +3,26 @@ package backends
 import (
 	"bytes"
 	"crypto/tls"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
 )
 
 type JWT struct {
 	Remote bool
 
-	Secret string
+	Postgres       Postgres
+	Secret         string
+	UserQuery      string
+	SuperuserQuery string
+	AclQuery       string
 
 	Method       string
 	UserUri      string
@@ -25,6 +33,14 @@ type JWT struct {
 	Ip           string
 	WithTLS      bool
 	VerifyPeer   bool
+}
+
+// Claims defines the struct containing the token claims.
+type Claims struct {
+	jwt.StandardClaims
+
+	// Username defines the identity of the user.
+	Username string `json:"username"`
 }
 
 type Response struct {
@@ -108,15 +124,57 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 		}
 
 		if !remoteOk {
-			log.Fatalf("JWT backend error: missing options%s.\n", missingOpts)
+			log.Fatalf("JWT backend error: missing remote options%s.\n", missingOpts)
 		}
 
 	} else {
+
+		missingOpts := ""
+		localOk := true
+
 		if secret, ok := authOpts["jwt_secret"]; ok {
 			jwt.Secret = secret
 		} else {
 			log.Fatal("JWT backend error: missing jwt secret.\n")
 		}
+
+		if userQuery, ok := authOpts["jwt_userquery"]; ok {
+			jwt.UserQuery = userQuery
+		} else {
+			localOk = false
+			missingOpts += " jwt_userquery"
+		}
+
+		if superuserQuery, ok := authOpts["jwt_superquery"]; ok {
+			jwt.SuperuserQuery = superuserQuery
+		} else {
+			localOk = false
+			missingOpts += " jwt_superquery"
+		}
+
+		if aclQuery, ok := authOpts["jwt_aclquery"]; ok {
+			jwt.AclQuery = aclQuery
+		} else {
+			localOk = false
+			missingOpts += " jwt_aclquery"
+		}
+
+		if !localOk {
+			log.Fatalf("JWT backend error: missing local options%s.\n", missingOpts)
+		}
+
+		//Try to create a postgres backend with these custom queries.
+		postgres, err := NewPostgres(authOpts)
+		if err != nil {
+			log.Fatalf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+		}
+
+		postgres.UserQuery = jwt.UserQuery
+		postgres.SuperuserQuery = jwt.SuperuserQuery
+		postgres.AclQuery = jwt.AclQuery
+
+		jwt.Postgres = postgres
+
 	}
 
 	return jwt, nil
@@ -125,6 +183,7 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 func (o JWT) GetUser(token, password string) bool {
 
 	log.Printf("jwt getuser for %s\n", token)
+
 	if o.Remote {
 		dataMap := map[string]interface{}{
 			"password": token,
@@ -132,8 +191,14 @@ func (o JWT) GetUser(token, password string) bool {
 		return httpRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
-	//If not remote, just use the secret.
-	return false
+	//If not remote, get the claims and check against postgres for user.
+	claims, err := o.getClaims(token)
+
+	if err != nil {
+		log.Printf("jwt get user error: %s\n", err)
+	}
+	//Now check against postgres
+	return o.getLocalUser(claims.Username)
 
 }
 
@@ -145,8 +210,15 @@ func (o JWT) GetSuperuser(token string) bool {
 		return httpRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
-	//If not remote, just use the secret.
-	return false
+	//If not remote, get the claims and check against postgres for user.
+	claims, err := o.getClaims(token)
+
+	if err != nil {
+		log.Printf("jwt get superuser error: %s\n", err)
+		return false
+	}
+	//Now check against postgres
+	return o.Postgres.GetSuperuser(claims.Username)
 
 }
 
@@ -162,8 +234,15 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		return httpRequest(o.Method, o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
-	//If not remote, just use the secret.
-	return false
+	//If not remote, get the claims and check against postgres for user.
+	claims, err := o.getClaims(token)
+
+	if err != nil {
+		log.Printf("jwt check acl error: %s\n", err)
+		return false
+	}
+	//Now check against postgres
+	return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
 
 }
 
@@ -243,4 +322,55 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 //GetName return the backend's name
 func (o JWT) GetName() string {
 	return "JWT"
+}
+
+func (o JWT) getLocalUser(username string) bool {
+	//If there's no superuser query, return false.
+	if o.UserQuery == "" {
+		return false
+	}
+
+	var count sql.NullInt64
+	err := o.Postgres.DB.Get(&count, o.UserQuery, username)
+
+	if err != nil {
+		log.Printf("Local JWT get user error: %s\n", err)
+		return false
+	}
+
+	if !count.Valid {
+		log.Printf("Local JWT get user error: user %s not found.\n", username)
+		return false
+	}
+
+	if count.Int64 > 0 {
+		return true
+	}
+
+	return false
+}
+
+func (o JWT) getClaims(tokenStr string) (*Claims, error) {
+
+	jwtToken, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+		return []byte(o.Secret), nil
+	})
+
+	if err != nil {
+		log.Printf("jwt parse error: %s\n", err)
+		return nil, err
+	}
+
+	if !jwtToken.Valid {
+		return nil, errors.New("jwt invalid token")
+	}
+
+	claims, ok := jwtToken.Claims.(*Claims)
+	if !ok {
+		// no need to use a static error, this should never happen
+		log.Printf("api/auth: expected *Claims, got %T", jwtToken.Claims)
+		return nil, errors.New("got strange claims")
+	}
+
+	return claims, nil
 }
