@@ -2,6 +2,11 @@ package backends
 
 import (
 	"fmt"
+	"github.com/iegomez/mosquitto-go-auth-plugin/common"
+	"log"
+	"strconv"
+	"strings"
+
 	goredis "github.com/go-redis/redis"
 )
 
@@ -41,7 +46,7 @@ func NewRedis(authOpts map[string]string) (Redis, error) {
 		}
 	}
 
-	addr := fmt.Sprintf("%s:%s", cache.Host, cache.Port)
+	addr := fmt.Sprintf("%s:%s", redis.Host, redis.Port)
 
 	//Try to start redis.
 	goredisClient := goredis.NewClient(&goredis.Options{
@@ -82,7 +87,7 @@ func (o Redis) GetUser(username, password string) bool {
 //GetSuperuser checks that the key username:su exists and has value "true".
 func (o Redis) GetSuperuser(username string) bool {
 
-	isSuper, err := o.Conn.Get(fmt.Spintf("%s:su", username)).Result()
+	isSuper, err := o.Conn.Get(fmt.Sprintf("%s:su", username)).Result()
 
 	if err != nil {
 		log.Printf("Redis get superuser error: %s\n", err)
@@ -103,7 +108,7 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 	var acls []string
 	var err error
 
-	acls, err := o.Conn.SMembers(fmt.Sprintf("%s:acls", username)).Result()
+	acls, err = o.Conn.SMembers(fmt.Sprintf("%s:acls", username)).Result()
 
 	if err != nil {
 		log.Printf("Redis check acl error: %s\n", err)
