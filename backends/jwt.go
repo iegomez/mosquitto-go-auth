@@ -319,7 +319,7 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 
 }
 
-//GetName return the backend's name
+//GetName returns the backend's name
 func (o JWT) GetName() string {
 	return "JWT"
 }

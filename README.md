@@ -256,3 +256,11 @@ Queries will override postgre's backend ones when checking for JWT tokens. Optio
 auth_opt_jwt_userquery select count(*) from "user" where username = $1 and is_active = true limit 1
 ```
 
+
+### Redis
+
+The `redis` backend allows to check user, superuser and acls in a defined format. As with postgres and files, passwords hash must be stored and can be created with the `pw` utility.
+
+For user check, Redis must contain a KEY with the username and the password hash as a value:
+For superuser check, a user will be a superuser if there exists a KEY username:su and it return a string value "true".
+Normal and Wildcard acls are supported and are expected to be stored in a SET with KEY username:acls, with the members being the allowed acls following the conventional format (as in files).

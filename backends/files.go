@@ -338,7 +338,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 }
 
-//GetName return the backend's name
+//GetName returns the backend's name
 func (o Files) GetName() string {
 	return "Files"
 }

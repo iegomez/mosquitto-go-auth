@@ -235,7 +235,7 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 }
 
-//GetName return the backend's name
+//GetName returns the backend's name
 func (o Postgres) GetName() string {
 	return "Postgres"
 }
