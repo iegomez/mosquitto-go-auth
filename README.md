@@ -14,7 +14,7 @@ As it was intended for use with @brocaar's Loraserver project (https://www.loras
 
 ##### Important notes
 
-This plugin is not production ready and needs to be tested first. It's probably not even development ready, as there are some feature commits that haven't been at least manually tried. I'm building tests for it and will leave this disclaimer until it is properly tested.
+This plugin is not production ready. I'm building tests for it and will leave this disclaimer until it is properly tested.
 
 Any requests for backend implementations may be left in the issues with the feature tag.
 

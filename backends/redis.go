@@ -2,10 +2,11 @@ package backends
 
 import (
 	"fmt"
-	"github.com/iegomez/mosquitto-go-auth-plugin/common"
 	"log"
 	"strconv"
 	"strings"
+
+	"github.com/iegomez/mosquitto-go-auth-plugin/common"
 
 	goredis "github.com/go-redis/redis"
 )
@@ -24,7 +25,7 @@ func NewRedis(authOpts map[string]string) (Redis, error) {
 		Host:     "localhost",
 		Port:     "6379",
 		Password: "",
-		DB:       0,
+		DB:       1,
 	}
 
 	if redisHost, ok := authOpts["redis_host"]; ok {
@@ -40,13 +41,17 @@ func NewRedis(authOpts map[string]string) (Redis, error) {
 	}
 
 	if redisDB, ok := authOpts["redis_db"]; ok {
+		log.Printf("Found redis db %s\n", authOpts["redis_db"])
 		db, err := strconv.ParseInt(redisDB, 10, 32)
 		if err != nil {
 			redis.DB = int32(db)
 		}
+		log.Printf("Setting redis DB: %d\n", db)
 	}
 
 	addr := fmt.Sprintf("%s:%s", redis.Host, redis.Port)
+
+	log.Printf("starting redis client with db %d\n", redis.DB)
 
 	//Try to start redis.
 	goredisClient := goredis.NewClient(&goredis.Options{
@@ -57,7 +62,7 @@ func NewRedis(authOpts map[string]string) (Redis, error) {
 
 	_, err := goredisClient.Ping().Result()
 	if err != nil {
-		log.Fatalf("couldn't start Redis, defaulting to no cache. error: %s\n", err)
+		log.Fatalf("couldn't start redis backend. error: %s\n", err)
 	}
 
 	redis.Conn = goredisClient
@@ -68,6 +73,8 @@ func NewRedis(authOpts map[string]string) (Redis, error) {
 
 //GetUser checks that the username exists and the given password hashes to the same password.
 func (o Redis) GetUser(username, password string) bool {
+
+	log.Printf("Checking redis user with user %s and pass %s for conn %v.\n", username, password, o.Conn)
 
 	pwHash, err := o.Conn.Get(username).Result()
 
