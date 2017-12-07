@@ -33,6 +33,8 @@ type CommonData struct {
 	AuthCacheSeconds int64
 	UseCache         bool
 	RedisCache       *goredis.Client
+	CheckPrefix      bool
+	Prefixes         map[string]string
 }
 
 //Cache stores necessary values for Redis cache
@@ -75,6 +77,8 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		Superusers:       superusers,
 		AclCacheSeconds:  30,
 		AuthCacheSeconds: 30,
+		CheckPrefix:      false,
+		Prefixes:         make(map[string]string),
 	}
 
 	//First, get backends
@@ -194,6 +198,29 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	}
 
+	if checkPrefix, ok := authOpts["check_prefix"]; ok && checkPrefix == "true" {
+		//Check that backends match prefixes.
+		if prefixesStr, ok := authOpts["prefixes"]; ok {
+			prefixes = strings.Split(strings.Replace(prefixesStr, " ", "", -1), ",")
+			if len(prefixes) == len(backends) {
+				//Set prefixes
+				for i, backend := range backends {
+					commonData.Prefixes[prefixes[i]] = backend
+				}
+				commonData.CheckPrefix = true
+			} else {
+				log.Printf("Error: got %d backends and %d prefixes, defaulting to prefixes disabled.\n", len(backends), len(prefixes))
+				commonData.CheckPrefix = false
+			}
+
+		} else {
+			log.Println("Error: prefixes enabled but no options given, defaulting to prefixes disabled.")
+			commonData.CheckPrefix = false
+		}
+	} else {
+		commonData.CheckPrefix = false
+	}
+
 }
 
 //export AuthUnpwdCheck
@@ -213,25 +240,30 @@ func AuthUnpwdCheck(username, password string) bool {
 		}
 	}
 
-	for _, bename := range backends {
+	//If prefixes are enabled, checkt if username has a valid prefix and use the correct backend if so.
+	if commonData.CheckPrefix {
+		validPrefix, bename := CheckPrefix(username)
+		if validPrefix {
+			if bename == "postgres" {
+				backend = commonData.Postgres
+			} else if bename == "jwt" {
+				backend = commonData.Jwt
+			} else if bename == "files" {
+				backend = commonData.Files
+			} else if bename == "redis" {
+				backend = commonData.Redis
+			}
 
-		var backend Backend
-
-		if bename == "postgres" {
-			backend = commonData.Postgres
-		} else if bename == "jwt" {
-			backend = commonData.Jwt
-		} else if bename == "files" {
-			backend = commonData.Files
-		} else if bename == "redis" {
-			backend = commonData.Redis
+			if backend.GetUser(username, password) {
+				authenticated = true
+				log.Printf("user %s authenticated with backend %s\n", username, backend.GetName())
+			}
+		} else {
+			//If there's no valid prefix, check all backends.
+			CheckBackendsAuth(username, password, &authenticated)
 		}
-
-		if backend.GetUser(username, password) {
-			authenticated = true
-			log.Printf("user %s authenticated with backend %s\n", username, backend.GetName())
-			break
-		}
+	} else {
+		CheckBackendsAuth(username, password, &authenticated)
 	}
 
 	if commonData.UseCache {
@@ -261,34 +293,11 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		}
 	}
 
-	//Check superusers first
-
-	for _, bename := range backends {
-
-		var backend Backend
-
-		if bename == "postgres" {
-			backend = commonData.Postgres
-		} else if bename == "jwt" {
-			backend = commonData.Jwt
-		} else if bename == "files" {
-			backend = commonData.Files
-		} else if bename == "redis" {
-			backend = commonData.Redis
-		}
-
-		fmt.Printf("Superuser check with backend %s\n", backend.GetName())
-		if backend.GetSuperuser(username) {
-			log.Printf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
-			aclCheck = true
-			break
-		}
-	}
-
-	if !aclCheck {
-		for _, bename := range backends {
-
-			var backend Backend
+	//If prefixes are enabled, checkt if username has a valid prefix and use the correct backend if so.
+	//Else, check all backends.
+	if commonData.CheckPrefix {
+		validPrefix, bename := CheckPrefix(username)
+		if validPrefix {
 
 			if bename == "postgres" {
 				backend = commonData.Postgres
@@ -300,13 +309,27 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				backend = commonData.Redis
 			}
 
-			fmt.Printf("Acl check with backend %s\n", backend.GetName())
-			if backend.CheckAcl(username, topic, clientid, int32(acc)) {
-				log.Printf("user %s acl authenticated with backend %s\n", username, backend.GetName())
+			fmt.Printf("Superuser check with backend %s\n", backend.GetName())
+			if backend.GetSuperuser(username) {
+				log.Printf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
 				aclCheck = true
-				break
 			}
+
+			//If not superuser, check acl.
+			if !aclCheck {
+				fmt.Printf("Acl check with backend %s\n", backend.GetName())
+				if backend.CheckAcl(username, topic, clientid, int32(acc)) {
+					log.Printf("user %s acl authenticated with backend %s\n", username, backend.GetName())
+					aclCheck = true
+				}
+			}
+
+		} else {
+			//If there's no valid prefix, check all backends.
+			CheckBackendsAcl(username, &aclCheck)
 		}
+	} else {
+		CheckBackendsAcl(username, &aclCheck)
 	}
 
 	if commonData.UseCache {
@@ -376,6 +399,94 @@ func SetAclCache(username, topic, clientid string, acc int, granted string) erro
 	}
 
 	return nil
+}
+
+//CheckPrefix checks if a username contains a valid prefix. If so, returns ok and the suitable backend name; else, !ok and empty string.
+func CheckPrefix(username) (bool, string) {
+	if strings.Index(username, "_") > 0 {
+		userPrefix := username[0:strings.Index(username, "_")]
+		if prefix, ok := commonData.Prefixes[userPrefix]; ok {
+			return true, prefix
+		}
+	}
+	return false, ""
+}
+
+//CheckBackendsAuth checks for all backends if a username is authenticated and sets the authenticated param.
+func CheckBackendsAuth(username, password string, authenticated *bool) {
+
+	for _, bename := range backends {
+
+		var backend Backend
+
+		if bename == "postgres" {
+			backend = commonData.Postgres
+		} else if bename == "jwt" {
+			backend = commonData.Jwt
+		} else if bename == "files" {
+			backend = commonData.Files
+		} else if bename == "redis" {
+			backend = commonData.Redis
+		}
+
+		if backend.GetUser(username, password) {
+			authenticated = true
+			log.Printf("user %s authenticated with backend %s\n", username, backend.GetName())
+			break
+		}
+	}
+
+}
+
+//CheckBackendsAcl  checks for all backends if a username is superuser or has acl rights and sets the aclCheck param.
+func CheckBackendsAcl(username string, aclCheck *bool) {
+	//Check superusers first
+
+	for _, bename := range backends {
+
+		var backend Backend
+
+		if bename == "postgres" {
+			backend = commonData.Postgres
+		} else if bename == "jwt" {
+			backend = commonData.Jwt
+		} else if bename == "files" {
+			backend = commonData.Files
+		} else if bename == "redis" {
+			backend = commonData.Redis
+		}
+
+		fmt.Printf("Superuser check with backend %s\n", backend.GetName())
+		if backend.GetSuperuser(username) {
+			log.Printf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
+			aclCheck = true
+			break
+		}
+	}
+
+	if !aclCheck {
+		for _, bename := range backends {
+
+			var backend Backend
+
+			if bename == "postgres" {
+				backend = commonData.Postgres
+			} else if bename == "jwt" {
+				backend = commonData.Jwt
+			} else if bename == "files" {
+				backend = commonData.Files
+			} else if bename == "redis" {
+				backend = commonData.Redis
+			}
+
+			fmt.Printf("Acl check with backend %s\n", backend.GetName())
+			if backend.CheckAcl(username, topic, clientid, int32(acc)) {
+				log.Printf("user %s acl authenticated with backend %s\n", username, backend.GetName())
+				aclCheck = true
+				break
+			}
+		}
+	}
 }
 
 func main() {}

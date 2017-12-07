@@ -10,7 +10,13 @@ As it was intended for use with @brocaar's Loraserver project (https://www.loras
 * Files
 * PostgreSQL
 * JWT (with local DB or remote json api)
+* Redis
 
+##### Important notes
+
+This plugin is not production ready and needs to be tested first. It's probably not even development ready, as there are some even manually untested commits. I'm building tests for it and will leave this disclaimer until it is properly tested.
+
+Any requests for backend implementations may be left in the issued with the feature tag.
 
 #### Requirements
 
@@ -45,6 +51,7 @@ make
 The plugin is configured in [Mosquitto]'s configuration file (typically `mosquitto.conf`),
 and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 
+##### General options
 
 ```
 auth_plugin /path/to/auth-plug.so
@@ -71,6 +78,20 @@ auth_opt_cache_db 0
 auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
+
+##### Prefixes
+
+Though the plugin may have multiple backends enabled, there's a way to specify which backends must be used for a given user: prefixes. When enabled, prefixes allows to check if the username contains a predefined prefix in the form prefix_rest_of_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
+
+```
+auth_opt_check_prefix true
+auth_opt_prefixes filesprefix, pgprefix, jwtprefix
+```
+
+Prefixes must meet the backends' order and number. If amounts don't match, the plugin will default to prefixes disabled.
+Underscores (\_) are not allowed in the prefixes, as a username's prefix will be checked against the first underscore's index. Of course, if a username has no underscore or valid prefix, it'll be checked against all backends.
+
+##### Backend options
 
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
