@@ -5,12 +5,13 @@ import (
 	"crypto/tls"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/pkg/errors"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
@@ -124,7 +125,7 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 		}
 
 		if !remoteOk {
-			log.Fatalf("JWT backend error: missing remote options%s.\n", missingOpts)
+			return jwt, errors.Errorf("JWT backend error: missing remote options%s.\n", missingOpts)
 		}
 
 	} else {
@@ -135,7 +136,7 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 		if secret, ok := authOpts["jwt_secret"]; ok {
 			jwt.Secret = secret
 		} else {
-			log.Fatal("JWT backend error: missing jwt secret.\n")
+			return jwt, errors.New("JWT backend error: missing jwt secret.\n")
 		}
 
 		if userQuery, ok := authOpts["jwt_userquery"]; ok {
@@ -160,13 +161,13 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 		}
 
 		if !localOk {
-			log.Fatalf("JWT backend error: missing local options%s.\n", missingOpts)
+			return jwt, errors.Errorf("JWT backend error: missing local options%s.\n", missingOpts)
 		}
 
 		//Try to create a postgres backend with these custom queries.
 		postgres, err := NewPostgres(authOpts)
 		if err != nil {
-			log.Fatalf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+			return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
 		}
 
 		postgres.UserQuery = jwt.UserQuery

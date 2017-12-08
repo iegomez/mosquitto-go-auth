@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/iegomez/mosquitto-go-auth-plugin/common"
 )
 
@@ -51,7 +53,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 	if passwordPath, ok := authOpts["password_path"]; ok {
 		files.PasswordPath = passwordPath
 	} else {
-		log.Fatal("Files backend error: no password path given.\n")
+		return files, errors.New("Files backend error: no password path given.\n")
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {
@@ -65,7 +67,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 	//Now initialize FileUsers by reading from password and acl files.
 	uCount, uErr := files.readPasswords()
 	if uErr != nil {
-		log.Fatalf("Fatal: %s\n", uErr)
+		return files, errors.Errorf("Fatal: %s\n", uErr)
 	} else {
 		log.Printf("Got %d users from passwords file.\n", uCount)
 	}
@@ -74,7 +76,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 	if files.CheckAcls {
 		aclCount, aclErr := files.readAcls()
 		if aclErr != nil {
-			log.Fatalf("Fatal: %s\n", aclErr)
+			return files, errors.Errorf("Fatal: %s\n", aclErr)
 		} else {
 			log.Printf("Got %d lines from acl file.\n", aclCount)
 		}
@@ -143,7 +145,7 @@ func (o Files) readAcls() (int, error) {
 	file, fErr := os.Open(o.AclPath)
 	defer file.Close()
 	if fErr != nil {
-		return linesCount, fmt.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
+		return linesCount, errors.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
 	}
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -170,15 +172,13 @@ func (o Files) readAcls() (int, error) {
 
 				//Check that user exists
 				if !ok {
-					log.Fatalf("Files backend error: user %s does not exist for acl at line %d\n", lineArr[1], index)
-
+					return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d\n", lineArr[1], index)
 				}
 
 				currentUser = lineArr[1]
 
 			} else {
-				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
-
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 			}
 		} else if strings.Contains(line, "topic") {
 
@@ -205,7 +205,7 @@ func (o Files) readAcls() (int, error) {
 					} else if lineArr[1] == "readwrite" {
 						aclRecord.Acc = 0x03
 					} else {
-						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 					}
 				}
 
@@ -222,7 +222,7 @@ func (o Files) readAcls() (int, error) {
 				linesCount++
 
 			} else {
-				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 			}
 
 		} else if strings.Contains(line, "pattern") {
@@ -250,7 +250,7 @@ func (o Files) readAcls() (int, error) {
 					} else if lineArr[1] == "readwrite" {
 						aclRecord.Acc = 0x03
 					} else {
-						log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 					}
 				}
 
@@ -260,7 +260,7 @@ func (o Files) readAcls() (int, error) {
 				linesCount++
 
 			} else {
-				log.Fatalf("Files backend error: wrong acl format at line %d\n", index)
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 			}
 
 		}

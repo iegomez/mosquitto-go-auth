@@ -127,7 +127,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		}
 
 		if bErr != nil {
-			log.Printf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+			log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 		} else {
 			log.Printf("Backend registered: %s\n", beIface.GetName())
 		}

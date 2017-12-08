@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 
 	"github.com/iegomez/mosquitto-go-auth-plugin/common"
 )
@@ -111,7 +112,7 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 
 	//Exit if any mandatory option is missing.
 	if !pgOk {
-		log.Fatalf("PG backend error: missing options%s.\n", missingOptions)
+		return postgres, errors.Errorf("PG backend error: missing options%s.\n", missingOptions)
 	}
 
 	//Build the dsn string and try to connect to the DB.
@@ -127,7 +128,7 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 	postgres.DB, dbErr = OpenDatabase(connStr)
 
 	if dbErr != nil {
-		log.Fatalf("PG backend error: couldn't open DB: %s\n", dbErr)
+		return postgres, errors.Errorf("PG backend error: couldn't open DB: %s\n", dbErr)
 	}
 
 	return postgres, nil
@@ -213,8 +214,6 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 	}
 
 	var acls []string
-
-	log.Printf("PG superuser query: %s\n", o.AclQuery)
 
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
