@@ -3,9 +3,9 @@ Auth methods plugin for mosquitto using Go and cgo
 
 #### Intro
 
-This is an authentication plugin for mosquitto written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in @jpmens mosquitto-auth-plug (https://github.com/jpmens/mosquitto-auth-plug).
+This is an authentication plugin for mosquitto written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in [jpmens]'(https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
 
-As it was intended for use with @brocaar's Loraserver project (https://www.loraserver.io/), right now it only implements a few backends for authentication and authorization, namely those that make sense for that project:
+As it was intended for use with [brocaar]'s(https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), right now it only implements a few backends for authentication and authorization, namely those that make sense for that project:
 
 * Files
 * PostgreSQL
@@ -48,7 +48,7 @@ make
 
 #### Configuration
 
-The plugin is configured in [Mosquitto]'s configuration file (typically `mosquitto.conf`),
+The plugin is configured in [Mosquitto]'s(https://mosquitto.org/) configuration file (typically `mosquitto.conf`),
 and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 
 ##### General options
