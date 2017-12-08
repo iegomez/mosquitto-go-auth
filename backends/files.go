@@ -47,7 +47,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 		AclPath:      "",
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
-		AclRecords:   make([]AclRecord, 5, 5),
+		AclRecords:   make([]AclRecord, 0, 0),
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
@@ -124,7 +124,7 @@ func (o Files) readPasswords() (int, error) {
 			usersCount++
 			fileUser = &FileUser{
 				Password:   lineArr[1],
-				AclRecords: make([]AclRecord, 3, 3),
+				AclRecords: make([]AclRecord, 0, 0),
 			}
 			o.Users[lineArr[0]] = fileUser
 		}
@@ -135,7 +135,7 @@ func (o Files) readPasswords() (int, error) {
 }
 
 //ReadAcls reads the Acl file and associates them to existing users. It omits any non existing users.
-func (o Files) readAcls() (int, error) {
+func (o *Files) readAcls() (int, error) {
 
 	linesCount := 0
 
@@ -255,6 +255,7 @@ func (o Files) readAcls() (int, error) {
 				}
 
 				//Append to general acls.
+				log.Printf("Added common acl: %s\n", aclRecord.Topic)
 				o.AclRecords = append(o.AclRecords, aclRecord)
 
 				linesCount++
@@ -307,13 +308,14 @@ func (o Files) GetSuperuser(username string) bool {
 func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If there are no acls, all access is allowed.
 	log.Printf("Files acl check with user %s, topic: %s, clientid: %s and acc: %d\n", username, topic, clientid, acc)
+	log.Printf("Common acls are: %v\b", o.AclRecords)
 	if !o.CheckAcls {
 		return true
 	}
 
 	fileUser, ok := o.Users[username]
 
-	//If user exists, check against his acls. If not, check against common acls.
+	//If user exists, check against his acls and common ones. If not, check against common acls only.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
 			if common.TopicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
@@ -321,15 +323,16 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 				return true
 			}
 		}
-	} else {
-		for _, aclRecord := range o.AclRecords {
-			//Replace all occurrences of %c for clientid and %u for username
-			aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
-			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-			if common.TopicsMatch(aclTopic, topic) {
-				log.Printf("Files acl check passed.")
-				return true
-			}
+	}
+	for _, aclRecord := range o.AclRecords {
+		log.Printf("Topic is: %s\n", aclRecord)
+		//Replace all occurrences of %c for clientid and %u for username
+		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
+		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
+		log.Printf("Checking %s against acl %s\n", topic, aclTopic)
+		if common.TopicsMatch(aclTopic, topic) && acc <= int32(aclRecord.Acc) {
+			log.Printf("Files acl check passed.")
+			return true
 		}
 	}
 

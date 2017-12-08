@@ -1,0 +1,12 @@
+user test1
+topic write test/topic/1
+topic read test/topic/2
+
+user test2
+topic read test/topic/+
+
+user test3
+topic read test/#
+
+pattern read test/%u
+pattern read test/%c
