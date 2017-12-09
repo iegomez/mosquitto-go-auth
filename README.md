@@ -292,6 +292,21 @@ When set as remote false, the backend will try to validate JWT tokens against a 
 | jwt_superquery   |                   |     Y       | SQL for superusers
 | jwt_aclquery     |                   |     Y       | SQL for ACLs
 
+Also, as it uses the postgres backend for local auth, the following postgres options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery) need not to be correct if the postgres backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:
+
+| Option         		| default           |  Mandatory  | Meaning                  |
+| -------------- 		| ----------------- | :---------: | ------------------------ |
+| pg_host           | localhost         |             | hostname/address
+| pg_port           | 5432              |             | TCP port
+| pg_user           |                   |     Y       | username
+| pg_password       |                   |     Y       | password
+| pg_dbname         |                   |     Y       | database name
+| pg_userquery      |                   |     Y       | SQL for users
+| pg_superquery     |                   |     Y       | SQL for superusers
+| pg_aclquery       |                   |             | SQL for ACLs
+
+
+
 Queries will override postgre's backend ones when checking for JWT tokens. Options for the queries are the same except for the user query, which now expects an integer result instead of a password hash, as the JWT token needs no password checking. An example of a different query using the same DB is given for the user query.
 
 ```
