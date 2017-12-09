@@ -12,11 +12,9 @@ As it was intended for use with [brocaar's](https://github.com/brocaar) [Loraser
 * JWT (with local DB or remote json api)
 * Redis
 
-##### Important notes
+All backends include proper tests, though they may be improved.
 
-This plugin is not production ready. I'm building tests for it and will leave this disclaimer until it is properly tested.
-
-Any requests for backend implementations may be left in the issues with the feature tag.
+I'm working on including a Mysql backend right now, and any requests for other backend implementations may be left in the issues with the feature tag.
 
 #### Requirements
 
