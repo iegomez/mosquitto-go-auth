@@ -57,7 +57,7 @@ and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 auth_plugin /path/to/auth-plug.so
 ```
 
-Remember to register the desired nackends with:
+Remember to register the desired backends with:
 
 ```
 auth_opt_backends files, postgres, jwt
@@ -144,7 +144,7 @@ SELECT COALESCE(COUNT(*),0) FROM account WHERE username = $1 AND super = 1
 ```
 
 The SQL query for checking ACLs is optional, but if it is specified, the
-`mysql` back-end can try to limit access to particular topics or topic branches
+`postgres` backend can try to limit access to particular topics or topic branches
 depending on the value of a database table. The query MAY return zero or more
 rows for a particular user, each returning EXACTLY one column containing a
 topic (wildcards are supported). A single `'$1`' in the query string is

@@ -186,9 +186,7 @@ func (o JWT) GetUser(token, password string) bool {
 	log.Printf("jwt getuser for %s\n", token)
 
 	if o.Remote {
-		dataMap := map[string]interface{}{
-			"password": token,
-		}
+		var dataMap map[string]interface{}
 		return httpRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
