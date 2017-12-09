@@ -1,4 +1,4 @@
-# mosquitto-go-auth-plugin
+# mosquitto-go-auth
 Auth methods plugin for mosquitto using Go and cgo
 
 #### Intro
