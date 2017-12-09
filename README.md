@@ -171,6 +171,52 @@ auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" 
 
 ```
 
+#### Testing Postgres
+
+In order to test the postgres backend, a simple DB with name, user and password "go_auth_test" is expected, and the table definitions are the following:
+
+Table "public.test_user"
+    Column     |          Type          |                       Modifiers                        | Storage  | Stats target | Description 
+---------------+------------------------+--------------------------------------------------------+----------+--------------+-------------
+ id            | bigint                 | not null default nextval('test_user_id_seq'::regclass) | plain    |              | 
+ username      | character varying(100) | not null                                               | extended |              | 
+ password_hash | character varying(200) | not null                                               | extended |              | 
+ is_admin      | boolean                | not null                                               | plain    |              | 
+Indexes:
+    "test_user_pkey" PRIMARY KEY, btree (id)
+Referenced by:
+    TABLE "test_acl" CONSTRAINT "test_acl_test_user_id_fkey" FOREIGN KEY (test_user_id) REFERENCES test_user(id) ON DELETE CASCADE
+
+
+Table "public.test_acl"
+    Column    |          Type          |                       Modifiers                       | Storage  | Stats target | Description 
+--------------+------------------------+-------------------------------------------------------+----------+--------------+-------------
+ id           | bigint                 | not null default nextval('test_acl_id_seq'::regclass) | plain    |              | 
+ test_user_id | bigint                 | not null                                              | plain    |              | 
+ topic        | character varying(200) | not null                                              | extended |              | 
+ rw           | integer                | not null                                              | plain    |              | 
+Indexes:
+    "test_acl_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "test_acl_test_user_id_fkey" FOREIGN KEY (test_user_id) REFERENCES test_user(id) ON DELETE CASCADE
+
+
+The tables may be created with these commands:
+
+create table test_user(
+id bigserial primary key,
+username character varying (100) not null,
+password_hash character varying (200) not null,
+is_admin boolean not null);
+
+
+create table test_acl(
+id bigserial primary key,
+test_user_id bigint not null references test_user on delete cascade,
+topic character varying (200) not null,
+rw int not null);
+
+
 ### Files
 
 The files backend attempts to re-implement the files behavior in vanilla Mosquitto, however the user's password file contains PBKDF2 passwords instead of passwords hashed with the `mosquitto-passwd` program; you may use the `pw` utility included in the plugin or build your own. Check pw-gen dir to check `pw` flags.
@@ -274,6 +320,11 @@ Queries will override postgre's backend ones when checking for JWT tokens. Optio
 ```
 auth_opt_jwt_userquery select count(*) from "user" where username = $1 and is_active = true limit 1
 ```
+
+
+#### Testing JWT
+
+This backend expects the same test DB from the Postgres test suite.
 
 
 ### Redis
