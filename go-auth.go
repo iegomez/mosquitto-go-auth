@@ -12,7 +12,7 @@ import (
 	b64 "encoding/base64"
 
 	goredis "github.com/go-redis/redis"
-	bes "github.com/iegomez/mosquitto-go-auth-plugin/backends"
+	bes "github.com/iegomez/mosquitto-go-auth/backends"
 )
 
 type Backend interface {

@@ -8,7 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/iegomez/mosquitto-go-auth-plugin/common"
+	"github.com/iegomez/mosquitto-go-auth/common"
 
 	goredis "github.com/go-redis/redis"
 )

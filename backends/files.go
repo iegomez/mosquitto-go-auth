@@ -9,7 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/iegomez/mosquitto-go-auth-plugin/common"
+	"github.com/iegomez/mosquitto-go-auth/common"
 )
 
 // saltSize defines the salt size

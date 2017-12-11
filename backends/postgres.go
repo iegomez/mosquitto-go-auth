@@ -11,7 +11,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
 
-	"github.com/iegomez/mosquitto-go-auth-plugin/common"
+	"github.com/iegomez/mosquitto-go-auth/common"
 )
 
 //Postgres holds all fields of the postgres db connection.

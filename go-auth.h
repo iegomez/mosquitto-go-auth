@@ -1,6 +1,6 @@
 /* Created by "go tool cgo" - DO NOT EDIT. */
 
-/* package github.com/iegomez/mosquitto-go-auth-plugin */
+/* package github.com/iegomez/mosquitto-go-auth */
 
 /* Start of preamble from import "C" comments.  */
 
