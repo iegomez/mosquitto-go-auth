@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -125,7 +124,7 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 	}
 
 	var dbErr error
-	postgres.DB, dbErr = OpenDatabase(connStr)
+	postgres.DB, dbErr = common.OpenDatabase(connStr, "postgres")
 
 	if dbErr != nil {
 		return postgres, errors.Errorf("PG backend error: couldn't open DB: %s\n", dbErr)
@@ -133,24 +132,6 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 
 	return postgres, nil
 
-}
-
-// OpenDatabase opens the database and performs a ping to make sure the
-// database is up.
-func OpenDatabase(dsn string) (*sqlx.DB, error) {
-	db, err := sqlx.Open("postgres", dsn)
-	if err != nil {
-		return nil, fmt.Errorf("database connection error: %s", err)
-	}
-	for {
-		if err := db.Ping(); err != nil {
-			log.Printf("ping database error, will retry in 2s: %s", err)
-			time.Sleep(2 * time.Second)
-		} else {
-			break
-		}
-	}
-	return db, nil
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.

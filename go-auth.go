@@ -28,6 +28,7 @@ type CommonData struct {
 	Files            bes.Files
 	Jwt              bes.JWT
 	Redis            bes.Redis
+	Mysql            bes.Mysql
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -51,6 +52,7 @@ var allowedBackends = map[string]bool{
 	"redis":    true,
 	"http":     true,
 	"files":    true,
+	"mysql":    true,
 }
 var backends []string
 var authOpts map[string]string
@@ -124,6 +126,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else if bename == "redis" {
 			beIface, bErr = bes.NewRedis(authOpts)
 			commonData.Redis = beIface.(bes.Redis)
+		} else if bename == "mysql" {
+			beIface, bErr = bes.NewMysql(authOpts)
+			commonData.Mysql = beIface.(bes.Mysql)
 		}
 
 		if bErr != nil {
@@ -256,6 +261,8 @@ func AuthUnpwdCheck(username, password string) bool {
 				backend = commonData.Files
 			} else if bename == "redis" {
 				backend = commonData.Redis
+			} else if bename == "mysql" {
+				backend = commonData.Mysql
 			}
 
 			if backend.GetUser(username, password) {
@@ -313,6 +320,8 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				backend = commonData.Files
 			} else if bename == "redis" {
 				backend = commonData.Redis
+			} else if bename == "mysql" {
+				backend = commonData.Mysql
 			}
 
 			log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -438,6 +447,8 @@ func CheckBackendsAuth(username, password string) bool {
 			backend = commonData.Files
 		} else if bename == "redis" {
 			backend = commonData.Redis
+		} else if bename == "mysql" {
+			backend = commonData.Mysql
 		}
 
 		if backend.GetUser(username, password) {
@@ -469,6 +480,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			backend = commonData.Files
 		} else if bename == "redis" {
 			backend = commonData.Redis
+		} else if bename == "mysql" {
+			backend = commonData.Mysql
 		}
 
 		log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -492,6 +505,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 				backend = commonData.Files
 			} else if bename == "redis" {
 				backend = commonData.Redis
+			} else if bename == "mysql" {
+				backend = commonData.Mysql
 			}
 
 			log.Printf("Acl check with backend %s\n", backend.GetName())

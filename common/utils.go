@@ -7,12 +7,34 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/pbkdf2"
+
+	"github.com/jmoiron/sqlx"
 )
+
+// OpenDatabase opens the database and performs a ping to make sure the
+// database is up.
+func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
+	db, err := sqlx.Open(engine, dsn)
+	if err != nil {
+		return nil, fmt.Errorf("database connection error: %s", err)
+	}
+	for {
+		if err := db.Ping(); err != nil {
+			log.Printf("ping database error, will retry in 2s: %s", err)
+			time.Sleep(2 * time.Second)
+		} else {
+			break
+		}
+	}
+	return db, nil
+}
 
 func TopicsMatch(savedTopic, givenTopic string) bool {
 	return givenTopic == savedTopic || match(strings.Split(savedTopic, "/"), strings.Split(givenTopic, "/"))
