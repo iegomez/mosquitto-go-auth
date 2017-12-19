@@ -10,11 +10,10 @@ As it was intended for use with [brocaar's](https://github.com/brocaar) [Loraser
 * Files
 * PostgreSQL
 * JWT (with local DB or remote json api)
-* Redis
+* Redis (added)
+* Mysql (added)
 
 All backends include proper tests, though they may be improved.
-
-I'm working on including a Mysql backend right now, and any requests for other backend implementations may be left in the issues with the feature tag.
 
 #### Requirements
 
@@ -119,7 +118,7 @@ The following `auth_opt_` options are supported:
 | pg_sslkey         |                   |             | SSL/TLS Client Cert. Key
 | pg_sslrootcert    |                   |             | SSL/TLS Root Cert
 
-Depending on the sslmode given, cert, key and rootcert will be used. Options for sslmode are:
+Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
 disable - No SSL
 require - Always SSL (skip verification)
@@ -207,7 +206,7 @@ rw int not null);
 ```
 
 
-### Mysql (work in progress)
+### Mysql
 
 The `mysql` backend works almost exactly as the `postgres` one, except for a couple of configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If unix socket is the selected protocol, then a socket path must be given:
 
@@ -218,7 +217,7 @@ auth_opt_mysql_socket /path/to/socket
 
 The default protocol when the option is missing will be tcp, even if a socket path is given.
 
-Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, cert, key and rootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
+Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, sslcert, sslkey and sslrootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
 
 Also, default host `localhost` and port 3306 will be used if none are given.
 

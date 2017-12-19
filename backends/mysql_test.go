@@ -22,9 +22,9 @@ func TestMysql(t *testing.T) {
 	authOpts["mysql_dbname"] = "go_auth_test"
 	authOpts["mysql_user"] = "go_auth_test"
 	authOpts["mysql_password"] = "go_auth_test"
-	authOpts["mysql_userquery"] = "SELECT password_hash FROM test_user WHERE username = $1 limit 1"
-	authOpts["mysql_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
-	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
+	authOpts["mysql_userquery"] = "SELECT password_hash FROM test_user WHERE username = ? limit 1"
+	authOpts["mysql_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
+	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
 
 	Convey("Given valid params NewMysql should return a Mysql backend instance", t, func() {
 		mysql, err := NewMysql(authOpts)
@@ -124,7 +124,7 @@ func TestMysql(t *testing.T) {
 
 		//Now check against patterns.
 
-		aqErr = mysql.DB.Get(&aclID, aclQuery, userID, userPattern, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, userPattern, 1)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
@@ -132,7 +132,7 @@ func TestMysql(t *testing.T) {
 			So(tt1, ShouldBeTrue)
 		})
 
-		aqErr = mysql.DB.Get(&aclID, aclQuery, userID, clientPattern, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, clientPattern, 1)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
@@ -142,7 +142,7 @@ func TestMysql(t *testing.T) {
 
 		//Now insert single level topic to check against.
 
-		aqErr = mysql.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, singleLevelAcl, 1)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
@@ -152,7 +152,7 @@ func TestMysql(t *testing.T) {
 
 		//Now insert hierarchy wildcard to check against.
 
-		aqErr = mysql.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, hierarchyAcl, 1)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {

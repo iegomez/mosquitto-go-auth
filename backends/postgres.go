@@ -91,6 +91,12 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 
 	checkSSL := true
 
+	if sslmode, ok := authOpts["pg_sslmode"]; ok {
+		postgres.SSLMode = sslmode
+	} else {
+		postgres.SSLMode = "disable"
+	}
+
 	if sslCert, ok := authOpts["pg_sslcert"]; ok {
 		postgres.SSLCert = sslCert
 	} else {
@@ -117,8 +123,10 @@ func NewPostgres(authOpts map[string]string) (Postgres, error) {
 	//Build the dsn string and try to connect to the DB.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
-	if checkSSL {
+	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
 		connStr = fmt.Sprintf("%s sslmode=verify-ca sslcert=%s sslkey=%s sslrootcert=%s", connStr, postgres.SSLCert, postgres.SSLKey, postgres.SSLRootCert)
+	} else if postgres.SSLMode == "required" {
+		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	} else {
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
