@@ -21,11 +21,13 @@ import (
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
 func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
+	log.Printf("Attemting to connecto to %s with dsn: \n%s\n", engine, dsn)
 	db, err := sqlx.Open(engine, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("database connection error: %s", err)
 	}
-	for {
+	//Try connecting up to 3 times.
+	for i := 0; i < 3; i++ {
 		if err := db.Ping(); err != nil {
 			log.Printf("ping database error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)

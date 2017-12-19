@@ -1,8 +1,9 @@
 package backends
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestMysql(t *testing.T) {

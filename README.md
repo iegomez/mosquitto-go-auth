@@ -114,9 +114,18 @@ The following `auth_opt_` options are supported:
 | pg_userquery      |                   |     Y       | SQL for users
 | pg_superquery     |                   |     Y       | SQL for superusers
 | pg_aclquery       |                   |             | SQL for ACLs
+| pg_sslmode        |     disable       |             | SSL/TLS mode.
 | pg_sslcert        |                   |             | SSL/TLS Client Cert.
 | pg_sslkey         |                   |             | SSL/TLS Client Cert. Key
 | pg_sslrootcert    |                   |             | SSL/TLS Root Cert
+
+Depending on the sslmode given, cert, key and rootcert will be used. Options for sslmode are:
+
+disable - No SSL
+require - Always SSL (skip verification)
+verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
+verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
+
 
 The SQL query for looking up a user's password hash is mandatory. The query
 MUST return a single row only (any other number of rows is considered to be
@@ -130,15 +139,14 @@ SELECT pass FROM account WHERE username = $1 limit 1
 
 The SQL query for checking whether a user is a _superuser_ - and thus
 circumventing ACL checks - is optional. If it is specified, the query MUST
-return a single row with a single value: 0 is false and 1 is true. We recommend
-using a `SELECT COALESCE(COUNT(*),0) FROM ...` for this query as it satisfies
-both conditions. ). A single `'$1`' in the query string is replaced by the
+return a single row with a single value: 0 is false and 1 is true. 
+A single `'$1`' in the query string is replaced by the
 username attempting to access the broker. The following example uses the
 same `users` table, but it could just as well reference a distinct table
 or view.
 
 ```sql
-SELECT COALESCE(COUNT(*),0) FROM account WHERE username = $1 AND super = 1
+SELECT COUNT(*) FROM account WHERE username = $1 AND super = 1
 ```
 
 The SQL query for checking ACLs is optional, but if it is specified, the
@@ -175,7 +183,12 @@ auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" 
 
 In order to test the postgres backend, a simple DB with name, user and password "go_auth_test" is expected.
 
-The test DB tables may be created with these commands:
+User, database and test DB tables may be created with these commands:
+
+```
+create user go_auth_test with login 'go_auth_test';
+create database go_auth_test with owner go_auth_test;
+```
 
 ```
 create table test_user(
@@ -191,6 +204,55 @@ id bigserial primary key,
 test_user_id bigint not null references test_user on delete cascade,
 topic character varying (200) not null,
 rw int not null);
+```
+
+
+### Mysql (work in progress)
+
+The `mysql` backend works almost exactly as the `postgres` one, except for a couple of configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If unix socket is the selected protocol, then a socket path must be given:
+
+```
+auth_opt_mysql_protocol unix
+auth_opt_mysql_socket /path/to/socket
+``` 
+
+The default protocol when the option is missing will be tcp, even if a socket path is given.
+
+Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, cert, key and rootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
+
+Also, default host `localhost` and port 3306 will be used if none are given.
+
+#### Testing Mysql
+
+In order to test the mysql backend, a simple DB with name, user and password "go_auth_test" is expected.
+
+User, database and test DB tables may be created with these commands:
+
+```
+create user 'go_auth_test'@'localhost' identified by 'go_auth_test';
+grant all privileges on *.* to 'go_auth_test'@'localhost';
+create database go_auth_test;
+```
+
+```
+create table test_user(
+id mediumint not null auto_increment,
+user char(100) not null,
+password_hash char(200) not null,
+is_admin boolean not null,
+primary key(id)
+);
+```
+
+```
+create table test_acl(
+id mediumint not null auto_increment,
+test_user_id mediumint not null,
+topic char(200) not null,
+rw int not null,
+primary key(id),
+foreign key(test_uder_id) references test_user(id)
+);
 ```
 
 

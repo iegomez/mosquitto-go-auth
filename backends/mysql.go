@@ -1,14 +1,18 @@
 package backends
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"strings"
 
-	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
+
+	mq "github.com/go-sql-driver/mysql"
 
 	"github.com/iegomez/mosquitto-go-auth/common"
 )
@@ -28,6 +32,8 @@ type Mysql struct {
 	SSLCert        string
 	SSLKey         string
 	SSLRootCert    string
+	Protocol       string
+	SocketPath     string
 }
 
 func NewMysql(authOpts map[string]string) (Mysql, error) {
@@ -40,7 +46,7 @@ func NewMysql(authOpts map[string]string) (Mysql, error) {
 	var mysql = Mysql{
 		Host:           "localhost",
 		Port:           "3306",
-		SSLMode:        "disable",
+		SSLMode:        "false",
 		SuperuserQuery: "",
 		AclQuery:       "",
 	}
@@ -89,24 +95,31 @@ func NewMysql(authOpts map[string]string) (Mysql, error) {
 		mysql.AclQuery = aclQuery
 	}
 
-	checkSSL := true
+	customSSL := false
+
+	if sslmode, ok := authOpts["mysql_sslmode"]; ok {
+		if sslmode == "custom" {
+			customSSL = true
+		}
+		mysql.SSLMode = sslmode
+	}
 
 	if sslCert, ok := authOpts["mysql_sslcert"]; ok {
 		mysql.SSLCert = sslCert
 	} else {
-		checkSSL = false
+		customSSL = false
 	}
 
 	if sslKey, ok := authOpts["mysql_sslkey"]; ok {
 		mysql.SSLKey = sslKey
 	} else {
-		checkSSL = false
+		customSSL = false
 	}
 
 	if sslCert, ok := authOpts["mysql_sslrootcert"]; ok {
 		mysql.SSLCert = sslCert
 	} else {
-		checkSSL = false
+		customSSL = false
 	}
 
 	//Exit if any mandatory option is missing.
@@ -114,21 +127,46 @@ func NewMysql(authOpts map[string]string) (Mysql, error) {
 		return mysql, errors.Errorf("MySql backend error: missing options%s.\n", missingOptions)
 	}
 
-	//Build the dsn string and try to connect to the DB.
-	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", mysql.User, mysql.Password, mysql.DBName, mysql.Host, mysql.Port)
+	var msConfig = mq.Config{
+		User:      mysql.User,
+		Passwd:    mysql.Password,
+		Net:       mysql.Protocol,
+		Addr:      fmt.Sprintf("%s:%s", mysql.Host, mysql.Port),
+		DBName:    mysql.DBName,
+		TLSConfig: mysql.SSLMode,
+	}
 
-	if checkSSL {
-		connStr = fmt.Sprintf("%s sslmode=verify-ca sslcert=%s sslkey=%s sslrootcert=%s", connStr, mysql.SSLCert, mysql.SSLKey, mysql.SSLRootCert)
-	} else {
-		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
+	if customSSL {
+
+		rootCertPool := x509.NewCertPool()
+		pem, err := ioutil.ReadFile(mysql.SSLRootCert)
+		if err != nil {
+			return mysql, errors.Errorf("Mysql read root CA error: %s\n", err)
+		}
+		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
+			return mysql, errors.Errorf("Mysql failed to append root CA pem error: %s\n", err)
+		}
+		clientCert := make([]tls.Certificate, 0, 1)
+		certs, err := tls.LoadX509KeyPair(mysql.SSLCert, mysql.SSLKey)
+		if err != nil {
+			return mysql, errors.Errorf("Mysql load key and cert error: %s\n", err)
+		}
+		clientCert = append(clientCert, certs)
+
+		mq.RegisterTLSConfig("custom", &tls.Config{
+			RootCAs:      rootCertPool,
+			Certificates: clientCert,
+		})
 	}
 
 	var dbErr error
-	mysql.DB, dbErr = common.OpenDatabase(connStr, "mysql")
+	mysql.DB, dbErr = common.OpenDatabase(msConfig.FormatDSN(), "mysql")
 
 	if dbErr != nil {
 		return mysql, errors.Errorf("MySql backend error: couldn't open DB: %s\n", dbErr)
 	}
+
+	log.Println("Connected to mysql DB.")
 
 	return mysql, nil
 
