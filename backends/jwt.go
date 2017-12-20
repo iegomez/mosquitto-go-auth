@@ -183,8 +183,6 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 
 func (o JWT) GetUser(token, password string) bool {
 
-	log.Printf("jwt getuser for %s\n", token)
-
 	if o.Remote {
 		var dataMap map[string]interface{}
 		return httpRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
@@ -203,7 +201,6 @@ func (o JWT) GetUser(token, password string) bool {
 
 func (o JWT) GetSuperuser(token string) bool {
 
-	log.Printf("jwt superuser for %s\n", token)
 	if o.Remote {
 		var dataMap map[string]interface{}
 		return httpRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
@@ -223,7 +220,6 @@ func (o JWT) GetSuperuser(token string) bool {
 
 func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
-	log.Printf("jwt acl for %s\n", token)
 	if o.Remote {
 		dataMap := map[string]interface{}{
 			"clientid": clientid,

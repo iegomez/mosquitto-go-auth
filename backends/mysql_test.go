@@ -45,10 +45,10 @@ func TestMysql(t *testing.T) {
 		userID := int64(0)
 
 		res, iqErr := mysql.DB.Exec(insertQuery, username, userPassHash, true)
+		So(iqErr, ShouldBeNil)
 
 		userID, idErr := res.LastInsertId()
 
-		So(iqErr, ShouldBeNil)
 		So(idErr, ShouldBeNil)
 		So(userID, ShouldBeGreaterThan, 0)
 

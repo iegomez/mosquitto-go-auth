@@ -166,8 +166,6 @@ func NewMysql(authOpts map[string]string) (Mysql, error) {
 		return mysql, errors.Errorf("MySql backend error: couldn't open DB: %s\n", dbErr)
 	}
 
-	log.Println("Connected to mysql DB.")
-
 	return mysql, nil
 
 }

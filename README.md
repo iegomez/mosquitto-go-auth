@@ -236,8 +236,8 @@ create database go_auth_test;
 ```
 create table test_user(
 id mediumint not null auto_increment,
-user char(100) not null,
-password_hash char(200) not null,
+username varchar(100) not null,
+password_hash varchar(200) not null,
 is_admin boolean not null,
 primary key(id)
 );
@@ -247,10 +247,12 @@ primary key(id)
 create table test_acl(
 id mediumint not null auto_increment,
 test_user_id mediumint not null,
-topic char(200) not null,
+topic varchar(200) not null,
 rw int not null,
 primary key(id),
-foreign key(test_uder_id) references test_user(id)
+foreign key(test_user_id) references test_user(id)
+ON DELETE CASCADE
+ON UPDATE CASCADE
 );
 ```
 
