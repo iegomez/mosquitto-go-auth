@@ -193,6 +193,7 @@ func (o JWT) GetUser(token, password string) bool {
 
 	if err != nil {
 		log.Printf("jwt get user error: %s\n", err)
+		return false
 	}
 	//Now check against postgres
 	return o.getLocalUser(claims.Username)
