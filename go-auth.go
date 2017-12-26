@@ -29,6 +29,7 @@ type CommonData struct {
 	Jwt              bes.JWT
 	Redis            bes.Redis
 	Mysql            bes.Mysql
+	Http             bes.HTTP
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -129,6 +130,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else if bename == "mysql" {
 			beIface, bErr = bes.NewMysql(authOpts)
 			commonData.Mysql = beIface.(bes.Mysql)
+		} else if bename == "http" {
+			beIface, bErr = bes.NewHTTP(authOpts)
+			commonData.Http = beIface.(bes.HTTP)
 		}
 
 		if bErr != nil {
@@ -263,6 +267,8 @@ func AuthUnpwdCheck(username, password string) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
+			} else if bename == "httpl" {
+				backend = commonData.Http
 			}
 
 			if backend.GetUser(username, password) {
@@ -322,6 +328,8 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
+			} else if bename == "httpl" {
+				backend = commonData.Http
 			}
 
 			log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -449,6 +457,8 @@ func CheckBackendsAuth(username, password string) bool {
 			backend = commonData.Redis
 		} else if bename == "mysql" {
 			backend = commonData.Mysql
+		} else if bename == "httpl" {
+			backend = commonData.Http
 		}
 
 		if backend.GetUser(username, password) {
@@ -482,6 +492,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			backend = commonData.Redis
 		} else if bename == "mysql" {
 			backend = commonData.Mysql
+		} else if bename == "httpl" {
+			backend = commonData.Http
 		}
 
 		log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -507,6 +519,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
+			} else if bename == "httpl" {
+				backend = commonData.Http
 			}
 
 			log.Printf("Acl check with backend %s\n", backend.GetName())

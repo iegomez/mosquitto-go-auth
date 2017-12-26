@@ -185,7 +185,7 @@ func (o JWT) GetUser(token, password string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return httpRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -204,7 +204,7 @@ func (o JWT) GetSuperuser(token string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return httpRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -227,7 +227,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 			"topic":    topic,
 			"acc":      acc,
 		}
-		return httpRequest(o.Method, o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Method, o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -242,7 +242,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
 }
 
-func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port string) bool {
+func jwtRequest(method, host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port string) bool {
 
 	tlsStr := "http://"
 
@@ -287,9 +287,10 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 	}
 
 	body, bErr := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
 
 	if bErr != nil {
-		log.Printf("read error: %v", bErr)
+		log.Printf("read error: %v\n", bErr)
 		return false
 	}
 
@@ -298,7 +299,7 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 	jErr := json.Unmarshal(body, &response)
 
 	if jErr != nil {
-		log.Printf("unmarshal error: %v", jErr)
+		log.Printf("unmarshal error: %v\n", jErr)
 		return false
 	}
 
@@ -306,7 +307,7 @@ func httpRequest(method, host, uri, token string, withTLS, verifyPeer bool, data
 		log.Printf("error code: %v\n", err)
 		return false
 	} else if !response.Ok {
-		log.Printf("api error: %s", response.Error)
+		log.Printf("api error: %s\n", response.Error)
 		return false
 	}
 
