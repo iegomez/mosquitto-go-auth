@@ -9,6 +9,7 @@ import (
 	"log"
 	h "net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/pkg/errors"
@@ -151,7 +152,7 @@ func (o HTTP) CheckAcl(username, topic, clientid string, acc int32) bool {
 		"username": []string{username},
 		"clientid": []string{clientid},
 		"topic":    []string{topic},
-		"acc":      []string{string(acc)},
+		"acc":      []string{strconv.Itoa(int(acc))},
 	}
 
 	return httpRequest(o.Host, o.AclUri, username, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
@@ -165,8 +166,6 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 	if withTLS {
 		tlsStr = "https://"
 	}
-
-	log.Printf("urlValues are: %v\n", urlValues)
 
 	fullUri := fmt.Sprintf("%s%s%s", tlsStr, host, uri)
 	if port != "" {

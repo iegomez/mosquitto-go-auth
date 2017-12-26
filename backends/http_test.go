@@ -21,7 +21,7 @@ func TestHTTPAllJsonServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		httpResponse := &HTTPResponse{
 			Ok:    true,
@@ -85,14 +85,14 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
 	authOpts["http_response_mode"] = "json"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"
@@ -170,7 +170,7 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data interface{}
 		var params map[string]interface{}
@@ -211,14 +211,14 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
 	authOpts["http_response_mode"] = "status"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"
@@ -296,7 +296,7 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		var data interface{}
 		var params map[string]interface{}
@@ -341,14 +341,14 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
 	authOpts["http_response_mode"] = "text"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"
@@ -426,20 +426,24 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		httpResponse := &HTTPResponse{
 			Ok:    true,
 			Error: "",
 		}
 
+		pfErr := r.ParseForm()
+		if pfErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		var jsonResponse []byte
-		var params = r.For
+		var params = r.Form
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
-
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"][0] == username && params["password"][0] == password {
@@ -477,14 +481,14 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
 	authOpts["http_response_mode"] = "json"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"
@@ -562,10 +566,14 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+		pfErr := r.ParseForm()
+		if pfErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
 		var params = r.Form
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"][0] == username && params["password"][0] == password {
@@ -590,14 +598,14 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
 	authOpts["http_response_mode"] = "status"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"
@@ -675,12 +683,17 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 	var acc = int64(1)
 	clientId := "test_client"
 
-	jsonServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusOK)
 
+		pfErr := r.ParseForm()
+		if pfErr != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
 		var params = r.Form
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"][0] == username && params["password"][0] == password {
@@ -707,14 +720,14 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 	}))
 
-	defer jsonServer.Close()
+	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", jsonServer.URL)
+	log.Printf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
 	authOpts["http_response_mode"] = "text"
-	authOpts["http_host"] = strings.Replace(jsonServer.URL, "http://", "", -1)
+	authOpts["http_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["http_port"] = ""
 	authOpts["http_getuser_uri"] = "/user"
 	authOpts["http_superuser_uri"] = "/superuser"

@@ -25,7 +25,6 @@ type JWT struct {
 	SuperuserQuery string
 	AclQuery       string
 
-	Method       string
 	UserUri      string
 	SuperuserUri string
 	AclUri       string
@@ -54,7 +53,6 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 	//Initialize with defaults
 	var jwt = JWT{
 		Remote:     false,
-		Method:     "post",
 		WithTLS:    false,
 		VerifyPeer: false,
 	}
@@ -69,10 +67,6 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 
 		missingOpts := ""
 		remoteOk := true
-
-		if method, ok := authOpts["jwt_method"]; ok {
-			jwt.Method = method
-		}
 
 		if userUri, ok := authOpts["jwt_getuser_uri"]; ok {
 			jwt.UserUri = userUri
@@ -185,7 +179,7 @@ func (o JWT) GetUser(token, password string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return jwtRequest(o.Method, o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -204,7 +198,7 @@ func (o JWT) GetSuperuser(token string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return jwtRequest(o.Method, o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -227,7 +221,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 			"topic":    topic,
 			"acc":      acc,
 		}
-		return jwtRequest(o.Method, o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		return jwtRequest(o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -242,7 +236,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
 }
 
-func jwtRequest(method, host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port string) bool {
+func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port string) bool {
 
 	tlsStr := "http://"
 

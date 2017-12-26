@@ -10,6 +10,7 @@ As it was intended for use with [brocaar's](https://github.com/brocaar) [Loraser
 * Files
 * PostgreSQL
 * JWT (with local DB or remote json api)
+* HTTP (added)
 * Redis (added)
 * Mysql (added)
 
@@ -19,7 +20,7 @@ All backends include proper tests, though they may be improved.
 
 This projects is tested against Go 1.9.2 and makes use of cgo.
 
-It makes use of some Go packages as well. You cant install all the dependencies with:
+It makes use of some Go packages as well. You can install all the dependencies with:
 
 ```
 make requirements
@@ -312,7 +313,7 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 | jwt_superuser_uri|                   |      Y      | URI for check superuser         |
 | jwt_aclcheck_uri |                   |      Y      | URI for check acl               |
 | jwt_with_tls     | false             |      N      | Use TLS on connect              |
-| jwt_verify_peer	 | false             |      N      | Wether to verify peer for tls   |
+| jwt_verify_peer  | false             |      N      | Wether to verify peer for tls   |
 
 
 When set to remote, the backend expects the URI's to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
@@ -380,6 +381,53 @@ auth_opt_jwt_userquery select count(*) from "user" where username = $1 and is_ac
 #### Testing JWT
 
 This backend expects the same test DB from the Postgres test suite.
+
+
+### HTTP
+
+The `http` backend is very similar to hte JWT one, but instead of a jwt token it uses simple username/password to check, and username for superuser and acls.
+
+It also has a couple of configurations regarding the kind of data the server expects (either json encoded or as url values from a form) and how it responds (only with status, with a json response or with a plain text one). Accepted options are:
+
+| Option             | default           |  Mandatory  | Meaning     |
+| ------------------ | ----------------- | :---------: | ----------  |
+| http_host          |                   |      Y      | IP address,will skip dns lookup   |
+| http_port          |                   |      Y      | TCP port number                   |
+| http_getuser_uri   |                   |      Y      | URI for check username/password   |
+| http_superuser_uri |                   |      Y      | URI for check superuser           |
+| http_aclcheck_uri  |                   |      Y      | URI for check acl                 |
+| http_with_tls      | false             |      N      | Use TLS on connect                |
+| http_verify_peer   | false             |      N      | Wether to verify peer for tls     |
+| http_response_mode | status            |      N      | Response type (status, json, text)|
+| http_params_mode   | json              |      N      | Data type (json, form)            |
+
+
+#### Response mode
+
+When response mode is set to json, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+
+Ok: 		bool
+Error:	string
+
+When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized).
+
+When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+
+#### Params mode
+
+When params mode is set to json, the backend will send a json encoded string with the relevant data. For example, for user authentication, this will get sent:
+
+{
+	"username": "user",
+	"password": "pass"
+}
+
+When set to form, it will send params like a regular html form post.
+
+
+#### Testing HTTP
+
+This backend has no special requirements to get tested.
 
 
 ### Redis
