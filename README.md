@@ -1,9 +1,9 @@
 # mosquitto-go-auth
 Auth methods plugin for mosquitto using Go and cgo
 
-#### Intro
+### Intro
 
-This is an authentication plugin for mosquitto written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
+This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker, written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
 
 It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), so it initially implemented just 3 backends, but I've added some more, so right now these are available:
 
@@ -15,6 +15,7 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * Mysql (added)
 
 All backends include proper tests.
+
 
 #### Requirements
 
@@ -55,6 +56,7 @@ make test
 The plugin is configured in [Mosquitto's](https://mosquitto.org/) configuration file (typically `mosquitto.conf`),
 and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 
+
 ##### General options
 
 ```
@@ -84,6 +86,7 @@ auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
 
+
 ##### Prefixes
 
 Though the plugin may have multiple backends enabled, there's a way to specify which backends must be used for a given user: prefixes. When enabled, `prefixes` allows to check if the username contains a predefined prefix in the form prefix_rest_of_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
@@ -96,10 +99,12 @@ auth_opt_prefixes filesprefix, pgprefix, jwtprefix
 Prefixes must meet the backends' order and number. If amounts don't match, the plugin will default to prefixes disabled.
 Underscores (\_) are not allowed in the prefixes, as a username's prefix will be checked against the first underscore's index. Of course, if a username has no underscore or valid prefix, it'll be checked against all backends.
 
+
 ##### Backend options
 
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
+
 
 
 ### PostgreSQL
@@ -187,6 +192,7 @@ auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" 
 
 ```
 
+
 #### Testing Postgres
 
 In order to test the postgres backend, a simple DB with name, user and password "go_auth_test" is expected.
@@ -215,16 +221,17 @@ rw int not null);
 ```
 
 
+
 ### Mysql
 
-The `mysql` backend works almost exactly as the `postgres` one, except for a couple of configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If unix socket is the selected protocol, then a socket path must be given:
+The `mysql` backend works almost exactly as the `postgres` one, except for a couple of configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, then a socket path must be given:
 
 ```
 auth_opt_mysql_protocol unix
 auth_opt_mysql_socket /path/to/socket
 ``` 
 
-The default protocol when the option is missing will be tcp, even if a socket path is given.
+The default protocol when the option is missing will be `tcp`, even if a socket path is given.
 
 Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, sslcert, sslkey and sslrootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
 
@@ -288,6 +295,7 @@ ON UPDATE CASCADE
 ```
 
 
+
 ### Files
 
 The files backend attempts to re-implement the files behavior in vanilla Mosquitto, however the user's password file contains PBKDF2 passwords instead of passwords hashed with the `mosquitto-passwd` program; you may use the `pw` utility included in the plugin or build your own. Check pw-gen dir to check `pw` flags.
@@ -302,6 +310,7 @@ auth_opt_acl_path /path/to/acl_file
 
 with examples of these files being:
 
+
 #### `password_file`
 
 ```
@@ -309,6 +318,7 @@ with examples of these files being:
 jpm:PBKDF2$sha256$901$UGfDz79cAaydRsEF$XvYwauPeviFd1NfbGL+dxcn1K7BVfMeW
 jane:PBKDF2$sha256$901$wvvH0fe7Ftszt8nR$NZV6XWWg01dCRiPOheVNsgMJDX1mzd2v
 ```
+
 
 #### `acl_file`
 
@@ -324,6 +334,12 @@ topic dd
 The syntax for the ACL file is that as described in `mosquitto.conf(5)`.
 
 
+#### Testing Files
+
+Proper test files are provided in the repo (see test-files dir) and are needed in order to test this backend.
+
+
+
 ### JWT
 
 The `jwt` backend is for auth with a JWT remote API or a local DB. The option jwt_remote sets the nature of the plugin:
@@ -331,6 +347,7 @@ The `jwt` backend is for auth with a JWT remote API or a local DB. The option jw
 ```
 auth_opt_jwt_remote true
 ```
+
 
 #### Remote mode
 
@@ -351,20 +368,24 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 
 URIs (like jwt_getuser_uri) are expected to be in the form /path. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
 
+
 ##### Response mode
 
-When response mode is set to json, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+When response mode is set to `json`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
 
 Ok: 		bool
 Error:	string
 
-When response mode is set to status, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
+If either the status is different from 200 or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
-When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
+
+When response mode is set to `text`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+
 
 ##### Params mode
 
-When params mode is set to json, the backend will send a json encoded string with the relevant data. For example, for acl check, this will get sent:
+When params mode is set to `json`, the backend will send a json encoded string with the relevant data. For example, for acl check, this will get sent:
 
 {
 	"topic": "mock/topic",
@@ -372,14 +393,13 @@ When params mode is set to json, the backend will send a json encoded string wit
 	"acc": 1 		//1 is read, 2 is write
 }
 
-When set to form, it will send params like a regular html form post, so acc will be a string instead of an int.
+When set to `form`, it will send params like a regular html form post, so acc will be a string instead of an int.
 
 *Important*: Please note that when using JWT, username and password are not needed, so for user and superuser check the backend will send an empty string or empty form values. On the other hand, all three cases will set the "authorization" header with the jwt token, which mosquitto will pass to the plugin as the regular "username" param.
 
 To clarify this, here's an example for connecting from a javascript frontend using the Paho MQTT js client (notice how the jwt token is set in userName and password has any string as it will not get checked):
 
-```
-	initMqttClient(applicationID, mode, devEUI) {
+```initMqttClient(applicationID, mode, devEUI) {
     const hostname = window && window.location && window.location.hostname;
     let wsbroker = hostname;  //mqtt websocket enabled broker
     let wsport = 1884; // port for above
@@ -488,10 +508,10 @@ auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_act
 ```
 
 
-
 #### Testing JWT
 
 This backend expects the same test DBs from the Postgres and Mysql test suites.
+
 
 
 ### HTTP
@@ -513,30 +533,34 @@ The `http` backend is very similar to the JWT one, but instead of a jwt token it
 
 #### Response mode
 
-When response mode is set to json, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+When response mode is set to `json`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
 
 Ok: 		bool
 Error:	string
 
-When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized).
+If either the status is different from 200 or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
-When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
+
+When response mode is set to `text`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+
 
 #### Params mode
 
-When params mode is set to json, the backend will send a json encoded string with the relevant data. For example, for user authentication, this will get sent:
+When params mode is set to `json`, the backend will send a json encoded string with the relevant data. For example, for user authentication, this will get sent:
 
 {
 	"username": "user",
 	"password": "pass"
 }
 
-When set to form, it will send params like a regular html form post.
+When set to `form`, it will send params like a regular html form post.
 
 
 #### Testing HTTP
 
-This backend has no special requirements to get tested.
+This backend has no special requirements as the http servers are specially mocked to test different scenarios.
+
 
 
 ### Redis
@@ -546,3 +570,8 @@ The `redis` backend allows to check user, superuser and acls in a defined format
 For user check, Redis must contain a KEY with the username and the password hash as a value:
 For superuser check, a user will be a superuser if there exists a KEY username:su and it return a string value "true".
 Normal and Wildcard acls are supported and are expected to be stored in a SET with KEY username:acls, with the members being the allowed acls following the conventional format (as in files).
+
+
+#### Testing Redis
+
+In order to test the Redis backend, the plugin needs to be able to connect to a redis server located at localhost, on port 6379, without using password and that a database named 2  exists (to avoid messing with the commonly used 0 and 1). All this requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
