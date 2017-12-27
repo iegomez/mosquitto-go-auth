@@ -399,7 +399,8 @@ When set to `form`, it will send params like a regular html form post, so acc wi
 
 To clarify this, here's an example for connecting from a javascript frontend using the Paho MQTT js client (notice how the jwt token is set in userName and password has any string as it will not get checked):
 
-```initMqttClient(applicationID, mode, devEUI) {
+```
+initMqttClient(applicationID, mode, devEUI) {
     const hostname = window && window.location && window.location.hostname;
     let wsbroker = hostname;  //mqtt websocket enabled broker
     let wsport = 1884; // port for above
