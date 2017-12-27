@@ -43,6 +43,12 @@ or simply:
 make
 ```
 
+You can also run all tests (see Testing X for each backend's testing requirements) like this:
+
+```
+make test
+```
+
 
 #### Configuration
 
@@ -222,6 +228,28 @@ Another change has to do with sslmode options, with options being true, false, s
 
 Also, default host `localhost` and port 3306 will be used if none are given.
 
+Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. So, following the postgres examples, same queries for mysql would look like these:
+
+User query:
+
+```sql
+SELECT pass FROM account WHERE username = ? limit 1
+```
+
+Superuser query:
+
+```sql
+SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
+```
+
+
+Acl query:
+
+```sql
+SELECT topic FROM acl WHERE (username = ?) AND rw >= ?
+```
+
+
 #### Testing Mysql
 
 In order to test the mysql backend, a simple DB with name, user and password "go_auth_test" is expected.
@@ -296,67 +324,126 @@ The syntax for the ACL file is that as described in `mosquitto.conf(5)`.
 
 ### JWT
 
-The `jwt` backend is for auth with a JSON API or a local DB. The option jwt_remote sets the nature of the plugin:
+The `jwt` backend is for auth with a JWT remote API or a local DB. The option jwt_remote sets the nature of the plugin:
 
 ```
 auth_opt_jwt_remote true
 ```
 
+#### Remote mode
+
 The following `auth_opt_` options are supported by the `jwt` backend when remote is set to true:
 
-| Option           | default           |  Mandatory  | Meaning     |
-| -----------------| ----------------- | :---------: | ----------  |
-| jwt_ip           |                   |      Y      | IP address,will skip dns lookup |
-| jwt_port         |                   |      Y      | TCP port number                 |
-| jwt_hostname     |                   |      Y      | hostname for HTTP header        |
-| jwt_getuser_uri  |                   |      Y      | URI for check username/password |
-| jwt_superuser_uri|                   |      Y      | URI for check superuser         |
-| jwt_aclcheck_uri |                   |      Y      | URI for check acl               |
-| jwt_with_tls     | false             |      N      | Use TLS on connect              |
-| jwt_verify_peer  | false             |      N      | Wether to verify peer for tls   |
+| Option            | default           |  Mandatory  | Meaning     |
+| ----------------- | ----------------- | :---------: | ----------  |
+| jwt_host          |                   |      Y      | API server host name or ip      |
+| jwt_port          |                   |      Y      | TCP port number                 |
+| jwt_getuser_uri   |                   |      Y      | URI for check username/password |
+| jwt_superuser_uri |                   |      Y      | URI for check superuser         |
+| jwt_aclcheck_uri  |                   |      Y      | URI for check acl               |
+| jwt_with_tls      | false             |      N      | Use TLS on connect              |
+| jwt_verify_peer   | false             |      N      | Wether to verify peer for tls   |
+| jwt_response_mode | status            |      N      | Response type (status, json, text)|
+| jwt_params_mode   | json              |      N      | Data type (json, form)            |
 
 
-When set to remote, the backend expects the URI's to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+URIs (like jwt_getuser_uri) are expected to be in the form /path. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
+
+##### Response mode
+
+When response mode is set to json, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
 
 Ok: 		bool
 Error:	string
 
-If Ok is true, then the method approves the check. A simple API response for auth check could be like this:
+When response mode is set to status, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
 
-```
-// Auth checks that the jwt is correct and the user is active.
-func (a *MQTTAuthAPI) Auth(ctx context.Context, req *pb.GetUserAuthRequest) (*pb.AuthResponse, error) {
+When response mode is set to status, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
 
-	fmt.Printf("Auth req: %v\n", req)
-	if err := a.validator.Validate(ctx,
-		auth.ValidateActiveUser()); err != nil {
-		fmt.Printf("auth strange error: %v\n", err)
-		return &pb.AuthResponse{Ok: false, Error: "unauthorized user"}, nil
-	}
+##### Params mode
 
-	username, err := a.validator.GetUsername(ctx)
-	if nil != err {
-		return &pb.AuthResponse{Ok: false, Error: "couldn't get username"}, nil
-	}
+When params mode is set to json, the backend will send a json encoded string with the relevant data. For example, for acl check, this will get sent:
 
-	log.Printf("auth passed for user: %s", username)
-
-	return &pb.AuthResponse{Ok: true, Error: "none"}, nil
-
+{
+	"topic": "mock/topic",
+	"clientid": "mock_client",
+	"acc": 1 		//1 is read, 2 is write
 }
+
+When set to form, it will send params like a regular html form post, so acc will be a string instead of an int.
+
+*Important*: Please note that when using JWT, username and password are not needed, so for user and superuser check the backend will send an empty string or empty form values. On the other hand, all three cases will set the "authorization" header with the jwt token, which mosquitto will pass to the plugin as the regular "username" param.
+
+To clarify this, here's an example for connecting from a javascript frontend using the Paho MQTT js client (notice how the jwt token is set in userName and password has any string as it will not get checked):
+
+```
+	initMqttClient(applicationID, mode, devEUI) {
+    const hostname = window && window.location && window.location.hostname;
+    let wsbroker = hostname;  //mqtt websocket enabled broker
+    let wsport = 1884; // port for above
+    let date = new Date();
+    let clientid = this.getRand() + "_" + date.getTime();
+    console.log("Trying to connect to mqtt with hostname: " + hostname + " and clientid " + clientid);
+    let mqttClient = new window.Paho.MQTT.Client(wsbroker, wsport,
+        clientid);
+
+    mqttClient.onConnectionLost = function (responseObject) {
+      console.log("connection lost: " + responseObject.errorMessage);
+    };
+    mqttClient.onMessageArrived = function (message) {
+      console.log(message.destinationName, ' -- ', message.payloadString);
+    };
+
+    let that = this;
+
+    let sslOption = true;
+    if(hostname == "localhost") {
+      sslOption = false;
+    }
+
+    let options = {
+      timeout: 3,
+      userName: this.getToken(),
+      password: "any",
+      useSSL: sslOption,
+      keepAliveInterval: 3600,
+      reconnect: true,
+      onSuccess: function () {
+        console.log("mqtt connected");
+        // Connection succeeded; subscribe to our topic, you can add multile lines of these
+
+        let topic = 'application/' + applicationID + '/device/' + devEUI + '/data';
+        console.log("Subscribing to topic " + topic);
+        mqttClient.subscribe(topic, {qos: 0});
+  
+      },
+      onFailure: function (message) {
+        console.log("Connection failed: " + message.errorMessage);
+      }
+    };
+
+    mqttClient.connect(options);
+    return mqttClient;
+  }
 ```
 
 
-When set as remote false, the backend will try to validate JWT tokens against a postgres DB. Options for the DB connection are the same as the ones given in the Postgres backend, but include one new option and 3 options that will voerride Postgres' ones only for JWT cases (in case both backends are needed).
+#### Local mode
+
+When set as remote false, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the jwt_db option. Options for the DB connection are the same as the ones given in the Postgres and Mysql backends, but include one new option and 3 options that will override Postgres' or Mysql's ones only for JWT cases (in case both backends are needed). Note that these options will be mandatory (except for jwt_db) only if remote is false.
 
 | Option           | default           |  Mandatory  | Meaning     |
 | -----------------| ----------------- | :---------: | ----------  |
+| jwt_db           |   postgres        |     N       | The DB backend to be used  |
 | jwt_secret       |                   |     Y       | JWT secret to check tokens |
-| jwt_userquery    |                   |     Y       | SQL for users
-| jwt_superquery   |                   |     Y       | SQL for superusers
-| jwt_aclquery     |                   |     Y       | SQL for ACLs
+| jwt_userquery    |                   |     Y       | SQL for users              |
+| jwt_superquery   |                   |     Y       | SQL for superusers         |
+| jwt_aclquery     |                   |     Y       | SQL for ACLs               |
 
-Also, as it uses the postgres backend for local auth, the following postgres options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery) need not to be correct if the postgres backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:
+
+Also, as it uses the DB backend for local auth, the following DB backend options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery, or mysql_userquery, mysql_superquery and mysql_aclquery) need not to be correct if the backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:
+
+If jwt is used with postgres, these options are needed:
 
 | Option         		| default           |  Mandatory  | Meaning                  |
 | -------------- 		| ----------------- | :---------: | ------------------------ |
@@ -370,24 +457,44 @@ Also, as it uses the postgres backend for local auth, the following postgres opt
 | pg_aclquery       |                   |             | SQL for ACLs
 
 
+If, instead, jwt is used with mysql, these options are needed:
 
-Queries will override postgre's backend ones when checking for JWT tokens. Options for the queries are the same except for the user query, which now expects an integer result instead of a password hash, as the JWT token needs no password checking. An example of a different query using the same DB is given for the user query.
+| Option         		   | default           |  Mandatory  | Meaning                  |
+| -------------------- | ----------------- | :---------: | ------------------------ |
+| mysql_host           | localhost         |             | hostname/address
+| mysql_port           | 5432              |             | TCP port
+| mysql_user           |                   |     Y       | username
+| mysql_password       |                   |     Y       | password
+| mysql_dbname         |                   |     Y       | database name
+| mysql_userquery      |                   |     Y       | SQL for users
+| mysql_superquery     |                   |     Y       | SQL for superusers
+| mysql_aclquery       |                   |             | SQL for ACLs
+
+
+Options for the overridden queries are the same except for the user query, which now expects an integer result instead of a password hash, as the JWT token needs no password checking. An example of a different query using the same DB is given for the user query.
+
+For postgres:
 
 ```
 auth_opt_jwt_userquery select count(*) from "user" where username = $1 and is_active = true limit 1
 ```
 
+For mysql:
+
+```
+auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_active = true limit 1
+```
+
+
 
 #### Testing JWT
 
-This backend expects the same test DB from the Postgres test suite.
+This backend expects the same test DBs from the Postgres and Mysql test suites.
 
 
 ### HTTP
 
-The `http` backend is very similar to hte JWT one, but instead of a jwt token it uses simple username/password to check, and username for superuser and acls.
-
-It also has a couple of configurations regarding the kind of data the server expects (either json encoded or as url values from a form) and how it responds (only with status, with a json response or with a plain text one). Accepted options are:
+The `http` backend is very similar to the JWT one, but instead of a jwt token it uses simple username/password to check for user auth, and username for superuser and acls.
 
 | Option             | default           |  Mandatory  | Meaning     |
 | ------------------ | ----------------- | :---------: | ----------  |

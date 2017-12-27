@@ -16,7 +16,6 @@ import (
 )
 
 type HTTP struct {
-	ParamsMode   string
 	UserUri      string
 	SuperuserUri string
 	AclUri       string
@@ -24,6 +23,7 @@ type HTTP struct {
 	Port         string
 	WithTLS      bool
 	VerifyPeer   bool
+	ParamsMode   string
 	ResponseMode string
 }
 

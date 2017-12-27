@@ -9,6 +9,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -17,9 +20,11 @@ import (
 )
 
 type JWT struct {
-	Remote bool
+	Remote  bool
+	LocalDB string
 
 	Postgres       Postgres
+	Mysql          Mysql
 	Secret         string
 	UserQuery      string
 	SuperuserQuery string
@@ -28,11 +33,13 @@ type JWT struct {
 	UserUri      string
 	SuperuserUri string
 	AclUri       string
-	Hostname     string
+	Host         string
 	Port         string
-	Ip           string
 	WithTLS      bool
 	VerifyPeer   bool
+
+	ParamsMode   string
+	ResponseMode string
 }
 
 // Claims defines the struct containing the token claims.
@@ -52,9 +59,12 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 
 	//Initialize with defaults
 	var jwt = JWT{
-		Remote:     false,
-		WithTLS:    false,
-		VerifyPeer: false,
+		Remote:       false,
+		WithTLS:      false,
+		VerifyPeer:   false,
+		ResponseMode: "status",
+		ParamsMode:   "json",
+		LocalDB:      "postgres",
 	}
 
 	if remote, ok := authOpts["jwt_remote"]; ok && remote == "true" {
@@ -67,6 +77,18 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 
 		missingOpts := ""
 		remoteOk := true
+
+		if responseMode, ok := authOpts["jwt_response_mode"]; ok {
+			if responseMode == "text" || responseMode == "json" {
+				jwt.ResponseMode = responseMode
+			}
+		}
+
+		if paramsMode, ok := authOpts["jwt_params_mode"]; ok {
+			if paramsMode == "form" {
+				jwt.ParamsMode = paramsMode
+			}
+		}
 
 		if userUri, ok := authOpts["jwt_getuser_uri"]; ok {
 			jwt.UserUri = userUri
@@ -89,11 +111,11 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 			missingOpts += " jwt_aclcheck_uri"
 		}
 
-		if hostname, ok := authOpts["jwt_hostname"]; ok {
-			jwt.Hostname = hostname
+		if hostname, ok := authOpts["jwt_host"]; ok {
+			jwt.Host = hostname
 		} else {
 			remoteOk = false
-			missingOpts += " jwt_hostname"
+			missingOpts += " jwt_host"
 		}
 
 		if port, ok := authOpts["jwt_port"]; ok {
@@ -101,13 +123,6 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 		} else {
 			remoteOk = false
 			missingOpts += " jwt_port"
-		}
-
-		if ip, ok := authOpts["jwt_ip"]; ok {
-			jwt.Ip = ip
-		} else {
-			remoteOk = false
-			missingOpts += " jwt_ip"
 		}
 
 		if withTLS, ok := authOpts["jwt_with_tls"]; ok && withTLS == "true" {
@@ -154,21 +169,37 @@ func NewJWT(authOpts map[string]string) (JWT, error) {
 			missingOpts += " jwt_aclquery"
 		}
 
+		if localDB, ok := authOpts["jwt_db"]; ok {
+			jwt.LocalDB = localDB
+		}
+
 		if !localOk {
 			return jwt, errors.Errorf("JWT backend error: missing local options%s.\n", missingOpts)
 		}
 
-		//Try to create a postgres backend with these custom queries.
-		postgres, err := NewPostgres(authOpts)
-		if err != nil {
-			return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+		if jwt.LocalDB == "mysql" {
+			//Try to create a mysql backend with these custom queries
+			mysql, err := NewMysql(authOpts)
+			if err != nil {
+				return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s\n", err)
+			}
+			mysql.UserQuery = jwt.UserQuery
+			mysql.SuperuserQuery = jwt.SuperuserQuery
+			mysql.AclQuery = jwt.AclQuery
+
+			jwt.Mysql = mysql
+		} else {
+			//Try to create a postgres backend with these custom queries.
+			postgres, err := NewPostgres(authOpts)
+			if err != nil {
+				return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+			}
+			postgres.UserQuery = jwt.UserQuery
+			postgres.SuperuserQuery = jwt.SuperuserQuery
+			postgres.AclQuery = jwt.AclQuery
+
+			jwt.Postgres = postgres
 		}
-
-		postgres.UserQuery = jwt.UserQuery
-		postgres.SuperuserQuery = jwt.SuperuserQuery
-		postgres.AclQuery = jwt.AclQuery
-
-		jwt.Postgres = postgres
 
 	}
 
@@ -179,7 +210,8 @@ func (o JWT) GetUser(token, password string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return jwtRequest(o.Ip, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		var urlValues = url.Values{}
+		return jwtRequest(o.Host, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -198,7 +230,8 @@ func (o JWT) GetSuperuser(token string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
-		return jwtRequest(o.Ip, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		var urlValues = url.Values{}
+		return jwtRequest(o.Host, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -208,8 +241,12 @@ func (o JWT) GetSuperuser(token string) bool {
 		log.Printf("jwt get superuser error: %s\n", err)
 		return false
 	}
-	//Now check against postgres
-	return o.Postgres.GetSuperuser(claims.Username)
+	//Now check against DB
+	if o.LocalDB == "mysql" {
+		return o.Mysql.GetSuperuser(claims.Username)
+	} else {
+		return o.Postgres.GetSuperuser(claims.Username)
+	}
 
 }
 
@@ -221,7 +258,12 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 			"topic":    topic,
 			"acc":      acc,
 		}
-		return jwtRequest(o.Ip, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port)
+		var urlValues = url.Values{
+			"clientid": []string{clientid},
+			"topic":    []string{topic},
+			"acc":      []string{strconv.Itoa(int(acc))},
+		}
+		return jwtRequest(o.Host, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
@@ -232,11 +274,15 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		return false
 	}
 	//Now check against postgres
-	return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
+	if o.LocalDB == "mysql" {
+		return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
+	} else {
+		return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
+	}
 
 }
 
-func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port string) bool {
+func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port, paramsMode, responseMode string, urlValues url.Values) bool {
 
 	tlsStr := "http://"
 
@@ -244,9 +290,15 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		tlsStr = "https://"
 	}
 
-	fullUri := fmt.Sprintf("%s%s:%s%s", tlsStr, host, port, uri)
+	fullUri := fmt.Sprintf("%s%s%s", tlsStr, host, uri)
+	if port != "" {
+		fullUri = fmt.Sprintf("%s%s:%s%s", tlsStr, host, port, uri)
+	}
 
 	client := &http.Client{Timeout: 5 * time.Second}
+
+	var resp *http.Response
+	var err error
 
 	if !verifyPeer {
 		tr := &http.Transport{
@@ -255,25 +307,39 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		client.Transport = tr
 	}
 
-	dataJson, mErr := json.Marshal(dataMap)
+	var req *http.Request
+	var reqErr error
 
-	if mErr != nil {
-		log.Printf("marshal error: %v\n", mErr)
-		return false
+	if paramsMode == "json" {
+		dataJson, mErr := json.Marshal(dataMap)
+
+		if mErr != nil {
+			log.Printf("marshal error: %v\n", mErr)
+			return false
+		}
+
+		contentReader := bytes.NewReader(dataJson)
+		req, reqErr = http.NewRequest("POST", fullUri, contentReader)
+
+		if reqErr != nil {
+			log.Printf("req error: %v\n", reqErr)
+			return false
+		}
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req, reqErr = http.NewRequest("POST", fullUri, strings.NewReader(urlValues.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.Header.Set("Content-Length", strconv.Itoa(len(urlValues.Encode())))
+
+		if reqErr != nil {
+			log.Printf("req error: %v\n", reqErr)
+			return false
+		}
 	}
 
-	contentReader := bytes.NewReader(dataJson)
-	req, reqErr := http.NewRequest("POST", fullUri, contentReader)
-
-	if reqErr != nil {
-		log.Printf("req error: %v\n", reqErr)
-		return false
-	}
-
-	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("authorization", token)
 
-	resp, err := client.Do(req)
+	resp, err = client.Do(req)
 
 	if err != nil {
 		log.Printf("error: %v\n", err)
@@ -288,21 +354,35 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		return false
 	}
 
-	response := Response{Ok: false, Error: ""}
-
-	jErr := json.Unmarshal(body, &response)
-
-	if jErr != nil {
-		log.Printf("unmarshal error: %v\n", jErr)
-		return false
-	}
-
 	if resp.Status != "200 OK" {
 		log.Printf("error code: %v\n", err)
 		return false
-	} else if !response.Ok {
-		log.Printf("api error: %s\n", response.Error)
-		return false
+	}
+
+	if responseMode == "text" {
+
+		//For test response, we expect "ok" or an error message.
+		if string(body) != "ok" {
+			log.Printf("api error: %s\n", string(body))
+			return false
+		}
+
+	} else if responseMode == "json" {
+
+		//For json response, we expect Ok and Error fields.
+		response := Response{Ok: false, Error: ""}
+		jErr := json.Unmarshal(body, &response)
+
+		if jErr != nil {
+			log.Printf("unmarshal error: %v\n", jErr)
+			return false
+		}
+
+		if !response.Ok {
+			log.Printf("api error: %s\n", response.Error)
+			return false
+		}
+
 	}
 
 	log.Printf("jwt request approved for %s\n", token)
@@ -322,7 +402,12 @@ func (o JWT) getLocalUser(username string) bool {
 	}
 
 	var count sql.NullInt64
-	err := o.Postgres.DB.Get(&count, o.UserQuery, username)
+	var err error
+	if o.LocalDB == "mysql" {
+		err = o.Mysql.DB.Get(&count, o.UserQuery, username)
+	} else {
+		err = o.Postgres.DB.Get(&count, o.UserQuery, username)
+	}
 
 	if err != nil {
 		log.Printf("Local JWT get user error: %s\n", err)
