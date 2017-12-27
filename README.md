@@ -5,16 +5,16 @@ Auth methods plugin for mosquitto using Go and cgo
 
 This is an authentication plugin for mosquitto written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
 
-As it was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), right now it only implements a few backends for authentication and authorization, namely those that make sense for that project:
+It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), so it initially implemented just 3 backends, but I've added some more, so right now these are available:
 
 * Files
 * PostgreSQL
-* JWT (with local DB or remote json api)
+* JWT (with local DB or remote API)
 * HTTP (added)
 * Redis (added)
 * Mysql (added)
 
-All backends include proper tests, though they may be improved.
+All backends include proper tests.
 
 #### Requirements
 
@@ -26,7 +26,7 @@ It makes use of some Go packages as well. You can install all the dependencies w
 make requirements
 ```
 
-Finally, it uses Redis for cache purposes.
+Finally, it (optionally) uses Redis for cache purposes.
 
 
 #### Build
@@ -61,7 +61,7 @@ and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 auth_plugin /path/to/auth-plug.so
 ```
 
-Remember to register the desired backends with:
+Register the desired backends with:
 
 ```
 auth_opt_backends files, postgres, jwt
@@ -72,6 +72,7 @@ Also, set cache option to true to use redis cache:
 ```
 auth_opt_cache true
 ```
+
 Redis will use some default if no values are given. The following are possible configuration values for the cache:
 
 ```
@@ -85,7 +86,7 @@ auth_opt_acl_cache_seconds 30
 
 ##### Prefixes
 
-Though the plugin may have multiple backends enabled, there's a way to specify which backends must be used for a given user: prefixes. When enabled, prefixes allows to check if the username contains a predefined prefix in the form prefix_rest_of_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
+Though the plugin may have multiple backends enabled, there's a way to specify which backends must be used for a given user: prefixes. When enabled, `prefixes` allows to check if the username contains a predefined prefix in the form prefix_rest_of_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
 
 ```
 auth_opt_check_prefix true
@@ -99,6 +100,7 @@ Underscores (\_) are not allowed in the prefixes, as a username's prefix will be
 
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
+
 
 ### PostgreSQL
 
