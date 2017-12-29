@@ -11,7 +11,7 @@ func TestMysql(t *testing.T) {
 	//Initialize Mysql without mandatory values (fail).
 	authOpts := make(map[string]string)
 	authOpts["mysql_host"] = "localhost"
-	authOpts["mysql_port"] = "5432"
+	authOpts["mysql_port"] = "3306"
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
 		_, err := NewMysql(authOpts)

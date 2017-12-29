@@ -12,6 +12,7 @@ requirements:
 	@go get -u golang.org/x/crypto/pbkdf2
 	@go get -u github.com/smartystreets/goconvey/convey
 	@go get -u github.com/go-sql-driver/mysql
+	@go get -u github.com/mattn/go-sqlite3
 
 test:
 	go test ./... -v

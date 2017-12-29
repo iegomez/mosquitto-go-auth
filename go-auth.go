@@ -30,6 +30,7 @@ type CommonData struct {
 	Redis            bes.Redis
 	Mysql            bes.Mysql
 	Http             bes.HTTP
+	Sqlite           bes.Sqlite
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -54,6 +55,7 @@ var allowedBackends = map[string]bool{
 	"http":     true,
 	"files":    true,
 	"mysql":    true,
+	"sqlite":   true,
 }
 var backends []string
 var authOpts map[string]string
@@ -133,6 +135,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else if bename == "http" {
 			beIface, bErr = bes.NewHTTP(authOpts)
 			commonData.Http = beIface.(bes.HTTP)
+		} else if bename == "sqlite" {
+			beIface, bErr = bes.NewSqlite(authOpts)
+			commonData.Sqlite = beIface.(bes.Sqlite)
 		}
 
 		if bErr != nil {
@@ -267,8 +272,10 @@ func AuthUnpwdCheck(username, password string) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
-			} else if bename == "httpl" {
+			} else if bename == "http" {
 				backend = commonData.Http
+			} else if bename == "sqlite" {
+				backend = commonData.Sqlite
 			}
 
 			if backend.GetUser(username, password) {
@@ -328,8 +335,10 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
-			} else if bename == "httpl" {
+			} else if bename == "http" {
 				backend = commonData.Http
+			} else if bename == "sqlite" {
+				backend = commonData.Sqlite
 			}
 
 			log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -457,8 +466,10 @@ func CheckBackendsAuth(username, password string) bool {
 			backend = commonData.Redis
 		} else if bename == "mysql" {
 			backend = commonData.Mysql
-		} else if bename == "httpl" {
+		} else if bename == "http" {
 			backend = commonData.Http
+		} else if bename == "sqlite" {
+			backend = commonData.Sqlite
 		}
 
 		if backend.GetUser(username, password) {
@@ -492,8 +503,10 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			backend = commonData.Redis
 		} else if bename == "mysql" {
 			backend = commonData.Mysql
-		} else if bename == "httpl" {
+		} else if bename == "http" {
 			backend = commonData.Http
+		} else if bename == "sqlite" {
+			backend = commonData.Sqlite
 		}
 
 		log.Printf("Superuser check with backend %s\n", backend.GetName())
@@ -519,8 +532,10 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 				backend = commonData.Redis
 			} else if bename == "mysql" {
 				backend = commonData.Mysql
-			} else if bename == "httpl" {
+			} else if bename == "http" {
 				backend = commonData.Http
+			} else if bename == "sqlite" {
+				backend = commonData.Sqlite
 			}
 
 			log.Printf("Acl check with backend %s\n", backend.GetName())

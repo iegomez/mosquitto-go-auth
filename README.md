@@ -13,8 +13,9 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * HTTP (added)
 * Redis (added)
 * Mysql (added)
+* SQLite3 (added)
 
-All backends include proper tests.
+**Every backend offers user, superuser and acl checks**, and the also include proper tests.
 
 
 #### Requirements
@@ -293,6 +294,42 @@ ON DELETE CASCADE
 ON UPDATE CASCADE
 );
 ```
+
+
+
+###SQLite3
+
+The `sqlite` backend works in the same way as `postgres` and `mysql` do, except that being a light weight db, it has fewer configuration options.
+
+| Option                | default           |  Mandatory  | Meaning                  |
+| --------------------- | ----------------- | :---------: | ------------------------ |
+| sqlite_source         |                   |     Y       | SQLite3 source
+| sqlite_userquery      |                   |     Y       | SQL for users
+| sqlite_superquery     |                   |     Y       | SQL for superusers
+| sqlite_aclquery       |                   |             | SQL for ACLs
+
+SQLite3 allows to connect to an in-memory db, or a single file one, so source maybe `memory` (not :memory:) or the path to a file db.
+
+Example configuration: 
+
+```
+sqlite_source /home/user/db/mosquitto_auth.db
+```
+
+Query parameters placeholders may be ? or $1, $2, etc.
+
+```sql
+sqlite_userquery SELECT pass FROM account WHERE username = ? limit 1
+
+sqlite_superquery SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
+
+sqlite_aclquery SELECT topic FROM acl WHERE (username = ?) AND rw >= ?
+```
+
+
+####Testing SQLite3
+
+There are no requirements, as the tests create (and later delete) the DB and tables, or just use a temporary in memory one.
 
 
 
