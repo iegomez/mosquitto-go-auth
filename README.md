@@ -1,11 +1,13 @@
 # mosquitto-go-auth
-Auth methods plugin for mosquitto using Go and cgo
+Mosquitto auth plugin using Go and cgo
 
 ### Intro
 
-This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker, written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
+This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker, written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. 
 
-It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), so it initially implemented just 3 backends, but I've added some more, so right now these are available:
+It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
+
+It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver project](https://www.loraserver.io/), and thus Files, Postgres and JWT backends were the first to be developed, but more have been added. These are the backends that this plugin implements right now:
 
 * Files
 * PostgreSQL
@@ -15,14 +17,24 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * Mysql (added)
 * SQLite3 (added)
 
-**Every backend offers user, superuser and acl checks**, and the also include proper tests.
+**Every backend offers user, superuser and acl checks, and they also include proper tests.**
+
+
+#### Why?
+
+Ok, so there's jpmens' plugin and it works fine, why create another?
+
+First, that plugin's JWT backend was missing some options that I needed for work. So I forked it and implemented a custom backend that met my needs, but I had some issues. So I went at it again, but instead of modifying the C backend, I developed one in Go that did what I needed and linked it using cgo. This time there were no issues and everything worked just fine, and I realized that writing a backend in Go, specially when dealing with jwt, http, json, etc., was much easier and faster than doing it in C. Nothing against C, though, but if there are no restrictions, I prefer Go over it.
+
+Then I realized that it was kind of weird that not every backend offered all checking options (user, superuser and acls), and that there were some design decisions with which I didn't agree. Thus, the idea of creating a new plugin
+that offered complete support for every backend included, and that was written in Go to facilitate the addition of any new backends, was born.
 
 
 #### Requirements
 
-This projects is tested against Go 1.9.2 and makes use of cgo.
+This projects was created with Go 1.9.2 and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
 
-It makes use of some Go packages as well. You can install all the dependencies with:
+It makes use of some Go packages as well. You check them at the Makefile and install all the dependencies with:
 
 ```
 make requirements
