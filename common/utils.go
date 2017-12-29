@@ -26,20 +26,16 @@ func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("database connection error: %s", err)
 	}
-	//Try connecting up to 3 times.
-	couldConnect := false
-	for i := 0; i < 3; i++ {
+
+	for {
 		if err = db.Ping(); err != nil {
 			log.Printf("ping database error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)
 		} else {
-			couldConnect = true
 			break
 		}
 	}
-	if !couldConnect {
-		return nil, fmt.Errorf("database connection error: %s", err)
-	}
+
 	return db, nil
 }
 
