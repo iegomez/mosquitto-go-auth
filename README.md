@@ -297,7 +297,7 @@ ON UPDATE CASCADE
 
 
 
-###SQLite3
+### SQLite3
 
 The `sqlite` backend works in the same way as `postgres` and `mysql` do, except that being a light weight db, it has fewer configuration options.
 
@@ -327,7 +327,7 @@ sqlite_aclquery SELECT topic FROM acl WHERE (username = ?) AND rw >= ?
 ```
 
 
-####Testing SQLite3
+#### Testing SQLite3
 
 There are no requirements, as the tests create (and later delete) the DB and tables, or just use a temporary in memory one.
 
