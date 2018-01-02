@@ -20,6 +20,7 @@ import (
 
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
+// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open(engine, dsn)
@@ -77,6 +78,7 @@ func match(route []string, topic []string) bool {
 // NOTE: We store the details of the hashing algorithm with the hash itself,
 // making it easy to recreate the hash for password checking, even if we change
 // the default criteria here.
+// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func Hash(password string, saltSize int, iterations int, algorithm string) (string, error) {
 	// Generate a random salt value, 128 bits.
 	salt := make([]byte, saltSize)
@@ -88,6 +90,7 @@ func Hash(password string, saltSize int, iterations int, algorithm string) (stri
 	return hashWithSalt(password, salt, iterations, algorithm), nil
 }
 
+// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func hashWithSalt(password string, salt []byte, iterations int, algorithm string) string {
 	// Generate the hash.  This should be a little painful, adjust ITERATIONS
 	// if it needs performance tweeking.  Greatly depends on the hardware.
@@ -120,6 +123,7 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 
 // HashCompare verifies that passed password hashes to the same value as the
 // passed passwordHash.
+// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func HashCompare(password string, passwordHash string) bool {
 	// SPlit the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
