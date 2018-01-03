@@ -25,7 +25,7 @@ func TestPostgres(t *testing.T) {
 	authOpts["pg_password"] = "go_auth_test"
 	authOpts["pg_userquery"] = "SELECT password_hash FROM test_user WHERE username = $1 limit 1"
 	authOpts["pg_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
-	authOpts["pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
+	authOpts["pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND (rw = $2 or rw = 3)"
 
 	Convey("Given valid params NewPostgres should return a Postgres backend instance", t, func() {
 		postgres, err := NewPostgres(authOpts, log.DebugLevel)

@@ -684,10 +684,10 @@ In order to test the Redis backend, the plugin needs to be able to connect to a 
 
 Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files and Redis backends. They were ran on an Asus laptop with the following specs:
 
-OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
-Kernel: 			4.11.0-14
-Processor: 		Intel Core i5-6200U CPU @ 2.30GHz x 2
-Memory: 			5.7 GiB
+	OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
+	Kernel: 			4.11.0-14
+	Processor: 		Intel Core i5-6200U CPU @ 2.30GHz x 2
+	Memory: 			5.7 GiB
 
 As said, take these benchmarks with a grain of salt and consider them just as a reference. A much better benchmark would be running mosquitto with this plugin and an alternative one (such as [jpmens'](https://github.com/jpmens)) and compare how they do against similarly configured backends. I'd expect that one to be faster, as it's written in C, but hopefully the difference isn't so big. I'd gladly include something like this if anyone is willing to do such benchmark.
 

@@ -25,7 +25,7 @@ func TestMysql(t *testing.T) {
 	authOpts["mysql_password"] = "go_auth_test"
 	authOpts["mysql_userquery"] = "SELECT password_hash FROM test_user WHERE username = ? limit 1"
 	authOpts["mysql_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
-	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
+	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND (rw >= ? or rw = 3)"
 
 	Convey("Given valid params NewMysql should return a Mysql backend instance", t, func() {
 		mysql, err := NewMysql(authOpts, log.DebugLevel)
