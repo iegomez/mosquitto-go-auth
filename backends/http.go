@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	h "net/http"
 	"net/url"
 	"strconv"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
 )
@@ -32,7 +33,9 @@ type HTTPResponse struct {
 	Error string `json:"error"`
 }
 
-func NewHTTP(authOpts map[string]string) (HTTP, error) {
+func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
+
+	log.SetLevel(logLevel)
 
 	//Initialize with defaults
 	var http = HTTP{
@@ -190,7 +193,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 		dataJson, mErr := json.Marshal(dataMap)
 
 		if mErr != nil {
-			log.Printf("marshal error: %v\n", mErr)
+			log.Errorf("marshal error: %v\n", mErr)
 			return false
 		}
 
@@ -198,7 +201,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 		req, reqErr := h.NewRequest("POST", fullUri, contentReader)
 
 		if reqErr != nil {
-			log.Printf("req error: %v\n", reqErr)
+			log.Errorf("req error: %v\n", reqErr)
 			return false
 		}
 
@@ -208,7 +211,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 	}
 
 	if err != nil {
-		log.Printf("POST error: %v\n", err)
+		log.Errorf("POST error: %v\n", err)
 		return false
 	}
 
@@ -216,12 +219,12 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 	defer resp.Body.Close()
 
 	if bErr != nil {
-		log.Printf("read error: %v\n", bErr)
+		log.Errorf("read error: %v\n", bErr)
 		return false
 	}
 
 	if resp.Status != "200 OK" {
-		log.Printf("error code: %v\n", err)
+		log.Infof("error code: %v\n", err)
 		return false
 	}
 
@@ -229,7 +232,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
-			log.Printf("api error: %s\n", string(body))
+			log.Infof("api error: %s\n", string(body))
 			return false
 		}
 
@@ -240,18 +243,18 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 		jErr := json.Unmarshal(body, &response)
 
 		if jErr != nil {
-			log.Printf("unmarshal error: %v\n", jErr)
+			log.Errorf("unmarshal error: %v\n", jErr)
 			return false
 		}
 
 		if !response.Ok {
-			log.Printf("api error: %s\n", response.Error)
+			log.Infof("api error: %s\n", response.Error)
 			return false
 		}
 
 	}
 
-	log.Printf("http request approved for %s\n", username)
+	log.Debugf("http request approved for %s\n", username)
 	return true
 
 }

@@ -1,6 +1,7 @@
 user test1
 topic write test/topic/1
 topic read test/topic/2
+topic readwrite readwrite/topic
 
 user test2
 topic read test/topic/+

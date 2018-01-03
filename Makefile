@@ -15,4 +15,7 @@ requirements:
 	@go get -u github.com/mattn/go-sqlite3
 
 test:
-	go test ./... -v
+	go test ./... -v -bench=none
+
+benchmark:
+	go test ./... -v -bench=. -run=^a

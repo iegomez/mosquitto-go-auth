@@ -1,8 +1,10 @@
 package backends
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestPostgres(t *testing.T) {
@@ -13,7 +15,7 @@ func TestPostgres(t *testing.T) {
 	authOpts["pg_port"] = "5432"
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
-		_, err := NewPostgres(authOpts)
+		_, err := NewPostgres(authOpts, log.DebugLevel)
 		So(err, ShouldBeError)
 	})
 
@@ -26,7 +28,7 @@ func TestPostgres(t *testing.T) {
 	authOpts["pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
 
 	Convey("Given valid params NewPostgres should return a Postgres backend instance", t, func() {
-		postgres, err := NewPostgres(authOpts)
+		postgres, err := NewPostgres(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Empty db

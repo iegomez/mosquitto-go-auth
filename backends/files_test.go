@@ -1,9 +1,11 @@
 package backends
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"path/filepath"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestFiles(t *testing.T) {
@@ -12,7 +14,7 @@ func TestFiles(t *testing.T) {
 	authOpts := make(map[string]string)
 
 	Convey("Given empty opts NewFiles should fail", t, func() {
-		_, err := NewFiles(authOpts)
+		_, err := NewFiles(authOpts, log.DebugLevel)
 		So(err, ShouldBeError)
 	})
 
@@ -22,7 +24,7 @@ func TestFiles(t *testing.T) {
 	authOpts["acl_path"] = aclPath
 
 	Convey("Given valid params NewFiles should return a new files backend instance", t, func() {
-		files, err := NewFiles(authOpts)
+		files, err := NewFiles(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		/*
@@ -73,17 +75,27 @@ func TestFiles(t *testing.T) {
 		testTopic2 := `test/topic/2`
 		testTopic3 := `test/other/1`
 		testTopic4 := `other/1`
+		readWriteTopic := "readwrite/topic"
 
-		Convey("User 1 should be able to publish to test topic 1 but only read from topic 2", func() {
+		Convey("User 1 should be able to publish and not subscribe to test topic 1, and only subscribe but not publish to topic 2", func() {
 
 			tt1 := files.CheckAcl(user1, testTopic1, clientID, 2)
-			tt2 := files.CheckAcl(user1, testTopic2, clientID, 2)
-			tt3 := files.CheckAcl(user1, testTopic2, clientID, 1)
+			tt2 := files.CheckAcl(user1, testTopic1, clientID, 1)
+			tt3 := files.CheckAcl(user1, testTopic2, clientID, 2)
+			tt4 := files.CheckAcl(user1, testTopic2, clientID, 1)
 
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
-			So(tt3, ShouldBeTrue)
+			So(tt3, ShouldBeFalse)
+			So(tt4, ShouldBeTrue)
 
+		})
+
+		Convey("User 1 should be able to subscribe or publish to a readwrite topic rule", func() {
+			tt1 := files.CheckAcl(user1, readWriteTopic, clientID, 2)
+			tt2 := files.CheckAcl(user1, readWriteTopic, clientID, 1)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeTrue)
 		})
 
 		Convey("User 2 should be able to read any test/topic/X but not any/other", func() {

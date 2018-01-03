@@ -19,6 +19,7 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 
 **Every backend offers user, superuser and acl checks, and they also include proper tests.**
 
+Please open an issue with the `feature` or `enhancement` tag to request a new backend.
 
 #### Why?
 
@@ -30,11 +31,49 @@ Then I realized that it was kind of weird that not every backend offered all che
 that offered complete support for every backend included, and that was written in Go to facilitate the addition of any new backends, was born.
 
 
-#### Requirements
+### Table of contents
+
+<!-- MarkdownTOC -->
+
+- [Requirements](#requirements)
+- [Build](#build)
+- [Configuration](#configuration)
+	- [General options](#general-options)
+	- [Cache](#cache)
+	- [Log level](#log-level)
+	- [Prefixes](#prefixes)
+	- [Backend options](#backend-options)
+- [Files](#files)
+	- [Passwords file](#passwords-file)
+	- [ACL file](#acl-file)
+	- [Testing Files](#testing-files)
+- [PostgreSQL](#postgresql)
+	- [Testing Postgres](#testing-postgres)
+- [Mysql](#mysql)
+	- [Testing Mysql](#testing-mysql)
+- [SQLite3](#sqlite3)
+	- [Testing SQLite3](#testing-sqlite3)
+- [JWT](#jwt)
+	- [Remote mode](#remote-mode)
+	- [Local mode](#local-mode)
+	- [Testing JWT](#testing-jwt)
+- [HTTP](#http)
+	- [Response mode](#response-mode)
+	- [Params mode](#params-mode)
+	- [Testing HTTP](#testing-http)
+- [Redis](#redis)
+	- [Testing Redis](#testing-redis)
+- [Benchmarks](#benchmarks)
+
+<!-- /MarkdownTOC -->
+
+
+
+### Requirements
 
 This projects was created with Go 1.9.2 and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
 
-It makes use of some Go packages as well. You check them at the Makefile and install all the dependencies with:
+It makes use of some Go packages as well. You can check them at the Makefile and install all the dependencies with:
 
 ```
 make requirements
@@ -43,7 +82,7 @@ make requirements
 Finally, it (optionally) uses Redis for cache purposes.
 
 
-#### Build
+### Build
 
 Building the project is fairly simple given that you meet the requirements. Just run this command:
 
@@ -64,13 +103,13 @@ make test
 ```
 
 
-#### Configuration
+### Configuration
 
 The plugin is configured in [Mosquitto's](https://mosquitto.org/) configuration file (typically `mosquitto.conf`),
 and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 
 
-##### General options
+#### General options
 
 ```
 auth_plugin /path/to/auth-plug.so
@@ -82,13 +121,15 @@ Register the desired backends with:
 auth_opt_backends files, postgres, jwt
 ```
 
-Also, set cache option to true to use redis cache:
+#### Cache
+
+Set cache option to true to use redis cache (defaults to false when missing):
 
 ```
 auth_opt_cache true
 ```
 
-Redis will use some default if no values are given. The following are possible configuration values for the cache:
+Redis will use some defaults if no values are given. The following are possible configuration values for the cache:
 
 ```
 auth_opt_cache_host localhost
@@ -99,34 +140,87 @@ auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
 
+#### Log level
 
-##### Prefixes
+You can set the log level with the log_level option. Valid values are: debug, info, warn, error, fatal and panic. If not set, default value is `info`.
 
-Though the plugin may have multiple backends enabled, there's a way to specify which backends must be used for a given user: prefixes. When enabled, `prefixes` allows to check if the username contains a predefined prefix in the form prefix_rest_of_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
+```
+auth_opt_log_level debug
+```
+
+
+#### Prefixes
+
+Though the plugin may have multiple backends enabled, there's a way to specify which backend must be used for a given user: prefixes. When enabled, `prefixes` allows to check if the username contains a predefined prefix in the form prefix_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
 
 ```
 auth_opt_check_prefix true
 auth_opt_prefixes filesprefix, pgprefix, jwtprefix
 ```
 
-Prefixes must meet the backends' order and number. If amounts don't match, the plugin will default to prefixes disabled.
+Prefixes must meet the declared backends order and number. If amounts don't match, the plugin will default to prefixes disabled.
+
 Underscores (\_) are not allowed in the prefixes, as a username's prefix will be checked against the first underscore's index. Of course, if a username has no underscore or valid prefix, it'll be checked against all backends.
 
 
-##### Backend options
+#### Backend options
 
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
 
 
 
+### Files
+
+The `files` backend implements the regular password and acl checks as described in mosquitto. Passwords should be in PBKDF2 format (for other backends too), and may be generated using the `pw` utility (built by default when running `make`) included in the plugin (or one of your own). Check pw-gen dir for `pw` flags.
+
+For this backend passwords and acls file paths must be given:
+
+```
+auth_opt_password_path /path/to/password_file
+auth_opt_acl_path /path/to/acl_file
+```
+
+The following are correctly formatted examples of password and acl files:
+
+#### Passwords file
+
+```
+test1:PBKDF2$sha512$100000$2WQHK5rjNN+oOT+TZAsWAw==$TDf4Y6J+9BdnjucFQ0ZUWlTwzncTjOOeE00W4Qm8lfPQyPCZACCjgfdK353jdGFwJjAf6vPAYaba9+z4GWK7Gg==
+test2:PBKDF2$sha512$100000$o513B9FfaKTL6xalU+UUwA==$mAUtjVg1aHkDpudOnLKUQs8ddGtKKyu+xi07tftd5umPKQKnJeXf1X7RpoL/Gj/ZRdpuBu5GWZ+NZ2rYyAsi1g==
+```
+
+
+#### ACL file
+
+```
+user test1
+topic write test/topic/1
+topic read test/topic/2
+
+user test2
+topic read test/topic/+
+
+user test3
+topic read test/#
+
+pattern read test/%u
+pattern read test/%c
+
+```
+
+The acl file follows mosquitto's regular syntax: [mosquitto(5)](https://mosquitto.org/man/mosquitto-conf-5.html).
+
+
+#### Testing Files
+
+Proper test files are provided in the repo (see test-files dir) and are needed in order to test this backend.
+
+
+
 ### PostgreSQL
 
-The `postgres`  backend supports obtaining passwords, checking for _superusers_, and verifying ACLs by
-configuring up to three distinct SQL queries used to obtain those results.
-
-You configure the SQL queries in order to adapt to whichever schema
-you currently have.
+The `postgres`  backend allows to specify queries for user, superuser and acl checks to be tested against your schema.
 
 The following `auth_opt_` options are supported:
 
@@ -152,44 +246,41 @@ require - Always SSL (skip verification)
 verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
 verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
 
+Queries work pretty much the same as in jpmen's plugin, so here's his discription about them:
 
-The SQL query for looking up a user's password hash is mandatory. The query
-MUST return a single row only (any other number of rows is considered to be
-"user not found"), and it MUST return a single column only with the PBKDF2
-password hash. A single `'$1'` in the query string is replaced by the
-username attempting to access the broker.
+	The SQL query for looking up a user's password hash is mandatory. The query
+	MUST return a single row only (any other number of rows is considered to be
+	"user not found"), and it MUST return a single column only with the PBKDF2
+	password hash. A single `'$1'` in the query string is replaced by the
+	username attempting to access the broker.
 
-```sql
-SELECT pass FROM account WHERE username = $1 limit 1
-```
+	SELECT pass FROM account WHERE username = $1 limit 1
+	
 
-The SQL query for checking whether a user is a _superuser_ - and thus
-circumventing ACL checks - is optional. If it is specified, the query MUST
-return a single row with a single value: 0 is false and 1 is true. 
-A single `'$1`' in the query string is replaced by the
-username attempting to access the broker. The following example uses the
-same `users` table, but it could just as well reference a distinct table
-or view.
+	The SQL query for checking whether a user is a _superuser_ - and thus
+	circumventing ACL checks - is optional. If it is specified, the query MUST
+	return a single row with a single value: 0 is false and 1 is true. 
+	A single `'$1`' in the query string is replaced by the
+	username attempting to access the broker. The following example uses the
+	same `users` table, but it could just as well reference a distinct table
+	or view.
 
-```sql
-SELECT COUNT(*) FROM account WHERE username = $1 AND super = 1
-```
+	SELECT COUNT(*) FROM account WHERE username = $1 AND super = 1
 
-The SQL query for checking ACLs is optional, but if it is specified, the
-`postgres` backend can try to limit access to particular topics or topic branches
-depending on the value of a database table. The query MAY return zero or more
-rows for a particular user, each returning EXACTLY one column containing a
-topic (wildcards are supported). A single `'$1`' in the query string is
-replaced by the username attempting to access the broker, and a single `'$2`' is
-replaced with the integer value `1` signifying a read-only access attempt
-(SUB) or `2` signifying a read-write access attempt (PUB).
+	The SQL query for checking ACLs is optional, but if it is specified, the
+	`postgres` backend can try to limit access to particular topics or topic branches
+	depending on the value of a database table. The query MAY return zero or more
+	rows for a particular user, each returning EXACTLY one column containing a
+	topic (wildcards are supported). A single `'$1`' in the query string is
+	replaced by the username attempting to access the broker, and a single `'$2`' is
+	replaced with the integer value `1` signifying a read-only access attempt
+	(SUB) or `2` signifying a read-write access attempt (PUB).
 
-In the following example, the table has a column `rw` containing 1 for
-readonly topics, 2 for writeonly topics and 3 for readwrite topics:
+	In the following example, the table has a column `rw` containing 1 for
+	readonly topics, 2 for writeonly topics and 3 for readwrite topics:
 
-```sql
-SELECT topic FROM acl WHERE (username = $1) AND rw >= $2
-```
+	SELECT topic FROM acl WHERE (username = $1) AND (rw = $2 or rw = 3) 
+
 
 Example configuration:
 
@@ -345,50 +436,6 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 
 
-### Files
-
-The files backend attempts to re-implement the files behavior in vanilla Mosquitto, however the user's password file contains PBKDF2 passwords instead of passwords hashed with the `mosquitto-passwd` program; you may use the `pw` utility included in the plugin or build your own. Check pw-gen dir to check `pw` flags.
-
-The configuration directives for the `Files` backend are as follows:
-
-```
-auth_opt_backends files
-auth_opt_password_path /path/to/password_file
-auth_opt_acl_path /path/to/acl_file
-```
-
-with examples of these files being:
-
-
-#### `password_file`
-
-```
-# comment
-jpm:PBKDF2$sha256$901$UGfDz79cAaydRsEF$XvYwauPeviFd1NfbGL+dxcn1K7BVfMeW
-jane:PBKDF2$sha256$901$wvvH0fe7Ftszt8nR$NZV6XWWg01dCRiPOheVNsgMJDX1mzd2v
-```
-
-
-#### `acl_file`
-
-```
-user jane
-topic read #
-
-user jpm
-topic dd
-
-```
-
-The syntax for the ACL file is that as described in `mosquitto.conf(5)`.
-
-
-#### Testing Files
-
-Proper test files are provided in the repo (see test-files dir) and are needed in order to test this backend.
-
-
-
 ### JWT
 
 The `jwt` backend is for auth with a JWT remote API or a local DB. The option jwt_remote sets the nature of the plugin:
@@ -415,7 +462,7 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 | jwt_params_mode   | json              |      N      | Data type (json, form)            |
 
 
-URIs (like jwt_getuser_uri) are expected to be in the form /path. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
+URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
 
 
 ##### Response mode
@@ -615,13 +662,52 @@ This backend has no special requirements as the http servers are specially mocke
 
 ### Redis
 
-The `redis` backend allows to check user, superuser and acls in a defined format. As with postgres and files, passwords hash must be stored and can be created with the `pw` utility.
+The `redis` backend allows to check user, superuser and acls in a defined format. As with the files and different DB backends, passwords hash must be stored and can be created with the `pw` utility.
 
-For user check, Redis must contain a KEY with the username and the password hash as a value:
-For superuser check, a user will be a superuser if there exists a KEY username:su and it return a string value "true".
-Normal and Wildcard acls are supported and are expected to be stored in a SET with KEY username:acls, with the members being the allowed acls following the conventional format (as in files).
+For user check, Redis must contain the KEY `username` and the password hash as value.
+
+For superuser check, a user will be a superuser if there exists a KEY `username:su` and it returns a string value "true".
+
+Acls may be defined as user specific or for any user, and as read only (subscribe), write only (publish) or readwrite (pub or sub) rules. 
+
+For user specific rules, SETS with KEYS "username:racls", "username:wacls" and "username:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics. "username" must be replaced with the specific username for each user containing acls.
+
+For common rules, SETS with KEYS "common:racls", "common:wacls" and "common:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics.
 
 
 #### Testing Redis
 
 In order to test the Redis backend, the plugin needs to be able to connect to a redis server located at localhost, on port 6379, without using password and that a database named 2  exists (to avoid messing with the commonly used 0 and 1). All this requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
+
+
+### Benchmarks
+
+Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files and Redis backends. They were ran on an Asus laptop with the following specs:
+
+OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
+Kernel: 			4.11.0-14
+Processor: 		Intel Core i5-6200U CPU @ 2.30GHz x 2
+Memory: 			5.7 GiB
+
+As said, take these benchmarks with a grain of salt and consider them just as a reference. A much better benchmark would be running mosquitto with this plugin and an alternative one (such as [jpmens'](https://github.com/jpmens)) and compare how they do against similarly configured backends. I'd expect that one to be faster, as it's written in C, but hopefully the difference isn't so big. I'd gladly include something like this if anyone is willing to do such benchmark.
+
+You could check files_benchmark_test.go and redis_benchmark_test.go to see the benchmarks details, but the titles should be self explanatory.
+
+Benchmarks can be ran with:
+
+`make benchmarks`
+
+Finally, here are the results:
+
+```
+BenchmarkFilesUser-4               	      	10	 		151611011 ns/op
+BenchmarkFilesSuperuser-4          	1000000000	         2.94 ns/op
+BenchmarkFilesAcl-4                		10000000	       		167 ns/op
+BenchmarkRedisUser-4               	      	10	 		152723368 ns/op
+BenchmarkRedisSuperuser-4          	  	100000	     		21330 ns/op
+BenchmarkRedisStrictAcl-4          	   	20000	     			84570 ns/op
+BenchmarkRedisUserPatternAcl-4     	   	20000	     			83076 ns/op
+BenchmarkRedisClientPatternAcl-4   	   	20000	     			84883 ns/op
+BenchmarkRedisSingleLevelAcl-4     	   	20000	     			84241 ns/op
+BenchmarkRedisHierarchyAcl-4       	   	20000	     			83835 ns/op
+```

@@ -1,9 +1,10 @@
 package backends
 
 import (
-	"log"
 	"os"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -34,7 +35,7 @@ func TestFileSqlite(t *testing.T) {
 	authOpts := make(map[string]string)
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
-		_, err := NewSqlite(authOpts)
+		_, err := NewSqlite(authOpts, log.DebugLevel)
 		So(err, ShouldBeError)
 	})
 
@@ -43,7 +44,7 @@ func TestFileSqlite(t *testing.T) {
 		_, fErr := os.Create("../test-files/sqlite_test.db")
 
 		if fErr != nil {
-			log.Printf("file error: %s\n", fErr)
+			log.Errorf("file error: %s\n", fErr)
 			os.Exit(1)
 		}
 	}
@@ -55,7 +56,7 @@ func TestFileSqlite(t *testing.T) {
 	authOpts["sqlite_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
 
 	Convey("Given valid params NewSqlite should return a Sqlite backend instance", t, func() {
-		sqlite, err := NewSqlite(authOpts)
+		sqlite, err := NewSqlite(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Create schemas
@@ -211,7 +212,7 @@ func TestMemorySqlite(t *testing.T) {
 	authOpts := make(map[string]string)
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
-		_, err := NewSqlite(authOpts)
+		_, err := NewSqlite(authOpts, log.DebugLevel)
 		So(err, ShouldBeError)
 	})
 
@@ -222,7 +223,7 @@ func TestMemorySqlite(t *testing.T) {
 	authOpts["sqlite_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
 
 	Convey("Given valid params NewSqlite should return a Sqlite backend instance", t, func() {
-		sqlite, err := NewSqlite(authOpts)
+		sqlite, err := NewSqlite(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Create schemas

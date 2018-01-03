@@ -2,8 +2,9 @@ package backends
 
 import (
 	"database/sql"
-	"log"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -21,7 +22,9 @@ type Sqlite struct {
 	AclQuery       string
 }
 
-func NewSqlite(authOpts map[string]string) (Sqlite, error) {
+func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
+
+	log.SetLevel(logLevel)
 
 	//Set defaults for sqlite
 
@@ -84,12 +87,12 @@ func (o Sqlite) GetUser(username, password string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Printf("PG get user error: %s\n", err)
+		log.Debugf("PG get user error: %s\n", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Printf("PG get user error: user %s not found.\n", username)
+		log.Debugf("PG get user error: user %s not found.\n", username)
 		return false
 	}
 
@@ -113,12 +116,12 @@ func (o Sqlite) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Printf("PG get superuser error: %s\n", err)
+		log.Debugf("PG get superuser error: %s\n", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Printf("PG get superuser error: user %s not found.\n", username)
+		log.Debugf("PG get superuser error: user %s not found.\n", username)
 		return false
 	}
 
@@ -142,7 +145,7 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Printf("PG check acl error: %s\n", err)
+		log.Debugf("PG check acl error: %s\n", err)
 		return false
 	}
 

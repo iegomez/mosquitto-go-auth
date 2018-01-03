@@ -3,9 +3,10 @@ package backends
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
 
@@ -40,7 +41,9 @@ type Files struct {
 }
 
 //NewFiles initializes a files backend.
-func NewFiles(authOpts map[string]string) (Files, error) {
+func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
+
+	log.SetLevel(logLevel)
 
 	var files = Files{
 		PasswordPath: "",
@@ -61,7 +64,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 		files.CheckAcls = true
 	} else {
 		files.CheckAcls = false
-		log.Print("Acls won't be checked.\n")
+		log.Info("Acls won't be checked.\n")
 	}
 
 	//Now initialize FileUsers by reading from password and acl files.
@@ -69,7 +72,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 	if uErr != nil {
 		return files, errors.Errorf("Fatal: %s\n", uErr)
 	} else {
-		log.Printf("Got %d users from passwords file.\n", uCount)
+		log.Infof("Got %d users from passwords file.\n", uCount)
 	}
 
 	//Only read acls if path was given.
@@ -78,7 +81,7 @@ func NewFiles(authOpts map[string]string) (Files, error) {
 		if aclErr != nil {
 			return files, errors.Errorf("Fatal: %s\n", aclErr)
 		} else {
-			log.Printf("Got %d lines from acl file.\n", aclCount)
+			log.Infof("Got %d lines from acl file.\n", aclCount)
 		}
 	}
 
@@ -111,7 +114,7 @@ func (o Files) readPasswords() (int, error) {
 
 		lineArr := strings.Split(scanner.Text(), ":")
 		if len(lineArr) != 2 {
-			log.Printf("Read passwords error: line %d is not well formatted.\n", index)
+			log.Errorf("Read passwords error: line %d is not well formatted.\n", index)
 			continue
 		}
 		//Create user if it doesn't exist and save password; override password if user existed.
@@ -217,7 +220,7 @@ func (o *Files) readAcls() (int, error) {
 					o.AclRecords = append(o.AclRecords, aclRecord)
 				}
 
-				log.Printf("created aclrecord %v for user %s\n", aclRecord, currentUser)
+				log.Infof("created aclrecord %v for user %s\n", aclRecord, currentUser)
 
 				linesCount++
 
@@ -255,7 +258,7 @@ func (o *Files) readAcls() (int, error) {
 				}
 
 				//Append to general acls.
-				log.Printf("Added common acl: %s\n", aclRecord.Topic)
+				log.Infof("Added common acl: %s\n", aclRecord.Topic)
 				o.AclRecords = append(o.AclRecords, aclRecord)
 
 				linesCount++
@@ -281,11 +284,11 @@ func checkCommentOrEmpty(line string) bool {
 //GetUser checks that user exists and password is correct.
 func (o Files) GetUser(username, password string) bool {
 
-	log.Printf("checking user %s\n", username)
+	log.Infof("checking user %s\n", username)
 
 	fileUser, ok := o.Users[username]
 	if !ok {
-		log.Printf("no such user: %s\n", username)
+		log.Warnf("no such user: %s\n", username)
 		return false
 	}
 
@@ -293,7 +296,7 @@ func (o Files) GetUser(username, password string) bool {
 		return true
 	}
 
-	log.Printf("wrong password for user %s\n", username)
+	log.Warnf("wrong password for user %s\n", username)
 
 	return false
 
@@ -307,8 +310,7 @@ func (o Files) GetSuperuser(username string) bool {
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
 func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If there are no acls, all access is allowed.
-	log.Printf("Files acl check with user %s, topic: %s, clientid: %s and acc: %d\n", username, topic, clientid, acc)
-	log.Printf("Common acls are: %v\b", o.AclRecords)
+	log.Infof("Files acl check with user %s, topic: %s, clientid: %s and acc: %d\n", username, topic, clientid, acc)
 	if !o.CheckAcls {
 		return true
 	}
@@ -318,25 +320,23 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If user exists, check against his acls and common ones. If not, check against common acls only.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			if common.TopicsMatch(aclRecord.Topic, topic) && acc <= int32(aclRecord.Acc) {
-				log.Printf("Files acl check passed.")
+			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
+				log.Infof("Files acl check passed.")
 				return true
 			}
 		}
 	}
 	for _, aclRecord := range o.AclRecords {
-		log.Printf("Topic is: %s\n", aclRecord)
 		//Replace all occurrences of %c for clientid and %u for username
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		log.Printf("Checking %s against acl %s\n", topic, aclTopic)
-		if common.TopicsMatch(aclTopic, topic) && acc <= int32(aclRecord.Acc) {
-			log.Printf("Files acl check passed.")
+		if common.TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
+			log.Infof("Files acl check passed.")
 			return true
 		}
 	}
 
-	log.Printf("Files acl check failed.")
+	log.Warnf("Files acl check failed.")
 	return false
 
 }

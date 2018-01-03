@@ -1,8 +1,10 @@
 package backends
 
 import (
-	. "github.com/smartystreets/goconvey/convey"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
+	. "github.com/smartystreets/goconvey/convey"
 )
 
 func TestRedis(t *testing.T) {
@@ -14,7 +16,7 @@ func TestRedis(t *testing.T) {
 	authOpts["redis_db"] = "2"
 
 	Convey("Given valid params NewRedis should return a Redis backend instance", t, func() {
-		redis, err := NewRedis(authOpts)
+		redis, err := NewRedis(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Empty db
@@ -59,7 +61,11 @@ func TestRedis(t *testing.T) {
 
 		clientID := "test_client"
 
-		redis.Conn.SAdd(username+":acls", strictAcl)
+		writeAcl := "write/test"
+
+		readWriteAcl := "test/readwrite/1"
+
+		redis.Conn.SAdd(username+":racls", strictAcl)
 
 		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
 
@@ -84,16 +90,15 @@ func TestRedis(t *testing.T) {
 
 		})
 
-		//Now check against patterns.
+		//Now check against common patterns.
+		redis.Conn.SAdd("common:racls", userPattern)
 
-		redis.Conn.SAdd(username+":acls", userPattern)
-
-		Convey("Given a topic that mentions username, acl check should pass", func() {
+		Convey("Given a topic that mentions username and subscribes to it, acl check should pass", func() {
 			tt1 := redis.CheckAcl(username, "test/test", clientID, 1)
 			So(tt1, ShouldBeTrue)
 		})
 
-		redis.Conn.SAdd(username+":acls", clientPattern)
+		redis.Conn.SAdd("common:racls", clientPattern)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
 			tt1 := redis.CheckAcl(username, "test/test_client", clientID, 1)
@@ -102,7 +107,7 @@ func TestRedis(t *testing.T) {
 
 		//Now insert single level topic to check against.
 
-		redis.Conn.SAdd(username+":acls", singleLevelAcl)
+		redis.Conn.SAdd(username+":racls", singleLevelAcl)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
 			tt1 := redis.CheckAcl(username, "test/topic/whatever", clientID, 1)
@@ -111,15 +116,37 @@ func TestRedis(t *testing.T) {
 
 		//Now insert hierarchy wildcard to check against.
 
-		redis.Conn.SAdd(username+":acls", hierarchyAcl)
+		redis.Conn.SAdd(username+":racls", hierarchyAcl)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
 			tt1 := redis.CheckAcl(username, "test/what/ever", clientID, 1)
 			So(tt1, ShouldBeTrue)
 		})
 
+		//Now test against a publish subscription
+		Convey("Given a publish attempt for a read only acl, acl check should fail", func() {
+			tt1 := redis.CheckAcl(username, "test/test", clientID, 2)
+			So(tt1, ShouldBeFalse)
+		})
+
+		//Add a write only acl and check for subscription.
+		redis.Conn.SAdd(username+":wacls", writeAcl)
+		Convey("Given a subscription attempt on a write only acl, acl check should fail", func() {
+			tt1 := redis.CheckAcl(username, writeAcl, clientID, 1)
+			So(tt1, ShouldBeFalse)
+		})
+
+		//Add a readwrite acl and check for subscription.
+		redis.Conn.SAdd(username+":rwacls", readWriteAcl)
+		Convey("Given a sub/pub attempt on a readwrite acl, acl check should pass for both", func() {
+			tt1 := redis.CheckAcl(username, readWriteAcl, clientID, 1)
+			tt2 := redis.CheckAcl(username, readWriteAcl, clientID, 2)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeTrue)
+		})
+
 		//Empty db
-		//redis.Conn.FlushDB()
+		redis.Conn.FlushDB()
 
 	})
 

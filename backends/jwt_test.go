@@ -3,13 +3,14 @@ package backends
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	. "github.com/smartystreets/goconvey/convey"
@@ -71,7 +72,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 		authOpts["pg_password"] = "go_auth_test"
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts)
+			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
 			//Empty DB
@@ -211,7 +212,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 		authOpts["mysql_password"] = "go_auth_test"
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts)
+			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
 			//Empty DB
@@ -403,7 +404,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -416,7 +417,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -523,7 +524,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -536,7 +537,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -647,7 +648,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -660,7 +661,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -746,7 +747,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 		var jsonResponse []byte
 		var params = r.Form
-		log.Printf("Got params: %v\n", params)
+		log.Debugf("Got params: %v\n", params)
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
@@ -783,7 +784,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -796,7 +797,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -897,7 +898,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -910,7 +911,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -1016,7 +1017,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -1029,7 +1030,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts)
+		hb, err := NewJWT(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {

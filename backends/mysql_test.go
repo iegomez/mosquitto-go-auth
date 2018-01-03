@@ -3,6 +3,7 @@ package backends
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -14,7 +15,7 @@ func TestMysql(t *testing.T) {
 	authOpts["mysql_port"] = "3306"
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
-		_, err := NewMysql(authOpts)
+		_, err := NewMysql(authOpts, log.DebugLevel)
 		So(err, ShouldBeError)
 	})
 
@@ -27,7 +28,7 @@ func TestMysql(t *testing.T) {
 	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
 
 	Convey("Given valid params NewMysql should return a Mysql backend instance", t, func() {
-		mysql, err := NewMysql(authOpts)
+		mysql, err := NewMysql(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Empty db

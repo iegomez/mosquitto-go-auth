@@ -6,8 +6,9 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -36,7 +37,9 @@ type Mysql struct {
 	SocketPath     string
 }
 
-func NewMysql(authOpts map[string]string) (Mysql, error) {
+func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
+
+	log.SetLevel(logLevel)
 
 	//Set defaults for Mysql
 
@@ -177,12 +180,12 @@ func (o Mysql) GetUser(username, password string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Printf("MySql get user error: %s\n", err)
+		log.Debugf("MySql get user error: %s\n", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Printf("MySql get user error: user %s not found.\n", username)
+		log.Debugf("MySql get user error: user %s not found.\n", username)
 		return false
 	}
 
@@ -206,12 +209,12 @@ func (o Mysql) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Printf("MySql get superuser error: %s\n", err)
+		log.Debugf("MySql get superuser error: %s\n", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Printf("MySql get superuser error: user %s not found.\n", username)
+		log.Debugf("MySql get superuser error: user %s not found.\n", username)
 		return false
 	}
 
@@ -235,7 +238,7 @@ func (o Mysql) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Printf("MySql check acl error: %s\n", err)
+		log.Debugf("MySql check acl error: %s\n", err)
 		return false
 	}
 

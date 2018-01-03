@@ -3,12 +3,13 @@ package backends
 import (
 	"encoding/json"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	log "github.com/sirupsen/logrus"
 
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -46,7 +47,7 @@ func TestHTTPAllJsonServer(t *testing.T) {
 		}
 
 		params = data.(map[string]interface{})
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
+		log.Debugf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"].(string) == username && params["password"].(string) == password {
@@ -87,7 +88,7 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
@@ -99,7 +100,7 @@ func TestHTTPAllJsonServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -185,7 +186,7 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 		}
 
 		params = data.(map[string]interface{})
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
+		log.Debugf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"].(string) == username && params["password"].(string) == password {
@@ -213,7 +214,7 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
@@ -225,7 +226,7 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -313,7 +314,7 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 		}
 
 		params = data.(map[string]interface{})
-		log.Printf("received params %v for path %s\n", params, r.URL.Path)
+		log.Debugf("received params %v for path %s\n", params, r.URL.Path)
 
 		if r.URL.Path == "/user" {
 			if params["username"].(string) == username && params["password"].(string) == password {
@@ -343,7 +344,7 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "json"
@@ -355,7 +356,7 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -483,7 +484,7 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
@@ -495,7 +496,7 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -600,7 +601,7 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
@@ -612,7 +613,7 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -722,7 +723,7 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Printf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("Trying host: %s\n", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["http_params_mode"] = "form"
@@ -734,7 +735,7 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 	authOpts["http_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewHTTP(authOpts)
+		hb, err := NewHTTP(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {

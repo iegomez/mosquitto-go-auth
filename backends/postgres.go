@@ -3,8 +3,9 @@ package backends
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"strings"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
@@ -30,7 +31,9 @@ type Postgres struct {
 	SSLRootCert    string
 }
 
-func NewPostgres(authOpts map[string]string) (Postgres, error) {
+func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, error) {
+
+	log.SetLevel(logLevel)
 
 	//Set defaults for postgres
 
@@ -149,12 +152,12 @@ func (o Postgres) GetUser(username, password string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Printf("PG get user error: %s\n", err)
+		log.Debugf("PG get user error: %s\n", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Printf("PG get user error: user %s not found.\n", username)
+		log.Debugf("PG get user error: user %s not found.\n", username)
 		return false
 	}
 
@@ -178,12 +181,12 @@ func (o Postgres) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Printf("PG get superuser error: %s\n", err)
+		log.Debugf("PG get superuser error: %s\n", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Printf("PG get superuser error: user %s not found.\n", username)
+		log.Debugf("PG get superuser error: user %s not found.\n", username)
 		return false
 	}
 
@@ -207,7 +210,7 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Printf("PG check acl error: %s\n", err)
+		log.Debugf("PG check acl error: %s\n", err)
 		return false
 	}
 
