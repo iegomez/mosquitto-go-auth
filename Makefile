@@ -13,6 +13,7 @@ requirements:
 	@go get -u github.com/smartystreets/goconvey/convey
 	@go get -u github.com/go-sql-driver/mysql
 	@go get -u github.com/mattn/go-sqlite3
+	@go get -u github.com/sirupsen/logrus
 
 test:
 	go test ./... -v -bench=none

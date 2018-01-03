@@ -65,6 +65,8 @@ func TestRedis(t *testing.T) {
 
 		readWriteAcl := "test/readwrite/1"
 
+		commonTopic := "common/test/topic"
+
 		redis.Conn.SAdd(username+":racls", strictAcl)
 
 		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
@@ -143,6 +145,14 @@ func TestRedis(t *testing.T) {
 			tt2 := redis.CheckAcl(username, readWriteAcl, clientID, 2)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
+		})
+
+		//Now common acl to check against.
+		redis.Conn.SAdd("common:racls", commonTopic)
+
+		Convey("Given a topic not present in user's acls but present in common ones, acl check should pass", func() {
+			tt1 := redis.CheckAcl("unknown", commonTopic, clientID, 1)
+			So(tt1, ShouldBeTrue)
 		})
 
 		//Empty db
