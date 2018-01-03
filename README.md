@@ -241,10 +241,10 @@ The following `auth_opt_` options are supported:
 
 Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
-disable - No SSL
-require - Always SSL (skip verification)
-verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
-verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
+	disable - No SSL
+	require - Always SSL (skip verification)
+	verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
+	verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
 
 Queries work pretty much the same as in jpmen's plugin, so here's his discription about them:
 
@@ -685,9 +685,9 @@ In order to test the Redis backend, the plugin needs to be able to connect to a 
 Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files and Redis backends. They were ran on an Asus laptop with the following specs:
 
 	OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
-	Kernel: 			4.11.0-14
-	Processor: 		Intel Core i5-6200U CPU @ 2.30GHz x 2
-	Memory: 			5.7 GiB
+	Kernel: 				4.11.0-14
+	Processor: 				Intel Core i5-6200U CPU @ 2.30GHz x 2
+	Memory: 				5.7 GiB
 
 As said, take these benchmarks with a grain of salt and consider them just as a reference. A much better benchmark would be running mosquitto with this plugin and an alternative one (such as [jpmens'](https://github.com/jpmens)) and compare how they do against similarly configured backends. I'd expect that one to be faster, as it's written in C, but hopefully the difference isn't so big. I'd gladly include something like this if anyone is willing to do such benchmark.
 
@@ -700,14 +700,14 @@ Benchmarks can be ran with:
 Finally, here are the results:
 
 ```
-BenchmarkFilesUser-4               	      	10	 		151611011 ns/op
-BenchmarkFilesSuperuser-4          	1000000000	         2.94 ns/op
-BenchmarkFilesAcl-4                		10000000	       		167 ns/op
-BenchmarkRedisUser-4               	      	10	 		152723368 ns/op
-BenchmarkRedisSuperuser-4          	  	100000	     		21330 ns/op
-BenchmarkRedisStrictAcl-4          	   	20000	     			84570 ns/op
-BenchmarkRedisUserPatternAcl-4     	   	20000	     			83076 ns/op
-BenchmarkRedisClientPatternAcl-4   	   	20000	     			84883 ns/op
-BenchmarkRedisSingleLevelAcl-4     	   	20000	     			84241 ns/op
-BenchmarkRedisHierarchyAcl-4       	   	20000	     			83835 ns/op
+BenchmarkFilesUser-4               	      	10 				151611011 ns/op
+BenchmarkFilesSuperuser-4           1000000000         			 2.94 ns/op
+BenchmarkFilesAcl-4                	  10000000       			  167 ns/op
+BenchmarkRedisUser-4               	      	10	 			152723368 ns/op
+BenchmarkRedisSuperuser-4          	  	100000	     			21330 ns/op
+BenchmarkRedisStrictAcl-4          	   	 20000	     			84570 ns/op
+BenchmarkRedisUserPatternAcl-4     	   	 20000	     			83076 ns/op
+BenchmarkRedisClientPatternAcl-4   	   	 20000	     			84883 ns/op
+BenchmarkRedisSingleLevelAcl-4     	   	 20000	     			84241 ns/op
+BenchmarkRedisHierarchyAcl-4       	   	 20000	     			83835 ns/op
 ```
