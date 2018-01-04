@@ -16,6 +16,7 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * Redis (added)
 * Mysql (added)
 * SQLite3 (added)
+* MongoDB (added)
 
 **Every backend offers user, superuser and acl checks, and they also include proper tests.**
 
@@ -63,6 +64,8 @@ that offered complete support for every backend included, and that was written i
 	- [Testing HTTP](#testing-http)
 - [Redis](#redis)
 	- [Testing Redis](#testing-redis)
+- [MongoDB](#mongodb)
+	- [Testing MongoDB](#testing-mongodb)
 - [Benchmarks](#benchmarks)
 
 <!-- /MarkdownTOC -->
@@ -674,10 +677,93 @@ For user specific rules, SETS with KEYS "username:racls", "username:wacls" and "
 
 For common rules, SETS with KEYS "common:racls", "common:wacls" and "common:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics.
 
+Finally, options for Redis are not mandatory and are the following:
+
+```
+auth_opt_redis_host localhost
+auth_opt_redis_port 6379
+auth_opt_redis_db dbname
+auth_opt_redis_password pwd
+```
+
+When not present, host defaults to "localhost", port to 6379, db to 2 and no password is set.
+
 
 #### Testing Redis
 
-In order to test the Redis backend, the plugin needs to be able to connect to a redis server located at localhost, on port 6379, without using password and that a database named 2  exists (to avoid messing with the commonly used 0 and 1). All this requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
+In order to test the Redis backend, the plugin needs to be able to connect to a redis server located at localhost, on port 6379, without using password and that a database named 2  exists (to avoid messing with the commonly used 0 and 1). 
+
+All this requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
+
+After testing, db 2 will be flushed.
+
+
+### MongoDB
+
+The `mongo` backend, as the `redis` one, defines some formats to checks user, superuser and acls.
+Two collections are defined, one for users and the other for common acls.
+
+In the first case, a user consists of a "username" string, a "password" string (as always, PBKDF2 hash), a "superuser" boolean, and an "acls" array of rules. These rules consis of a "topic" string and an int "acc", where 1 means read only, 2 means write only and 3 means readwrite.
+
+Example user: 
+
+```
+	{ "_id" : ObjectId("5a4e760f708ba1a1601fa40f"), 
+		"username" : "test", 
+		"password" : "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw==", 
+		"superuser" : true, 
+		"acls" : [ 
+			{ "topic" : "test/topic/1", "acc" : 1 }, 
+			{ "topic" : "single/topic/+", "acc" : 1}, 
+			{ "topic" : "hierarchy/#", "acc" : 1 }, 
+			{ "topic" : "write/test", "acc" : 2 }, 
+			{ "topic" : "test/readwrite/1", "acc" : 3 } 
+		] 
+	}
+```
+
+Common acls are just like user ones, but live in their own collection and are applicable to any user. Pattern matching against username or clientid acls should be included here.
+
+Example acls:
+
+```
+	{ "_id" : ObjectId("5a4e760f708ba1a1601fa411"), "topic" : "pattern/%u", "acc" : 1 }
+	{ "_id" : ObjectId("5a4e760f708ba1a1601fa413"), "topic" : "pattern/%c", "acc" : 1 }
+```
+
+Options for `mongo` are not mandatory and are the following:
+
+```
+auth_opt_mongo_host localhost
+auth_opt_mongo_port 6379
+auth_opt_mongo_dbname dbname
+auth_opt_mongo_username user
+auth_opt_mongo_password pwd
+auth_opt_mongo_users users_collection_name
+auth_opt_mongo_acls acls_collection_name
+```
+
+The last two set names for the collections to be used for the given database.
+
+When not set, these options default to:
+
+	host:            "localhost"
+	port:            "27017"
+	username:        ""
+	password:        ""
+	dbame:           "mosquitto"
+	users: 						"users"
+	acls:  						"acls"
+
+
+#### Testing MongoDB
+
+Much like `redis`, to test this backend the plugin needs to be able to connect to a mongodb server located at localhost, on port 27017, without using username or password. 
+
+All this requirements are met with a fresh installation of MongoDB without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
+
+As with `sqlite`, this backend constructs the collections and inserts relevant data, which are whiped out after testing is done, so no user actions are required.
+
 
 
 ### Benchmarks

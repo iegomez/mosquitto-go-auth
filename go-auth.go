@@ -32,6 +32,7 @@ type CommonData struct {
 	Mysql            bes.Mysql
 	Http             bes.HTTP
 	Sqlite           bes.Sqlite
+	Mongo            bes.Mongo
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -58,6 +59,7 @@ var allowedBackends = map[string]bool{
 	"files":    true,
 	"mysql":    true,
 	"sqlite":   true,
+	"mongo":    true,
 }
 var backends []string
 var authOpts map[string]string
@@ -160,6 +162,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else if bename == "sqlite" {
 			beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
 			commonData.Sqlite = beIface.(bes.Sqlite)
+		} else if bename == "mongo" {
+			beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
+			commonData.Mongo = beIface.(bes.Mongo)
 		}
 
 		if bErr != nil {
@@ -298,6 +303,8 @@ func AuthUnpwdCheck(username, password string) bool {
 				backend = commonData.Http
 			} else if bename == "sqlite" {
 				backend = commonData.Sqlite
+			} else if bename == "mongo" {
+				backend = commonData.Mongo
 			}
 
 			if backend.GetUser(username, password) {
@@ -361,6 +368,8 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				backend = commonData.Http
 			} else if bename == "sqlite" {
 				backend = commonData.Sqlite
+			} else if bename == "mongo" {
+				backend = commonData.Mongo
 			}
 
 			log.Debugf("Superuser check with backend %s\n", backend.GetName())
@@ -492,6 +501,8 @@ func CheckBackendsAuth(username, password string) bool {
 			backend = commonData.Http
 		} else if bename == "sqlite" {
 			backend = commonData.Sqlite
+		} else if bename == "mongo" {
+			backend = commonData.Mongo
 		}
 
 		if backend.GetUser(username, password) {
@@ -529,6 +540,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			backend = commonData.Http
 		} else if bename == "sqlite" {
 			backend = commonData.Sqlite
+		} else if bename == "mongo" {
+			backend = commonData.Mongo
 		}
 
 		log.Debugf("Superuser check with backend %s\n", backend.GetName())
@@ -558,6 +571,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 				backend = commonData.Http
 			} else if bename == "sqlite" {
 				backend = commonData.Sqlite
+			} else if bename == "mongo" {
+				backend = commonData.Mongo
 			}
 
 			log.Debugf("Acl check with backend %s\n", backend.GetName())
