@@ -14,6 +14,7 @@ requirements:
 	@go get -u github.com/go-sql-driver/mysql
 	@go get -u github.com/mattn/go-sqlite3
 	@go get -u go get gopkg.in/mgo.v2
+	@go get -u github.com/sirupsen/logrus
 
 test:
 	go test ./... -v -bench=none
