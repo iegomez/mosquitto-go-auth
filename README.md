@@ -806,14 +806,17 @@ func GetName() string {
 
 Init should initialize anything that your plugin needs from the options passed in authOpts. These options may be given through the configuration as any other one, following the auth_opt_whatever_else pattern.
 
-If you want to register your custom plugin, you need to `plugin` to the auth_opt_backends option, and the option `auth_opt_plugin_path` with the absolute path to your-plugin.so.
+If you want to register your custom plugin, you need to add `plugin` to the auth_opt_backends option, and the option `auth_opt_plugin_path` with the absolute path to your-plugin.so.
 
 GetUser, GetSuperuser and CheckAcl should respond with simple true/false to authenticate/authorize a user or pub/sub.
 
 GetName is used only for logging purposes, as in debug level which plugin authenticated/authorized a user or pub/sub is logged.
 
-To build the plugin, you
+You can build your plugin with:
 
+`go build -buildmode=plugin`
+
+Check the plugin directory for dummy example and makefile.
 
 #### Testing Custom
 
