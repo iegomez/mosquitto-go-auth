@@ -17,6 +17,7 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * Mysql (added)
 * SQLite3 (added)
 * MongoDB (added)
+* Custom (experimental)
 
 **Every backend offers user, superuser and acl checks, and they also include proper tests.**
 
@@ -66,6 +67,8 @@ that offered complete support for every backend included, and that was written i
 	- [Testing Redis](#testing-redis)
 - [MongoDB](#mongodb)
 	- [Testing MongoDB](#testing-mongodb)
+- [Custom \(experimental\)](#custom-experimental)
+	- [Testing Custom](#testing-custom)
 - [Benchmarks](#benchmarks)
 
 <!-- /MarkdownTOC -->
@@ -763,6 +766,58 @@ Much like `redis`, to test this backend the plugin needs to be able to connect t
 All this requirements are met with a fresh installation of MongoDB without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
 
 As with `sqlite`, this backend constructs the collections and inserts relevant data, which are whiped out after testing is done, so no user actions are required.
+
+
+
+### Custom (experimental)
+
+Using the "plugin" package from Go, this project allows to write your own custom backend, compile it as a shared object and link to it from mosquitto-go-auth. As the Go [docs](https://golang.org/pkg/plugin/) state, _The plugin support is currently incomplete, only supports Linux, and has known bugs. Please report any issues_ , thus the "experimental" in the title. So use this feature at your own risk.
+
+In order to create your own plugin, you need to declare a main package that exposes the following functions (and uses the logrus package for logging):
+
+```
+package main
+
+import (
+	log "github.com/sirupsen/logrus"
+)
+
+func Init(authOpts map[string]string, logLevel log.Level) error {
+	//Initialize your plugin with the necessary options
+	return nil
+}
+
+func GetUser(username, password string) bool {
+	return false
+}
+
+func GetSuperuser(username string) bool {
+	return false
+}
+
+func CheckAcl(username, topic, clientid string, acc int) bool {
+	return false
+}
+
+func GetName() string {
+	return "Your plugin name"
+}
+```
+
+Init should initialize anything that your plugin needs from the options passed in authOpts. These options may be given through the configuration as any other one, following the auth_opt_whatever_else pattern.
+
+If you want to register your custom plugin, you need to `plugin` to the auth_opt_backends option, and the option `auth_opt_plugin_path` with the absolute path to your-plugin.so.
+
+GetUser, GetSuperuser and CheckAcl should respond with simple true/false to authenticate/authorize a user or pub/sub.
+
+GetName is used only for logging purposes, as in debug level which plugin authenticated/authorized a user or pub/sub is logged.
+
+To build the plugin, you
+
+
+#### Testing Custom
+
+As this option is custom written by yourself, there are no tests included in the project.
 
 
 
