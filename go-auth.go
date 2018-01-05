@@ -12,6 +12,8 @@ import (
 
 	b64 "encoding/base64"
 
+	"plugin"
+
 	goredis "github.com/go-redis/redis"
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 )
@@ -33,6 +35,12 @@ type CommonData struct {
 	Http             bes.HTTP
 	Sqlite           bes.Sqlite
 	Mongo            bes.Mongo
+	Plugin           *plugin.Plugin
+	PInit            func(map[string]string, log.Level) error
+	PGetName         func() string
+	PGetUser         func(username, password string) bool
+	PGetSuperuser    func(username string) bool
+	PCheckAcl        func(username, topic, clientid string, acc int) bool
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -60,6 +68,7 @@ var allowedBackends = map[string]bool{
 	"mysql":    true,
 	"sqlite":   true,
 	"mongo":    true,
+	"plugin":   true,
 }
 var backends []string
 var authOpts map[string]string
@@ -141,36 +150,118 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		var beIface Backend
 		var bErr error
 
-		if bename == "postgres" {
-			beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
-			commonData.Postgres = beIface.(bes.Postgres)
-		} else if bename == "jwt" {
-			beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
-			commonData.Jwt = beIface.(bes.JWT)
-		} else if bename == "files" {
-			beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
-			commonData.Files = beIface.(bes.Files)
-		} else if bename == "redis" {
-			beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
-			commonData.Redis = beIface.(bes.Redis)
-		} else if bename == "mysql" {
-			beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
-			commonData.Mysql = beIface.(bes.Mysql)
-		} else if bename == "http" {
-			beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
-			commonData.Http = beIface.(bes.HTTP)
-		} else if bename == "sqlite" {
-			beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
-			commonData.Sqlite = beIface.(bes.Sqlite)
-		} else if bename == "mongo" {
-			beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
-			commonData.Mongo = beIface.(bes.Mongo)
-		}
+		if bename == "plugin" {
+			plug, plErr := plugin.Open(authOpts["plugin_path"])
+			if plErr != nil {
+				log.Errorf("Could not init custom plugin: %s", plErr)
+				commonData.Plugin = nil
+			} else {
+				commonData.Plugin = plug
 
-		if bErr != nil {
-			log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				plInit, piErr := commonData.Plugin.Lookup("Init")
+
+				if piErr != nil {
+					log.Errorf("Couldn't find func Init in plugin: %s", plErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				initFunc := plInit.(func(authOpts map[string]string, logLevel log.Level) error)
+
+				ipErr := initFunc(authOpts, commonData.LogLevel)
+				if ipErr != nil {
+					log.Errorf("Couldn't init plugin: %s", ipErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				commonData.PInit = initFunc
+
+				plName, gErr := commonData.Plugin.Lookup("GetName")
+
+				if gErr != nil {
+					log.Errorf("Couldn't find func GetName in plugin: %s", gErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				nameFunc := plName.(func() string)
+				commonData.PGetName = nameFunc
+
+				plGetUser, pgErr := commonData.Plugin.Lookup("GetUser")
+
+				if pgErr != nil {
+					log.Errorf("Couldn't find func GetUser in plugin: %s", pgErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				getUserFunc := plGetUser.(func(username, password string) bool)
+				commonData.PGetUser = getUserFunc
+
+				if pgErr != nil {
+					log.Errorf("Couldn't find func GetUser in plugin: %s", pgErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				plGetSuperuser, psErr := commonData.Plugin.Lookup("GetSuperuser")
+
+				if psErr != nil {
+					log.Errorf("Couldn't find func GetSuperuser in plugin: %s", psErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				getSuperuserFunc := plGetSuperuser.(func(username string) bool)
+				commonData.PGetSuperuser = getSuperuserFunc
+
+				plCheckAcl, pcErr := commonData.Plugin.Lookup("CheckAcl")
+
+				if pcErr != nil {
+					log.Errorf("Couldn't find func CheckAcl in plugin: %s", pcErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				checkAclFunc := plCheckAcl.(func(username, topic, clientid string, acc int) bool)
+				commonData.PCheckAcl = checkAclFunc
+
+				log.Infof("Backend registered: %s\n", commonData.PGetName())
+
+			}
 		} else {
-			log.Infof("Backend registered: %s\n", beIface.GetName())
+			if bename == "postgres" {
+				beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
+				commonData.Postgres = beIface.(bes.Postgres)
+			} else if bename == "jwt" {
+				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
+				commonData.Jwt = beIface.(bes.JWT)
+			} else if bename == "files" {
+				beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
+				commonData.Files = beIface.(bes.Files)
+			} else if bename == "redis" {
+				beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
+				commonData.Redis = beIface.(bes.Redis)
+			} else if bename == "mysql" {
+				beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
+				commonData.Mysql = beIface.(bes.Mysql)
+			} else if bename == "http" {
+				beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
+				commonData.Http = beIface.(bes.HTTP)
+			} else if bename == "sqlite" {
+				beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
+				commonData.Sqlite = beIface.(bes.Sqlite)
+			} else if bename == "mongo" {
+				beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
+				commonData.Mongo = beIface.(bes.Mongo)
+			}
+
+			if bErr != nil {
+				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+			} else {
+				log.Infof("Backend registered: %s\n", beIface.GetName())
+			}
 		}
 
 	}
@@ -287,36 +378,51 @@ func AuthUnpwdCheck(username, password string) bool {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 
-			var backend Backend
+			if bename == "plugin" {
+				authenticated = CheckPluginAuth(username, password)
+			} else {
 
-			if bename == "postgres" {
-				backend = commonData.Postgres
-			} else if bename == "jwt" {
-				backend = commonData.Jwt
-			} else if bename == "files" {
-				backend = commonData.Files
-			} else if bename == "redis" {
-				backend = commonData.Redis
-			} else if bename == "mysql" {
-				backend = commonData.Mysql
-			} else if bename == "http" {
-				backend = commonData.Http
-			} else if bename == "sqlite" {
-				backend = commonData.Sqlite
-			} else if bename == "mongo" {
-				backend = commonData.Mongo
+				var backend Backend
+
+				if bename == "postgres" {
+					backend = commonData.Postgres
+				} else if bename == "jwt" {
+					backend = commonData.Jwt
+				} else if bename == "files" {
+					backend = commonData.Files
+				} else if bename == "redis" {
+					backend = commonData.Redis
+				} else if bename == "mysql" {
+					backend = commonData.Mysql
+				} else if bename == "http" {
+					backend = commonData.Http
+				} else if bename == "sqlite" {
+					backend = commonData.Sqlite
+				} else if bename == "mongo" {
+					backend = commonData.Mongo
+				}
+
+				if backend.GetUser(username, password) {
+					authenticated = true
+					log.Debugf("user %s authenticated with backend %s\n", username, backend.GetName())
+				}
+
 			}
 
-			if backend.GetUser(username, password) {
-				authenticated = true
-				log.Debugf("user %s authenticated with backend %s\n", username, backend.GetName())
-			}
 		} else {
 			//If there's no valid prefix, check all backends.
 			authenticated = CheckBackendsAuth(username, password)
+			//If not authenticated, check for a present plugin
+			if !authenticated {
+				authenticated = CheckPluginAuth(username, password)
+			}
 		}
 	} else {
 		authenticated = CheckBackendsAuth(username, password)
+		//If not authenticated, check for a present plugin
+		if !authenticated {
+			authenticated = CheckPluginAuth(username, password)
+		}
 	}
 
 	if commonData.UseCache {
@@ -352,47 +458,61 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 
-			var backend Backend
+			if bename == "plugin" {
 
-			if bename == "postgres" {
-				backend = commonData.Postgres
-			} else if bename == "jwt" {
-				backend = commonData.Jwt
-			} else if bename == "files" {
-				backend = commonData.Files
-			} else if bename == "redis" {
-				backend = commonData.Redis
-			} else if bename == "mysql" {
-				backend = commonData.Mysql
-			} else if bename == "http" {
-				backend = commonData.Http
-			} else if bename == "sqlite" {
-				backend = commonData.Sqlite
-			} else if bename == "mongo" {
-				backend = commonData.Mongo
-			}
+				aclCheck = CheckPluginAcl(username, topic, clientid, acc)
 
-			log.Debugf("Superuser check with backend %s\n", backend.GetName())
-			if backend.GetSuperuser(username) {
-				log.Debugf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
-				aclCheck = true
-			}
+			} else {
+				var backend Backend
 
-			//If not superuser, check acl.
-			if !aclCheck {
-				log.Debugf("Acl check with backend %s\n", backend.GetName())
-				if backend.CheckAcl(username, topic, clientid, int32(acc)) {
-					log.Debugf("user %s acl authenticated with backend %s\n", username, backend.GetName())
+				if bename == "postgres" {
+					backend = commonData.Postgres
+				} else if bename == "jwt" {
+					backend = commonData.Jwt
+				} else if bename == "files" {
+					backend = commonData.Files
+				} else if bename == "redis" {
+					backend = commonData.Redis
+				} else if bename == "mysql" {
+					backend = commonData.Mysql
+				} else if bename == "http" {
+					backend = commonData.Http
+				} else if bename == "sqlite" {
+					backend = commonData.Sqlite
+				} else if bename == "mongo" {
+					backend = commonData.Mongo
+				}
+
+				log.Debugf("Superuser check with backend %s\n", backend.GetName())
+				if backend.GetSuperuser(username) {
+					log.Debugf("superuser %s acl authenticated with backend %s\n", username, backend.GetName())
 					aclCheck = true
+				}
+
+				//If not superuser, check acl.
+				if !aclCheck {
+					log.Debugf("Acl check with backend %s\n", backend.GetName())
+					if backend.CheckAcl(username, topic, clientid, int32(acc)) {
+						log.Debugf("user %s acl authenticated with backend %s\n", username, backend.GetName())
+						aclCheck = true
+					}
 				}
 			}
 
 		} else {
 			//If there's no valid prefix, check all backends.
 			aclCheck = CheckBackendsAcl(username, topic, clientid, acc)
+			//If acl hasn't passed, check for plugin.
+			if !aclCheck {
+				aclCheck = CheckPluginAcl(username, topic, clientid, acc)
+			}
 		}
 	} else {
 		aclCheck = CheckBackendsAcl(username, topic, clientid, acc)
+		//If acl hasn't passed, check for plugin.
+		if !aclCheck {
+			aclCheck = CheckPluginAcl(username, topic, clientid, acc)
+		}
 	}
 
 	if commonData.UseCache {
@@ -485,6 +605,10 @@ func CheckBackendsAuth(username, password string) bool {
 
 	for _, bename := range backends {
 
+		if bename == "plugin" {
+			continue
+		}
+
 		var backend Backend
 
 		if bename == "postgres" {
@@ -524,6 +648,10 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 	for _, bename := range backends {
 
+		if bename == "plugin" {
+			continue
+		}
+
 		var backend Backend
 
 		if bename == "postgres" {
@@ -554,6 +682,10 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 	if !aclCheck {
 		for _, bename := range backends {
+
+			if bename == "plugin" {
+				continue
+			}
 
 			var backend Backend
 
@@ -586,6 +718,25 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 	return aclCheck
 
+}
+
+//CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
+func CheckPluginAuth(username, password string) bool {
+	if commonData.Plugin != nil {
+		return commonData.PGetUser(username, password)
+	}
+	return false
+}
+
+//CheckPluginAcl checks that the plugin is not nil and returns the superuser/acl response.
+func CheckPluginAcl(username, topic, clientid string, acc int) bool {
+	if commonData.Plugin != nil {
+		aclCheck := commonData.PGetSuperuser(username)
+		if !aclCheck {
+			aclCheck = commonData.PCheckAcl(username, topic, clientid, acc)
+		}
+	}
+	return false
 }
 
 func main() {}
