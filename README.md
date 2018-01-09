@@ -501,7 +501,7 @@ When set to `form`, it will send params like a regular html form post, so acc wi
 
 To clarify this, here's an example for connecting from a javascript frontend using the Paho MQTT js client (notice how the jwt token is set in userName and password has any string as it will not get checked):
 
-```
+```javascript
 initMqttClient(applicationID, mode, devEUI) {
     const hostname = window && window.location && window.location.hostname;
     let wsbroker = hostname;  //mqtt websocket enabled broker
@@ -755,8 +755,8 @@ When not set, these options default to:
 	username:        ""
 	password:        ""
 	dbame:           "mosquitto"
-	users: 						"users"
-	acls:  						"acls"
+	users: 			 "users"
+	acls:  			 "acls"
 
 
 #### Testing MongoDB
@@ -775,7 +775,7 @@ Using the "plugin" package from Go, this project allows to write your own custom
 
 In order to create your own plugin, you need to declare a main package that exposes the following functions (and uses the logrus package for logging):
 
-```
+```go
 package main
 
 import (
@@ -802,6 +802,11 @@ func CheckAcl(username, topic, clientid string, acc int) bool {
 func GetName() string {
 	return "Your plugin name"
 }
+
+func Halt() {
+	//Do whatever cleanup is needed.
+}
+
 ```
 
 Init should initialize anything that your plugin needs from the options passed in authOpts. These options may be given through the configuration as any other one, following the auth_opt_whatever_else pattern.
