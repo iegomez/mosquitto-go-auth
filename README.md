@@ -309,12 +309,12 @@ In order to test the postgres backend, a simple DB with name, user and password 
 
 User, database and test DB tables may be created with these commands:
 
-```
+```sql
 create user go_auth_test with login 'go_auth_test';
 create database go_auth_test with owner go_auth_test;
 ```
 
-```
+```sql
 create table test_user(
 id bigserial primary key,
 username character varying (100) not null,
@@ -322,7 +322,7 @@ password_hash character varying (200) not null,
 is_admin boolean not null);
 ```
 
-```
+```sql
 create table test_acl(
 id bigserial primary key,
 test_user_id bigint not null references test_user on delete cascade,
@@ -375,13 +375,13 @@ In order to test the mysql backend, a simple DB with name, user and password "go
 
 User, database and test DB tables may be created with these commands:
 
-```
+```sql
 create user 'go_auth_test'@'localhost' identified by 'go_auth_test';
 grant all privileges on *.* to 'go_auth_test'@'localhost';
 create database go_auth_test;
 ```
 
-```
+```sql
 create table test_user(
 id mediumint not null auto_increment,
 username varchar(100) not null,
@@ -391,7 +391,7 @@ primary key(id)
 );
 ```
 
-```
+```sql
 create table test_acl(
 id mediumint not null auto_increment,
 test_user_id mediumint not null,
@@ -710,7 +710,7 @@ In the first case, a user consists of a "username" string, a "password" string (
 
 Example user: 
 
-```
+```json
 	{ "_id" : ObjectId("5a4e760f708ba1a1601fa40f"), 
 		"username" : "test", 
 		"password" : "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw==", 
@@ -729,7 +729,7 @@ Common acls are just like user ones, but live in their own collection and are ap
 
 Example acls:
 
-```
+```json
 	{ "_id" : ObjectId("5a4e760f708ba1a1601fa411"), "topic" : "pattern/%u", "acc" : 1 }
 	{ "_id" : ObjectId("5a4e760f708ba1a1601fa413"), "topic" : "pattern/%c", "acc" : 1 }
 ```
