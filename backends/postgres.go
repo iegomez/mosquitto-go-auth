@@ -230,3 +230,13 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Postgres) GetName() string {
 	return "Postgres"
 }
+
+//Halt closes the mysql connection.
+func (o Postgres) Halt() {
+	if o.DB != nil {
+		err := o.DB.Close()
+		if err != nil {
+			log.Errorf("Postgres cleanup error: %s", err)
+		}
+	}
+}

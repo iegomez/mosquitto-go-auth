@@ -37,6 +37,7 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
 }
 
 int mosquitto_auth_plugin_cleanup(void *user_data, struct mosquitto_auth_opt *auth_opts, int auth_opt_count) {
+  AuthPluginCleanup();
   return MOSQ_ERR_SUCCESS;
 }
 

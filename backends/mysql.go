@@ -258,3 +258,13 @@ func (o Mysql) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Mysql) GetName() string {
 	return "Mysql"
 }
+
+//Halt closes the mysql connection.
+func (o Mysql) Halt() {
+	if o.DB != nil {
+		err := o.DB.Close()
+		if err != nil {
+			log.Errorf("Mysql cleanup error: %s", err)
+		}
+	}
+}

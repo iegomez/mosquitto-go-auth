@@ -29,3 +29,7 @@ func CheckAcl(username, topic, clientid string, acc int) bool {
 func GetName() string {
 	return "Custom plugin"
 }
+
+func Halt() {
+	//Do whatever cleanup is needed.
+}

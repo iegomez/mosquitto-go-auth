@@ -1,4 +1,4 @@
-all: 
+all:
 	go build -buildmode=c-shared -o go-auth.so
 	go build pw-gen/pw.go
 
@@ -17,7 +17,7 @@ requirements:
 	@go get -u github.com/sirupsen/logrus
 
 test:
-	go test ./... -v -bench=none
+	go test ./backends -v -bench=none
 
 benchmark:
-	go test ./... -v -bench=. -run=^a
+	go test ./backends -v -bench=. -run=^a

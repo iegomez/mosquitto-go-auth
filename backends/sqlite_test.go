@@ -202,6 +202,8 @@ func TestFileSqlite(t *testing.T) {
 		//Delete the DB
 		os.Remove("../test-files/sqlite_test.db")
 
+		sqlite.Halt()
+
 	})
 
 }
@@ -364,7 +366,7 @@ func TestMemorySqlite(t *testing.T) {
 		sqlite.DB.MustExec("delete from test_user where 1 = 1")
 		sqlite.DB.MustExec("delete from test_acl where 1 = 1")
 
-		sqlite.DB.Close()
+		sqlite.Halt()
 
 	})
 

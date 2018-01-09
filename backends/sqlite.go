@@ -165,3 +165,13 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Sqlite) GetName() string {
 	return "Sqlite"
 }
+
+//Halt closes the mysql connection.
+func (o Sqlite) Halt() {
+	if o.DB != nil {
+		err := o.DB.Close()
+		if err != nil {
+			log.Errorf("Mysql cleanup error: %s", err)
+		}
+	}
+}

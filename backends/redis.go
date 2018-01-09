@@ -221,3 +221,13 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Redis) GetName() string {
 	return "Redis"
 }
+
+//Halt terminates the connection.
+func (o Redis) Halt() {
+	if o.Conn != nil {
+		err := o.Conn.Close()
+		if err != nil {
+			log.Errorf("Redis cleanup error: %s", err)
+		}
+	}
+}

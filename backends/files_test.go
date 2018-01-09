@@ -136,6 +136,9 @@ func TestFiles(t *testing.T) {
 			So(tt1, ShouldBeTrue)
 		})
 
+		//Halt files
+		files.Halt()
+
 	})
 
 }

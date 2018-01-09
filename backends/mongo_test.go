@@ -161,6 +161,8 @@ func TestMongo(t *testing.T) {
 		//Empty db
 		mongoDb.DropDatabase()
 
+		mongo.Halt()
+
 	})
 
 }

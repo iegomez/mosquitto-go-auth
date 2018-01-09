@@ -158,6 +158,8 @@ func TestRedis(t *testing.T) {
 		//Empty db
 		redis.Conn.FlushDB()
 
+		redis.Halt()
+
 	})
 
 }

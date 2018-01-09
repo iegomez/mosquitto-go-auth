@@ -23,6 +23,7 @@ type Backend interface {
 	GetSuperuser(username string) bool
 	CheckAcl(username, topic, clientId string, acc int32) bool
 	GetName() string
+	Halt()
 }
 
 type CommonData struct {
@@ -41,6 +42,7 @@ type CommonData struct {
 	PGetUser         func(username, password string) bool
 	PGetSuperuser    func(username string) bool
 	PCheckAcl        func(username, topic, clientid string, acc int) bool
+	PHalt            func()
 	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
@@ -227,40 +229,85 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				checkAclFunc := plCheckAcl.(func(username, topic, clientid string, acc int) bool)
 				commonData.PCheckAcl = checkAclFunc
 
+				plHalt, phErr := commonData.Plugin.Lookup("Halt")
+
+				if phErr != nil {
+					log.Errorf("Couldn't find func Halt in plugin: %s", phErr)
+					commonData.Plugin = nil
+					continue
+				}
+
+				haltFunc := plHalt.(func())
+				commonData.PHalt = haltFunc
+
 				log.Infof("Backend registered: %s\n", commonData.PGetName())
 
 			}
 		} else {
 			if bename == "postgres" {
 				beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
-				commonData.Postgres = beIface.(bes.Postgres)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Postgres = beIface.(bes.Postgres)
+				}
 			} else if bename == "jwt" {
 				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
-				commonData.Jwt = beIface.(bes.JWT)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Jwt = beIface.(bes.JWT)
+				}
 			} else if bename == "files" {
 				beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
-				commonData.Files = beIface.(bes.Files)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Files = beIface.(bes.Files)
+				}
 			} else if bename == "redis" {
 				beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
-				commonData.Redis = beIface.(bes.Redis)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Redis = beIface.(bes.Redis)
+				}
 			} else if bename == "mysql" {
 				beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
-				commonData.Mysql = beIface.(bes.Mysql)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Mysql = beIface.(bes.Mysql)
+				}
 			} else if bename == "http" {
 				beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
-				commonData.Http = beIface.(bes.HTTP)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Http = beIface.(bes.HTTP)
+				}
 			} else if bename == "sqlite" {
 				beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
-				commonData.Sqlite = beIface.(bes.Sqlite)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Sqlite = beIface.(bes.Sqlite)
+				}
 			} else if bename == "mongo" {
 				beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
-				commonData.Mongo = beIface.(bes.Mongo)
-			}
-
-			if bErr != nil {
-				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
-			} else {
-				log.Infof("Backend registered: %s\n", beIface.GetName())
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s\n", beIface.GetName())
+					commonData.Mongo = beIface.(bes.Mongo)
+				}
 			}
 		}
 
@@ -737,6 +784,49 @@ func CheckPluginAcl(username, topic, clientid string, acc int) bool {
 		}
 	}
 	return false
+}
+
+//export AuthPluginCleanup
+func AuthPluginCleanup() {
+	log.Info("Cleaning up plugin")
+	//If cache is set, close cache connection.
+	if commonData.RedisCache != nil {
+		commonData.RedisCache.Close()
+	}
+
+	//Halt every registered backend.
+
+	if (bes.HTTP{}) != commonData.Http {
+		commonData.Http.Halt()
+	}
+
+	if (bes.JWT{}) != commonData.Jwt {
+		commonData.Jwt.Halt()
+	}
+
+	if (bes.Mongo{}) != commonData.Mongo {
+		commonData.Mongo.Halt()
+	}
+
+	if (bes.Mysql{}) != commonData.Mysql {
+		commonData.Mysql.Halt()
+	}
+
+	if (bes.Postgres{}) != commonData.Postgres {
+		commonData.Postgres.Halt()
+	}
+
+	if (bes.Redis{}) != commonData.Redis {
+		commonData.Redis.Halt()
+	}
+
+	if (bes.Sqlite{}) != commonData.Sqlite {
+		commonData.Sqlite.Halt()
+	}
+
+	if commonData.Plugin != nil {
+		commonData.PHalt()
+	}
 }
 
 func main() {}

@@ -158,6 +158,8 @@ func TestPostgres(t *testing.T) {
 		postgres.DB.MustExec("delete from test_user where 1 = 1")
 		postgres.DB.MustExec("delete from test_acl where 1 = 1")
 
+		postgres.Halt()
+
 	})
 
 }

@@ -61,6 +61,8 @@ extern GoUint8 AuthAclCheck(GoString p0, GoString p1, GoString p2, GoInt p3);
 
 extern GoUint8 AuthPskKeyGet();
 
+extern void AuthPluginCleanup();
+
 #ifdef __cplusplus
 }
 #endif

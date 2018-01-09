@@ -165,6 +165,8 @@ func TestMysql(t *testing.T) {
 		mysql.DB.MustExec("delete from test_user where 1 = 1")
 		mysql.DB.MustExec("delete from test_acl where 1 = 1")
 
+		mysql.Halt()
+
 	})
 
 }

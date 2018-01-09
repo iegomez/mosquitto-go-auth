@@ -180,6 +180,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 			jwt.Postgres.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
 
+			jwt.Halt()
+
 		})
 
 	})
@@ -325,6 +327,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 			//Empty db
 			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
+
+			jwt.Halt()
 
 		})
 
@@ -476,6 +480,8 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 		})
 
+		hb.Halt()
+
 	})
 
 }
@@ -595,6 +601,8 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -719,6 +727,8 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -856,6 +866,8 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 		})
 
+		hb.Halt()
+
 	})
 
 }
@@ -969,6 +981,8 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -1088,6 +1102,8 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 

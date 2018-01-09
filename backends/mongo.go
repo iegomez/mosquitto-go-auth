@@ -191,3 +191,10 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Mongo) GetName() string {
 	return "Mongo"
 }
+
+//Halt closes the mongo session.
+func (o Mongo) Halt() {
+	if o.Conn != nil {
+		o.Conn.Close()
+	}
+}

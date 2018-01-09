@@ -345,3 +345,8 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 func (o Files) GetName() string {
 	return "Files"
 }
+
+//Halt does nothing for files as there's no cleanup needed.
+func (o Files) Halt() {
+	//Do nothing
+}

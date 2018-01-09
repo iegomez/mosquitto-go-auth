@@ -453,3 +453,18 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 
 	return claims, nil
 }
+
+//Halt closes any DB connection.
+func (o JWT) Halt() {
+	if o.Postgres != (Postgres{}) && o.Postgres.DB != nil {
+		err := o.Postgres.DB.Close()
+		if err != nil {
+			log.Errorf("JWT cleanup error: %s", err)
+		}
+	} else if o.Mysql != (Mysql{}) && o.Mysql.DB != nil {
+		err := o.Mysql.DB.Close()
+		if err != nil {
+			log.Errorf("JWT cleanup error: %s", err)
+		}
+	}
+}

@@ -159,6 +159,8 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 		})
 
+		hb.Halt()
+
 	})
 
 }
@@ -284,6 +286,8 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -414,6 +418,8 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -555,6 +561,8 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 		})
 
+		hb.Halt()
+
 	})
 
 }
@@ -671,6 +679,8 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 
@@ -793,6 +803,8 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 
 		})
+
+		hb.Halt()
 
 	})
 

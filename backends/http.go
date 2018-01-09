@@ -263,3 +263,8 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 func (o HTTP) GetName() string {
 	return "HTTP"
 }
+
+//Halt does nothing for http as there's no cleanup needed.
+func (o HTTP) Halt() {
+	//Do nothing
+}
