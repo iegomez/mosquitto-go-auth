@@ -27,15 +27,7 @@ type Backend interface {
 }
 
 type CommonData struct {
-	Backends         []Backend
-	Postgres         bes.Postgres
-	Files            bes.Files
-	Jwt              bes.JWT
-	Redis            bes.Redis
-	Mysql            bes.Mysql
-	Http             bes.HTTP
-	Sqlite           bes.Sqlite
-	Mongo            bes.Mongo
+	Backends         map[string]Backend
 	Plugin           *plugin.Plugin
 	PInit            func(map[string]string, log.Level) error
 	PGetName         func() string
@@ -72,6 +64,7 @@ var allowedBackends = map[string]bool{
 	"mongo":    true,
 	"plugin":   true,
 }
+
 var backends []string
 var authOpts map[string]string
 var cache Cache
@@ -88,12 +81,12 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		DB:       0,
 	}
 
-	commonBackends := make([]Backend, len(allowedBackends), len(allowedBackends))
 	superusers := make([]string, 10, 10)
+
+	cmbackends := make(map[string]Backend)
 
 	//Initialize common struct with default and given values
 	commonData = CommonData{
-		Backends:         commonBackends,
 		Superusers:       superusers,
 		AclCacheSeconds:  30,
 		AuthCacheSeconds: 30,
@@ -250,7 +243,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Postgres = beIface.(bes.Postgres)
+					cmbackends["postgres"] = beIface.(bes.Postgres)
 				}
 			} else if bename == "jwt" {
 				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
@@ -258,7 +251,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Jwt = beIface.(bes.JWT)
+					cmbackends["jwt"] = beIface.(bes.JWT)
 				}
 			} else if bename == "files" {
 				beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
@@ -266,7 +259,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Files = beIface.(bes.Files)
+					cmbackends["files"] = beIface.(bes.Files)
 				}
 			} else if bename == "redis" {
 				beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
@@ -274,7 +267,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Redis = beIface.(bes.Redis)
+					cmbackends["redis"] = beIface.(bes.Redis)
 				}
 			} else if bename == "mysql" {
 				beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
@@ -282,7 +275,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Mysql = beIface.(bes.Mysql)
+					cmbackends["mysql"] = beIface.(bes.Mysql)
 				}
 			} else if bename == "http" {
 				beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
@@ -290,7 +283,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Http = beIface.(bes.HTTP)
+					cmbackends["http"] = beIface.(bes.HTTP)
 				}
 			} else if bename == "sqlite" {
 				beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
@@ -298,7 +291,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Sqlite = beIface.(bes.Sqlite)
+					cmbackends["sqlite"] = beIface.(bes.Sqlite)
 				}
 			} else if bename == "mongo" {
 				beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
@@ -306,7 +299,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.\n", bename, bErr)
 				} else {
 					log.Infof("Backend registered: %s\n", beIface.GetName())
-					commonData.Mongo = beIface.(bes.Mongo)
+					cmbackends["mongo"] = beIface.(bes.Mongo)
 				}
 			}
 		}
@@ -401,6 +394,8 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		commonData.CheckPrefix = false
 	}
 
+	commonData.Backends = cmbackends
+
 }
 
 //export AuthUnpwdCheck
@@ -429,25 +424,7 @@ func AuthUnpwdCheck(username, password string) bool {
 				authenticated = CheckPluginAuth(username, password)
 			} else {
 
-				var backend Backend
-
-				if bename == "postgres" {
-					backend = commonData.Postgres
-				} else if bename == "jwt" {
-					backend = commonData.Jwt
-				} else if bename == "files" {
-					backend = commonData.Files
-				} else if bename == "redis" {
-					backend = commonData.Redis
-				} else if bename == "mysql" {
-					backend = commonData.Mysql
-				} else if bename == "http" {
-					backend = commonData.Http
-				} else if bename == "sqlite" {
-					backend = commonData.Sqlite
-				} else if bename == "mongo" {
-					backend = commonData.Mongo
-				}
+				var backend = commonData.Backends[bename]
 
 				if backend.GetUser(username, password) {
 					authenticated = true
@@ -510,25 +487,8 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				aclCheck = CheckPluginAcl(username, topic, clientid, acc)
 
 			} else {
-				var backend Backend
 
-				if bename == "postgres" {
-					backend = commonData.Postgres
-				} else if bename == "jwt" {
-					backend = commonData.Jwt
-				} else if bename == "files" {
-					backend = commonData.Files
-				} else if bename == "redis" {
-					backend = commonData.Redis
-				} else if bename == "mysql" {
-					backend = commonData.Mysql
-				} else if bename == "http" {
-					backend = commonData.Http
-				} else if bename == "sqlite" {
-					backend = commonData.Sqlite
-				} else if bename == "mongo" {
-					backend = commonData.Mongo
-				}
+				var backend = commonData.Backends[bename]
 
 				log.Debugf("Superuser check with backend %s\n", backend.GetName())
 				if backend.GetSuperuser(username) {
@@ -656,25 +616,7 @@ func CheckBackendsAuth(username, password string) bool {
 			continue
 		}
 
-		var backend Backend
-
-		if bename == "postgres" {
-			backend = commonData.Postgres
-		} else if bename == "jwt" {
-			backend = commonData.Jwt
-		} else if bename == "files" {
-			backend = commonData.Files
-		} else if bename == "redis" {
-			backend = commonData.Redis
-		} else if bename == "mysql" {
-			backend = commonData.Mysql
-		} else if bename == "http" {
-			backend = commonData.Http
-		} else if bename == "sqlite" {
-			backend = commonData.Sqlite
-		} else if bename == "mongo" {
-			backend = commonData.Mongo
-		}
+		var backend = commonData.Backends[bename]
 
 		if backend.GetUser(username, password) {
 			authenticated = true
@@ -699,25 +641,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			continue
 		}
 
-		var backend Backend
-
-		if bename == "postgres" {
-			backend = commonData.Postgres
-		} else if bename == "jwt" {
-			backend = commonData.Jwt
-		} else if bename == "files" {
-			backend = commonData.Files
-		} else if bename == "redis" {
-			backend = commonData.Redis
-		} else if bename == "mysql" {
-			backend = commonData.Mysql
-		} else if bename == "http" {
-			backend = commonData.Http
-		} else if bename == "sqlite" {
-			backend = commonData.Sqlite
-		} else if bename == "mongo" {
-			backend = commonData.Mongo
-		}
+		var backend = commonData.Backends[bename]
 
 		log.Debugf("Superuser check with backend %s\n", backend.GetName())
 		if backend.GetSuperuser(username) {
@@ -734,25 +658,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 				continue
 			}
 
-			var backend Backend
-
-			if bename == "postgres" {
-				backend = commonData.Postgres
-			} else if bename == "jwt" {
-				backend = commonData.Jwt
-			} else if bename == "files" {
-				backend = commonData.Files
-			} else if bename == "redis" {
-				backend = commonData.Redis
-			} else if bename == "mysql" {
-				backend = commonData.Mysql
-			} else if bename == "http" {
-				backend = commonData.Http
-			} else if bename == "sqlite" {
-				backend = commonData.Sqlite
-			} else if bename == "mongo" {
-				backend = commonData.Mongo
-			}
+			var backend = commonData.Backends[bename]
 
 			log.Debugf("Acl check with backend %s\n", backend.GetName())
 			if backend.CheckAcl(username, topic, clientid, int32(acc)) {
@@ -796,32 +702,8 @@ func AuthPluginCleanup() {
 
 	//Halt every registered backend.
 
-	if (bes.HTTP{}) != commonData.Http {
-		commonData.Http.Halt()
-	}
-
-	if (bes.JWT{}) != commonData.Jwt {
-		commonData.Jwt.Halt()
-	}
-
-	if (bes.Mongo{}) != commonData.Mongo {
-		commonData.Mongo.Halt()
-	}
-
-	if (bes.Mysql{}) != commonData.Mysql {
-		commonData.Mysql.Halt()
-	}
-
-	if (bes.Postgres{}) != commonData.Postgres {
-		commonData.Postgres.Halt()
-	}
-
-	if (bes.Redis{}) != commonData.Redis {
-		commonData.Redis.Halt()
-	}
-
-	if (bes.Sqlite{}) != commonData.Sqlite {
-		commonData.Sqlite.Halt()
+	for _, v := range commonData.Backends {
+		v.Halt()
 	}
 
 	if commonData.Plugin != nil {
