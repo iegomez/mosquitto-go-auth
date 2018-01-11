@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
-
-	"github.com/pkg/errors"
 
 	"github.com/iegomez/mosquitto-go-auth/common"
 
@@ -61,9 +60,13 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		DB:       int(redis.DB),  // use default DB
 	})
 
-	_, err := goredisClient.Ping().Result()
-	if err != nil {
-		return redis, errors.Errorf("couldn't start redis backend. error: %s\n", err)
+	for {
+		if _, err := goredisClient.Ping().Result(); err != nil {
+			log.Printf("ping redis error, will retry in 2s: %s", err)
+			time.Sleep(2 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	redis.Conn = goredisClient

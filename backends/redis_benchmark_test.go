@@ -29,8 +29,11 @@ func init() {
 		"redis_port": "6379",
 		"redis_db":   "2",
 	}
-
-	redis, _ = NewRedis(authOpts, log.ErrorLevel)
+	var err error
+	redis, err = NewRedis(authOpts, log.ErrorLevel)
+	if err != nil {
+		log.Fatalf("Redis error: ", err)
+	}
 	redis.Conn.FlushDB()
 }
 
