@@ -129,11 +129,14 @@ auth_opt_backends files, postgres, jwt
 
 #### Cache
 
-Set cache option to true to use redis cache (defaults to false when missing):
+Set cache option to true to use redis cache (defaults to false when missing). Also, set cache_reset to flush the redis DB on mosquitto startup:
 
 ```
 auth_opt_cache true
+auth_opt_cache_reset true
 ```
+
+If `cache_reset` is set to false or omitted, cache won't be flushed upon service start.
 
 Redis will use some defaults if no values are given. The following are possible configuration values for the cache:
 

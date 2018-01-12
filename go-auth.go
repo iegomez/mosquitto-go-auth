@@ -307,7 +307,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	}
 
 	if cache, ok := authOpts["cache"]; ok && cache == "true" {
-		log.Info("Cache set")
+		log.Info("Cache activated")
 		commonData.UseCache = true
 	} else {
 		log.Errorf("No cache, got %s", cache)
@@ -366,6 +366,11 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else {
 			commonData.RedisCache = goredisClient
 			log.Infof("started cache redis client")
+			//Check if cache must be reset
+			if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
+				commonData.RedisCache.FlushDB()
+				log.Infof("flushed cache")
+			}
 		}
 
 	}
