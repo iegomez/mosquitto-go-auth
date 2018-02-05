@@ -124,6 +124,8 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	//Check if log level is given. Set level if any valid option is given.
 	if logLevel, ok := authOpts["log_level"]; ok {
 
+		logLevel = strings.Replace(logLevel, " ", "", -1)
+
 		if logLevel == "debug" {
 			commonData.LogLevel = log.DebugLevel
 		} else if logLevel == "info" {
@@ -306,11 +308,11 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	}
 
-	if cache, ok := authOpts["cache"]; ok && cache == "true" {
+	if cache, ok := authOpts["cache"]; ok && strings.Replace(cache, " ", "", -1) == "true" {
 		log.Info("Cache activated")
 		commonData.UseCache = true
 	} else {
-		log.Errorf("No cache, got %s", cache)
+		log.Info("No cache set.")
 		commonData.UseCache = false
 	}
 
@@ -375,7 +377,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	}
 
-	if checkPrefix, ok := authOpts["check_prefix"]; ok && checkPrefix == "true" {
+	if checkPrefix, ok := authOpts["check_prefix"]; ok && strings.Replace(checkPrefix, " ", "", -1) == "true" {
 		//Check that backends match prefixes.
 		if prefixesStr, ok := authOpts["prefixes"]; ok {
 			prefixes := strings.Split(strings.Replace(prefixesStr, " ", "", -1), ",")
@@ -622,6 +624,8 @@ func CheckBackendsAuth(username, password string) bool {
 		}
 
 		var backend = commonData.Backends[bename]
+
+		log.Debugf("checking user %s with backend %s\n", username, backend.GetName())
 
 		if backend.GetUser(username, password) {
 			authenticated = true

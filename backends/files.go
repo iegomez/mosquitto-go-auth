@@ -284,11 +284,8 @@ func checkCommentOrEmpty(line string) bool {
 //GetUser checks that user exists and password is correct.
 func (o Files) GetUser(username, password string) bool {
 
-	log.Infof("checking user %s\n", username)
-
 	fileUser, ok := o.Users[username]
 	if !ok {
-		log.Warnf("no such user: %s\n", username)
 		return false
 	}
 
