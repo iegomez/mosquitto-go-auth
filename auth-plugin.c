@@ -51,6 +51,10 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_auth_opt *
 
 int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char *password) {
   
+  if (username == NULL || password == NULL) {
+    return MOSQ_ERR_AUTH;
+  }
+
   GoString go_username = {username, strlen(username)};
   GoString go_password = {password, strlen(password)};
 
@@ -58,7 +62,7 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
     return MOSQ_ERR_SUCCESS;
   }
 
-  return MOSQ_ERR_ACL_DENIED;
+  return MOSQ_ERR_AUTH;
 }
 
 int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
