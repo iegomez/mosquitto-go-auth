@@ -241,12 +241,12 @@ The following `auth_opt_` options are supported:
 | pg_password       |                   |     Y       | password
 | pg_dbname         |                   |     Y       | database name
 | pg_userquery      |                   |     Y       | SQL for users
-| pg_superquery     |                   |     Y       | SQL for superusers
-| pg_aclquery       |                   |             | SQL for ACLs
-| pg_sslmode        |     disable       |             | SSL/TLS mode.
-| pg_sslcert        |                   |             | SSL/TLS Client Cert.
-| pg_sslkey         |                   |             | SSL/TLS Client Cert. Key
-| pg_sslrootcert    |                   |             | SSL/TLS Root Cert
+| pg_superquery     |                   |     N       | SQL for superusers
+| pg_aclquery       |                   |     N       | SQL for ACLs
+| pg_sslmode        |     disable       |     N       | SSL/TLS mode.
+| pg_sslcert        |                   |     N       | SSL/TLS Client Cert.
+| pg_sslkey         |                   |     N       | SSL/TLS Client Cert. Key
+| pg_sslrootcert    |                   |     N       | SSL/TLS Root Cert
 
 Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
@@ -255,7 +255,7 @@ Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Op
 	verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
 	verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
 
-Queries work pretty much the same as in jpmen's plugin, so here's his discription about them:
+Queries work pretty much the same as in jpmen's plugin, so here's his discription (with some little changes) about them:
 
 	The SQL query for looking up a user's password hash is mandatory. The query
 	MUST return a single row only (any other number of rows is considered to be
@@ -290,6 +290,10 @@ Queries work pretty much the same as in jpmen's plugin, so here's his discriptio
 
 	SELECT topic FROM acl WHERE (username = $1) AND (rw = $2 or rw = 3) 
 
+
+When option pg_superquery is not present, Superuser check will always return false, hence there'll be no superusers.
+
+When option pg_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
 
 Example configuration:
 
@@ -417,8 +421,8 @@ The `sqlite` backend works in the same way as `postgres` and `mysql` do, except 
 | --------------------- | ----------------- | :---------: | ------------------------ |
 | sqlite_source         |                   |     Y       | SQLite3 source
 | sqlite_userquery      |                   |     Y       | SQL for users
-| sqlite_superquery     |                   |     Y       | SQL for superusers
-| sqlite_aclquery       |                   |             | SQL for ACLs
+| sqlite_superquery     |                   |     N       | SQL for superusers
+| sqlite_aclquery       |                   |     N       | SQL for ACLs
 
 SQLite3 allows to connect to an in-memory db, or a single file one, so source maybe `memory` (not :memory:) or the path to a file db.
 
@@ -565,8 +569,8 @@ When set as remote false, the backend will try to validate JWT tokens against a 
 | jwt_db           |   postgres        |     N       | The DB backend to be used  |
 | jwt_secret       |                   |     Y       | JWT secret to check tokens |
 | jwt_userquery    |                   |     Y       | SQL for users              |
-| jwt_superquery   |                   |     Y       | SQL for superusers         |
-| jwt_aclquery     |                   |     Y       | SQL for ACLs               |
+| jwt_superquery   |                   |     N       | SQL for superusers         |
+| jwt_aclquery     |                   |     N       | SQL for ACLs               |
 
 
 Also, as it uses the DB backend for local auth, the following DB backend options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery, or mysql_userquery, mysql_superquery and mysql_aclquery) need not to be correct if the backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:
@@ -581,8 +585,8 @@ If jwt is used with postgres, these options are needed:
 | pg_password       |                   |     Y       | password
 | pg_dbname         |                   |     Y       | database name
 | pg_userquery      |                   |     Y       | SQL for users
-| pg_superquery     |                   |     Y       | SQL for superusers
-| pg_aclquery       |                   |             | SQL for ACLs
+| pg_superquery     |                   |     N       | SQL for superusers
+| pg_aclquery       |                   |     N       | SQL for ACLs
 
 
 If, instead, jwt is used with mysql, these options are needed:
@@ -595,8 +599,8 @@ If, instead, jwt is used with mysql, these options are needed:
 | mysql_password       |                   |     Y       | password
 | mysql_dbname         |                   |     Y       | database name
 | mysql_userquery      |                   |     Y       | SQL for users
-| mysql_superquery     |                   |     Y       | SQL for superusers
-| mysql_aclquery       |                   |             | SQL for ACLs
+| mysql_superquery     |                   |     N       | SQL for superusers
+| mysql_aclquery       |                   |     N       | SQL for ACLs
 
 
 Options for the overridden queries are the same except for the user query, which now expects an integer result instead of a password hash, as the JWT token needs no password checking. An example of a different query using the same DB is given for the user query.
@@ -612,6 +616,13 @@ For mysql:
 ```
 auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_active = true limit 1
 ```
+
+
+*Important note:*
+
+When option jwt_superquery is not present, Superuser check will always return false, hence there'll be no superusers.
+
+When option jwt_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
 
 
 #### Testing JWT

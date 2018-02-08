@@ -328,6 +328,26 @@ func TestLocalMysqlJWT(t *testing.T) {
 			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
 
+			Convey("Deleting superuser and acl queries should work fine", func() {
+
+				jwt.SuperuserQuery = ""
+				jwt.AclQuery = ""
+
+				Convey("So checking against them should give false and true for any user", func() {
+
+					tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, 1)
+					tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, 1)
+
+					So(tt1, ShouldBeTrue)
+					So(tt2, ShouldBeTrue)
+
+					superuser := jwt.GetSuperuser(token)
+					So(superuser, ShouldBeFalse)
+
+				})
+
+			})
+
 			jwt.Halt()
 
 		})

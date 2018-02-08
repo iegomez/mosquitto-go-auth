@@ -160,16 +160,10 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 
 		if superuserQuery, ok := authOpts["jwt_superquery"]; ok {
 			jwt.SuperuserQuery = superuserQuery
-		} else {
-			localOk = false
-			missingOpts += " jwt_superquery"
 		}
 
 		if aclQuery, ok := authOpts["jwt_aclquery"]; ok {
 			jwt.AclQuery = aclQuery
-		} else {
-			localOk = false
-			missingOpts += " jwt_aclquery"
 		}
 
 		if localDB, ok := authOpts["jwt_db"]; ok {
@@ -238,6 +232,10 @@ func (o JWT) GetSuperuser(token string) bool {
 	}
 
 	//If not remote, get the claims and check against postgres for user.
+	//But check first that there's superuser query.
+	if o.SuperuserQuery == "" {
+		return false
+	}
 	claims, err := o.getClaims(token)
 
 	if err != nil {
@@ -270,6 +268,10 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	}
 
 	//If not remote, get the claims and check against postgres for user.
+	//But check first that there's acl query.
+	if o.AclQuery == "" {
+		return true
+	}
 	claims, err := o.getClaims(token)
 
 	if err != nil {
