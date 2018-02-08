@@ -845,7 +845,7 @@ As this option is custom written by yourself, there are no tests included in the
 
 ### Benchmarks
 
-Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files and Redis backends. They were ran on an Asus laptop with the following specs:
+Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files, Postgres and Redis backends. They were ran on an Asus laptop with normal work load (a bunch of Chrome tabs and programs running) with the following specs:
 
 	OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
 	Kernel: 				4.11.0-14
@@ -866,6 +866,11 @@ Finally, here are the results:
 BenchmarkFilesUser-4               	      	10 				151611011 ns/op
 BenchmarkFilesSuperuser-4           1000000000         			 2.94 ns/op
 BenchmarkFilesAcl-4                	  10000000       			  167 ns/op
+BenchmarkPostgresUser-4             	      10	 			167902778 ns/op
+BenchmarkPostgresSuperser-4         	   10000	   		164956 ns/op
+BenchmarkPostgresStrictAcl-4        	   10000	    	202321 ns/op
+BenchmarkPostgresSingleLevelAcl-4   	   10000	    	202027 ns/op
+BenchmarkPostgresHierarchyAcl-4     	   10000	    	201217 ns/op
 BenchmarkRedisUser-4               	      	10	 			152723368 ns/op
 BenchmarkRedisSuperuser-4          	  	100000	     			21330 ns/op
 BenchmarkRedisStrictAcl-4          	   	 20000	     			84570 ns/op
