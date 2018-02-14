@@ -70,6 +70,7 @@ that offered complete support for every backend included, and that was written i
 - [Custom \(experimental\)](#custom-experimental)
 	- [Testing Custom](#testing-custom)
 - [Benchmarks](#benchmarks)
+- [License](#license)
 
 <!-- /MarkdownTOC -->
 
@@ -879,3 +880,7 @@ BenchmarkRedisClientPatternAcl-4   	   	 20000	     			84883 ns/op
 BenchmarkRedisSingleLevelAcl-4     	   	 20000	     			84241 ns/op
 BenchmarkRedisHierarchyAcl-4       	   	 20000	     			83835 ns/op
 ```
+
+### License
+
+mosquitto-go-auth is distributed under the MIT license. See also LICENSE.
