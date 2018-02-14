@@ -78,7 +78,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		Host:     "localhost",
 		Port:     "6379",
 		Password: "",
-		DB:       0,
+		DB:       3,
 	}
 
 	superusers := make([]string, 10, 10)
@@ -331,8 +331,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 		if cacheDB, ok := authOpts["cache_db"]; ok {
 			db, err := strconv.ParseInt(cacheDB, 10, 32)
-			if err != nil {
+			if err == nil {
 				cache.DB = int32(db)
+			} else {
+				log.Warningf("couldn't parse cache db (err: %s), defaulting to %d\n", err, cache.DB)
 			}
 		}
 
@@ -367,7 +369,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			commonData.UseCache = false
 		} else {
 			commonData.RedisCache = goredisClient
-			log.Infof("started cache redis client")
+			log.Infof("started cache redis client on DB %d\n", cache.DB)
 			//Check if cache must be reset
 			if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
 				commonData.RedisCache.FlushDB()

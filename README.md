@@ -138,13 +138,13 @@ auth_opt_cache_reset true
 
 If `cache_reset` is set to false or omitted, cache won't be flushed upon service start.
 
-Redis will use some defaults if no values are given. The following are possible configuration values for the cache:
+Redis will use the following defaults if no values are given. Also, these are the available options for cache:
 
 ```
 auth_opt_cache_host localhost
 auth_opt_cache_port 6379
 auth_opt_cache_password pwd
-auth_opt_cache_db 0
+auth_opt_cache_db 3
 auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
