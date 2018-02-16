@@ -70,6 +70,7 @@ that offered complete support for every backend included, and that was written i
 - [Custom \(experimental\)](#custom-experimental)
 	- [Testing Custom](#testing-custom)
 - [Benchmarks](#benchmarks)
+- [Using with loraserver](#using-with-loraserver)
 - [License](#license)
 
 <!-- /MarkdownTOC -->
@@ -881,6 +882,13 @@ BenchmarkRedisSingleLevelAcl-4     	   	 20000	     			84241 ns/op
 BenchmarkRedisHierarchyAcl-4       	   	 20000	     			83835 ns/op
 ```
 
+### Using with loraserver
+
+Check [LORASERVER.md](LORASERVER.md) for an experience report from Rogerio Cassares on building, debugging, configuring and using the plugin with the loraserver stack.
+
+Thanks Rogerio!
+
+
 ### License
 
-mosquitto-go-auth is distributed under the MIT license. See also LICENSE.
+mosquitto-go-auth is distributed under the MIT license. See also [LICENSE](LICENSE).
