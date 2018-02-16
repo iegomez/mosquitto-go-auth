@@ -219,11 +219,16 @@ To generate passwords by mosquitto-go-auth, you may use the utility program `pw`
 
 ```
 /home/{USER}/go/src/github.com/iegomez/mosquitto-go-auth/pw -p loraserver
-    PBKDF2$sha512$100000$BEGKGOS34ug55ghRIZ1Tjw==$VW6bgmJSXgtYo4i4eucJGYAZwwVfRX3TZhQuTZEPSQLmFFkRvuHpW/C/fl9Fh7bW2n8z1u7Lb/D19jy9VH5fjQ==
+
+PBKDF2$sha512$100000$BEGKGOS34ug55ghRIZ1Tjw==$VW6bgmJSXgtYo4i4eucJGYAZwwVfRX3TZhQuTZEPSQLmFFkRvuHpW/C/fl9Fh7bW2n8z1u7Lb/D19jy9VH5fjQ==
+
 /home/{USER}/go/src/github.com/iegomez/mosquitto-go-auth/pw -p loraappserver
-    PBKDF2$sha512$100000$BEGKGOS34ug55ghRIZ1Tjw==$VW6bgmJSXgtYo4i4eucJGYAZwwVfRX3TZhQuTZEPSQLmFFkRvuHpW/C/fl9Fh7bW2n8z1u7Lb/D19jy9VH5fjQ==
+
+PBKDF2$sha512$100000$BEGKGOS34ug55ghRIZ1Tjw==$VW6bgmJSXgtYo4i4eucJGYAZwwVfRX3TZhQuTZEPSQLmFFkRvuHpW/C/fl9Fh7bW2n8z1u7Lb/D19jy9VH5fjQ==
+
 /home/{USER}/go/src/github.com/iegomez/mosquitto-go-auth/pw -p loragw
-    PBKDF2$sha512$100000$5tCi1hl2GjcPfBwXZnbH1w==$iFCpM9ojXc3LHWKw/N0pMftU1gDXRSQ9GTQb6OF/SSFv3y7yQO2bR3ky3KY4e0STTjLmOaE9DkyomMu6VjjO3g==
+
+PBKDF2$sha512$100000$5tCi1hl2GjcPfBwXZnbH1w==$iFCpM9ojXc3LHWKw/N0pMftU1gDXRSQ9GTQb6OF/SSFv3y7yQO2bR3ky3KY4e0STTjLmOaE9DkyomMu6VjjO3g==
 ```
 
 You can set flags to change interations or algorithm. The default values for no flags are -a flag with sha512 algorithm and -i flag to 100000 interations. Flag -p is for password and is mandatory. For more details, please see pw-gen.go at ~/go/src/github.com/iegomez/mosquitto-go-auth/pw-gen.
