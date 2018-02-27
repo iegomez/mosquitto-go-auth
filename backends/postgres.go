@@ -40,6 +40,14 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	pgOk := true
 	missingOptions := ""
 
+	log.Debugln("Initializing postgres backend with options:")
+
+	for key, value := range authOpts {
+		if strings.Contains(key, "pg_") {
+			log.Debugf("%s: %s", key, value)
+		}
+	}
+
 	var postgres = Postgres{
 		Host:           "localhost",
 		Port:           "5432",
@@ -79,6 +87,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	if userQuery, ok := authOpts["pg_userquery"]; ok {
 		postgres.UserQuery = userQuery
+		log.Debugf("Postgres user query is: %s", userQuery)
 	} else {
 		pgOk = false
 		missingOptions += " pg_userquery"
@@ -86,10 +95,12 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	if superuserQuery, ok := authOpts["pg_superquery"]; ok {
 		postgres.SuperuserQuery = superuserQuery
+		log.Debugf("Postgres superuser query is: %s", superuserQuery)
 	}
 
 	if aclQuery, ok := authOpts["pg_aclquery"]; ok {
 		postgres.AclQuery = aclQuery
+		log.Debugf("Postgres acl query is: %s", aclQuery)
 	}
 
 	checkSSL := true
@@ -151,6 +162,8 @@ func (o Postgres) GetUser(username, password string) bool {
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
+	log.Debugf("Checking Postgres for user with username %s", username)
+
 	if err != nil {
 		log.Debugf("PG get user error: %s\n", err)
 		return false
@@ -171,6 +184,8 @@ func (o Postgres) GetUser(username, password string) bool {
 
 //GetSuperuser checks that the username meets the superuser query.
 func (o Postgres) GetSuperuser(username string) bool {
+
+	log.Debugf("Checking Postgres for superuser with username %s", username)
 
 	//If there's no superuser query, return false.
 	if o.SuperuserQuery == "" {
@@ -200,6 +215,9 @@ func (o Postgres) GetSuperuser(username string) bool {
 
 //CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
 func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
+
+	log.Debugf("Checking Postgres for ACL for username %s, clientid %s, topic %s and access %d", username, clientid, topic, acc)
+
 	//If there's no acl query, assume all privileges for all users.
 	if o.AclQuery == "" {
 		return true
@@ -233,6 +251,7 @@ func (o Postgres) GetName() string {
 
 //Halt closes the mysql connection.
 func (o Postgres) Halt() {
+	log.Debugln("Cleaning up Postgres backend")
 	if o.DB != nil {
 		err := o.DB.Close()
 		if err != nil {
