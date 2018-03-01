@@ -34,9 +34,6 @@ type Postgres struct {
 func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, error) {
 
 	log.SetLevel(logLevel)
-	log.SetFormatter(&log.TextFormatter{
-		FullTimestamp: true,
-	})
 
 	//Set defaults for postgres
 

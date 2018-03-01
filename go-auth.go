@@ -81,6 +81,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		DB:       3,
 	}
 
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
+
 	superusers := make([]string, 10, 10)
 
 	cmbackends := make(map[string]Backend)
