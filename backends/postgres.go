@@ -34,6 +34,9 @@ type Postgres struct {
 func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, error) {
 
 	log.SetLevel(logLevel)
+	log.SetFormatter(&log.TextFormatter{
+		FullTimestamp: true,
+	})
 
 	//Set defaults for postgres
 
@@ -163,6 +166,10 @@ func (o Postgres) GetUser(username, password string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	log.Debugf("Checking Postgres for user with username %s", username)
+	log.WithFields(log.Fields{
+		"query":    o.UserQuery,
+		"username": username,
+	}).Debug("sql query to be executed")
 
 	if err != nil {
 		log.Debugf("PG get user error: %s\n", err)
@@ -185,12 +192,17 @@ func (o Postgres) GetUser(username, password string) bool {
 //GetSuperuser checks that the username meets the superuser query.
 func (o Postgres) GetSuperuser(username string) bool {
 
-	log.Debugf("Checking Postgres for superuser with username %s", username)
-
 	//If there's no superuser query, return false.
 	if o.SuperuserQuery == "" {
 		return false
 	}
+
+	log.Debugf("Checking Postgres for superuser with username %s", username)
+
+	log.WithFields(log.Fields{
+		"query":    o.SuperuserQuery,
+		"username": username,
+	}).Debug("sql query to be executed")
 
 	var count sql.NullInt64
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
@@ -216,12 +228,18 @@ func (o Postgres) GetSuperuser(username string) bool {
 //CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
 func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 
-	log.Debugf("Checking Postgres for ACL for username %s, clientid %s, topic %s and access %d", username, clientid, topic, acc)
-
 	//If there's no acl query, assume all privileges for all users.
 	if o.AclQuery == "" {
 		return true
 	}
+
+	log.Debugf("Checking Postgres for ACL for username %s, clientid %s, topic %s and access %d", username, clientid, topic, acc)
+
+	log.WithFields(log.Fields{
+		"query":    o.AclQuery,
+		"username": username,
+		"acc":      acc,
+	}).Debug("sql query to be executed")
 
 	var acls []string
 
