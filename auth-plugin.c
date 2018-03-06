@@ -52,6 +52,8 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_auth_opt *
 int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char *password) {
   
   if (username == NULL || password == NULL) {
+    printf("warning: received null username or password for unpwd check\n");
+    fflush(stdout);
     return MOSQ_ERR_AUTH;
   }
 
@@ -66,6 +68,15 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
 }
 
 int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
+
+  if (clientid == NULL || username == NULL || topic == NULL || access < 1) {
+    printf("warning: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
+    fflush(stdout);
+    return MOSQ_ERR_ACL_DENIED;
+  }
+
+  printf("printf: acl check for username %s, topic %s, clientid %s and acc %i\n", username, topic, clientid, access);
+  fflush(stdout);
   
   GoString go_clientid = {clientid, strlen(clientid)};
   GoString go_username = {username, strlen(username)};
