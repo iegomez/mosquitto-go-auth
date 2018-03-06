@@ -52,7 +52,7 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_auth_opt *
 int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char *password) {
   
   if (username == NULL || password == NULL) {
-    printf("warning: received null username or password for unpwd check\n");
+    printf("error: received null username or password for unpwd check\n");
     fflush(stdout);
     return MOSQ_ERR_AUTH;
   }
@@ -69,14 +69,43 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
 
 int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
 
+  //Try to print everything that gets here so that we can debug issues.
+  printf("\n\n");
+  printf("auth-plugin.c: starting acl check at auth-plugin.c\n");
+
+  if(clientid == NULL) {
+    printf("error: clientid is null\n");
+  } else {
+    printf("clientid: %s\n", clientid);
+  }
+
+  if(username == NULL) {
+    printf("error: username is null\n");
+  } else {
+    printf("username: %s\n", username);
+  }
+
+  if(topic == NULL) {
+    printf("error: topic is null\n");
+  } else {
+    printf("topic: %s\n", topic);
+  }
+
+  if(access < 1) {
+    printf("error: access is 0 or negative\n");
+  } else {
+    printf("access: %d\n", access);
+  }
+
+  printf("\n\n");
+
+  fflush(stdout);
+
   if (clientid == NULL || username == NULL || topic == NULL || access < 1) {
-    printf("warning: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
+    printf("error: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
     fflush(stdout);
     return MOSQ_ERR_ACL_DENIED;
   }
-
-  printf("printf: acl check for username %s, topic %s, clientid %s and acc %i\n", username, topic, clientid, access);
-  fflush(stdout);
   
   GoString go_clientid = {clientid, strlen(clientid)};
   GoString go_username = {username, strlen(username)};
