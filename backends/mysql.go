@@ -58,7 +58,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		mysql.Host = host
 	}
 
-	if port, ok := authOpts["mysqlport"]; ok {
+	if port, ok := authOpts["mysql_port"]; ok {
 		mysql.Port = port
 	}
 
