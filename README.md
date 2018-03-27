@@ -319,7 +319,7 @@ In order to test the postgres backend, a simple DB with name, user and password 
 User, database and test DB tables may be created with these commands:
 
 ```sql
-create user go_auth_test with login 'go_auth_test';
+create user go_auth_test with login password 'go_auth_test';
 create database go_auth_test with owner go_auth_test;
 ```
 

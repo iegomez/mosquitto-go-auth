@@ -52,6 +52,11 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		SSLMode:        "false",
 		SuperuserQuery: "",
 		AclQuery:       "",
+		Protocol:       "tcp",
+	}
+
+	if protocol, ok := authOpts["mysql_protocol"]; ok {
+		mysql.Protocol = protocol
 	}
 
 	if host, ok := authOpts["mysql_host"]; ok {
@@ -163,6 +168,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	}
 
 	var dbErr error
+	fmt.Printf("Connecting to mysql with DSN: %s\n", msConfig.FormatDSN())
 	mysql.DB, dbErr = common.OpenDatabase(msConfig.FormatDSN(), "mysql")
 
 	if dbErr != nil {
