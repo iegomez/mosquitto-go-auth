@@ -79,7 +79,7 @@ that offered complete support for every backend included, and that was written i
 
 ### Requirements
 
-This projects was created with Go 1.9.2, tested with 1.10 too and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
+This projects was created with Go 1.9.2 (developing with 1.10 right now) and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
 
 It makes use of some Go packages as well. You can check them at the Makefile and install all the dependencies with:
 

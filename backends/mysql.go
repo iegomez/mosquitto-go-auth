@@ -185,6 +185,12 @@ func (o Mysql) GetUser(username, password string) bool {
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
+	log.Debugf("Checking Postgres for user with username %s", username)
+	log.WithFields(log.Fields{
+		"query":    o.UserQuery,
+		"username": username,
+	}).Debug("sql query to be executed")
+
 	if err != nil {
 		log.Debugf("MySql get user error: %s\n", err)
 		return false
@@ -210,6 +216,13 @@ func (o Mysql) GetSuperuser(username string) bool {
 	if o.SuperuserQuery == "" {
 		return false
 	}
+
+	log.Debugf("Checking Postgres for superuser with username %s", username)
+
+	log.WithFields(log.Fields{
+		"query":    o.SuperuserQuery,
+		"username": username,
+	}).Debug("sql query to be executed")
 
 	var count sql.NullInt64
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
@@ -238,6 +251,14 @@ func (o Mysql) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if o.AclQuery == "" {
 		return true
 	}
+
+	log.Debugf("Checking Mysql for ACL for username %s, clientid %s, topic %s and access %d", username, clientid, topic, acc)
+
+	log.WithFields(log.Fields{
+		"query":    o.AclQuery,
+		"username": username,
+		"acc":      acc,
+	}).Debug("sql query to be executed")
 
 	var acls []string
 
