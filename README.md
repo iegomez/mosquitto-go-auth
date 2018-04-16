@@ -106,13 +106,15 @@ tar xzvf mosquitto-1.4.15.tar.gz
 cd mosquitto-1.4.15
 ```
 
-Modify config.mk, setting websockets support. Then build mosquitto and add a mosquitto user.
+Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
 
 ```
 make
 sudo make install
 sudo groupadd mosquitto
 sudo useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto
+sudo chown -R mosquitto:mosquitto /var/log/mosquitto/
+sudo chown -R mosquitto:mosquitto /var/lib/mosquitto/
 ```
 
 Finally, you may create a service for mosquitto. Create the file /etc/systemd/system/mosquitto.service with these annotations:
