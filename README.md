@@ -92,9 +92,55 @@ Finally, it (optionally) uses Redis for cache purposes.
 
 ### Build
 
-Building the project is fairly simple given that you meet the requirements. Just run this command:
+Before building, you need to build mosquitto. For completeness, we'll build it with websockets, ssl and srv support.
+
+First, install dependencies (tested on Debian 9):
+
+`sudo apt-get install libwebsockets8  libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
+
+Download mosquitto and extract it (change versions accordingly):
 
 ```
+wget http://mosquitto.org/files/source/mosquitto-1.4.15.tar.gz
+tar xzvf mosquitto-1.4.15.tar.gz
+cd mosquitto-1.4.15
+```
+
+Modify config.mk, setting websockets support. Then build mosquitto and add a mosquitto user.
+
+```
+make
+sudo make install
+sudo groupadd mosquitto
+sudo useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto
+```
+
+Finally, you may create a service for mosquitto. Create the file /etc/systemd/system/mosquitto.service with these annotations:
+
+```
+[Unit]
+Description=Mosquitto MQTT v3.1/v3.1.1 server
+Wants=network.target
+Documentation=http://mosquitto.org/documentation/
+
+[Service]
+Type=simple
+User=mosquitto
+Group=mosquitto
+ExecStart=/usr/local/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf
+Restart=on-failure
+SyslogIdentifier=Mosquitto
+
+[Install]
+WantedBy=multi-user.target
+```
+
+If you are running another distro or need more details on building mosquitto, please check the offical mosquitto docs.
+
+Now that mosquitto is installed, building the project is fairly simple given that you meet the requirements. Just run this commands to generate go-auth.h and then go-auth.so:
+
+```
+go build -buildmode=c-archive go-auth.go
 go build -buildmode=c-shared -o go-auth.so
 ```
 
@@ -110,6 +156,51 @@ You can also run all tests (see Testing X for each backend's testing requirement
 make test
 ```
 
+#### Raspberry Pi
+
+To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. You can install latest version (1.10.1) like this:
+
+```
+wget https://storage.googleapis.com/golang/go1.10.1.linux-armv6l.tar.gz
+sudo tar -C /usr/local -xzf go1.10.1.linux-armv6l.tar.gz
+```
+
+Add Go to your path at .profile:
+
+`
+export PATH=$PATH:/usr/local/go/bin:~/go/bin 
+`
+
+Source the file (`source ~/.profile`) and check Go was correctly installed (`go version`).
+
+Now get requirements and build as usual (just have some more patience).
+
+##### Openssl and websockets notes
+
+There seems to be missing packages in some Raspbian versions, so you should try to apt update before installing dependencies. Alternatively, you cand build openssl like this:
+
+```
+git clone git://git.openssl.org/openssl.git
+cd openssl
+./config
+make
+make test
+sudo make install
+```
+
+For websockets support, you'll have to build libwebsockets, which needs cmake. So something like this should do the trick:
+
+```
+sudo apt-get install cmake
+git clone https://github.com/warmcat/libwebsockets.git
+cd libwebsockets
+mkdir build
+cd build
+cmake ..
+make
+make install
+```
+
 
 ### Configuration
 
@@ -119,11 +210,14 @@ and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 
 #### General options
 
+Set path to plugin and include conf.d dir for further configuration:
+
 ```
 auth_plugin /path/to/auth-plug.so
+include_dir /etc/mosquitto/conf.d
 ```
 
-Register the desired backends with:
+Create some conf file (e.g., mosquitto-go-auth.conf) at /etc/mosquitto/conf.d/ and register the desired backends with:
 
 ```
 auth_opt_backends files, postgres, jwt
