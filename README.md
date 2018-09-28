@@ -602,7 +602,9 @@ When params mode is set to `json`, the backend will send a json encoded string w
 
 When set to `form`, it will send params like a regular html form post, so acc will be a string instead of an int.
 
-*Important*: Please note that when using JWT, username and password are not needed, so for user and superuser check the backend will send an empty string or empty form values. On the other hand, all three cases will set the "authorization" header with the jwt token, which mosquitto will pass to the plugin as the regular "username" param.
+*Important*: Please note that when using JWT, username and password are not needed, so for user and superuser check the backend will send an empty string or empty form values. On the other hand, all three cases will set the "authorization" header with the jwt token, which mosquitto will pass to the plugin as the regular "username" param.  
+
+*Update: The username is expected to be set at the Subject field of the JWT claims (it was expected at Username earlier).*
 
 To clarify this, here's an example for connecting from a javascript frontend using the Paho MQTT js client (notice how the jwt token is set in userName and password has any string as it will not get checked):
 
