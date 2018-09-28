@@ -7,10 +7,11 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/pbkdf2"
@@ -25,12 +26,12 @@ func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open(engine, dsn)
 	if err != nil {
-		return nil, fmt.Errorf("database connection error: %s", err)
+		return nil, errors.Wrap(err, "database connection error")
 	}
 
 	for {
 		if err = db.Ping(); err != nil {
-			log.Printf("ping database error, will retry in 2s: %s", err)
+			log.Errorf("ping database error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)
 		} else {
 			break

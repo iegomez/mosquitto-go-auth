@@ -218,7 +218,8 @@ func (o JWT) GetUser(token, password string) bool {
 		log.Printf("jwt get user error: %s\n", err)
 		return false
 	}
-	//Now check against postgres
+	log.Debugf("claims: %v\nusername: %s\n", claims, claims.Username)
+	//Now check against the DB.
 	return o.getLocalUser(claims.Username)
 
 }
@@ -278,7 +279,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		log.Debugf("jwt check acl error: %s\n", err)
 		return false
 	}
-	//Now check against postgres
+	//Now check against the DB.
 	if o.LocalDB == "mysql" {
 		return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
 	} else {
@@ -401,7 +402,7 @@ func (o JWT) GetName() string {
 }
 
 func (o JWT) getLocalUser(username string) bool {
-	//If there's no superuser query, return false.
+	//If there's no user query, return false.
 	if o.UserQuery == "" {
 		return false
 	}
