@@ -43,12 +43,9 @@ type JWT struct {
 	ResponseMode string
 }
 
-// Claims defines the struct containing the token claims.
+// Claims defines the struct containing the token claims. Subject should contain the username.
 type Claims struct {
 	jwt.StandardClaims
-
-	// Username defines the identity of the user.
-	Username string `json:"username"`
 }
 
 type Response struct {
@@ -218,9 +215,9 @@ func (o JWT) GetUser(token, password string) bool {
 		log.Printf("jwt get user error: %s\n", err)
 		return false
 	}
-	log.Debugf("claims: %+v\nusername: %s\n", claims, claims.Username)
+	log.Debugf("claims: %+v\nusername: %s\n", claims, claims.Subject)
 	//Now check against the DB.
-	return o.getLocalUser(claims.Username)
+	return o.getLocalUser(claims.Subject)
 
 }
 
@@ -245,9 +242,9 @@ func (o JWT) GetSuperuser(token string) bool {
 	}
 	//Now check against DB
 	if o.LocalDB == "mysql" {
-		return o.Mysql.GetSuperuser(claims.Username)
+		return o.Mysql.GetSuperuser(claims.Subject)
 	} else {
-		return o.Postgres.GetSuperuser(claims.Username)
+		return o.Postgres.GetSuperuser(claims.Subject)
 	}
 
 }
@@ -281,9 +278,9 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	}
 	//Now check against the DB.
 	if o.LocalDB == "mysql" {
-		return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
+		return o.Mysql.CheckAcl(claims.Subject, topic, clientid, acc)
 	} else {
-		return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
+		return o.Postgres.CheckAcl(claims.Subject, topic, clientid, acc)
 	}
 
 }
