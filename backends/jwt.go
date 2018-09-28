@@ -218,7 +218,7 @@ func (o JWT) GetUser(token, password string) bool {
 		log.Printf("jwt get user error: %s\n", err)
 		return false
 	}
-	log.Debugf("claims: %v\nusername: %s\n", claims, claims.Username)
+	log.Debugf("claims: %+v\nusername: %s\n", claims, claims.Username)
 	//Now check against the DB.
 	return o.getLocalUser(claims.Username)
 

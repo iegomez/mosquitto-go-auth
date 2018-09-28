@@ -555,7 +555,7 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		SetAclCache(username, topic, clientid, acc, authGranted)
 	}
 
-	log.Debugf("Acl is %s for user %s", aclCheck, username)
+	log.Debugf("Acl is %t for user %s", aclCheck, username)
 
 	return aclCheck
 }
