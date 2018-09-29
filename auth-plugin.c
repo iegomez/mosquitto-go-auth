@@ -69,38 +69,6 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
 
 int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
 
-  //Try to print everything that gets here so that we can debug issues.
-  printf("\n\n");
-  printf("auth-plugin.c: starting acl check at auth-plugin.c\n");
-
-  if(clientid == NULL) {
-    printf("error: clientid is null\n");
-  } else {
-    printf("clientid: %s\n", clientid);
-  }
-
-  if(username == NULL) {
-    printf("error: username is null\n");
-  } else {
-    printf("username: %s\n", username);
-  }
-
-  if(topic == NULL) {
-    printf("error: topic is null\n");
-  } else {
-    printf("topic: %s\n", topic);
-  }
-
-  if(access < 1) {
-    printf("error: access is 0 or negative\n");
-  } else {
-    printf("access: %d\n", access);
-  }
-
-  printf("\n\n");
-
-  fflush(stdout);
-
   if (clientid == NULL || username == NULL || topic == NULL || access < 1) {
     printf("error: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
     fflush(stdout);
