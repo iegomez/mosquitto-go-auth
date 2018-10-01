@@ -63,6 +63,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 		authOpts["pg_userquery"] = "mock_string"
 		authOpts["pg_superquery"] = "mock_string"
 		authOpts["pg_aclquery"] = "mock_string"
+		authOpts["jwt_userfield"] = "Username"
 
 		//Give necessary postgres options.
 		authOpts["pg_host"] = "localhost"
@@ -205,6 +206,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 		authOpts["mysql_userquery"] = "mock_string"
 		authOpts["mysql_superquery"] = "mock_string"
 		authOpts["mysql_aclquery"] = "mock_string"
+		authOpts["jwt_userfield"] = "Username"
 
 		//Give necessary postgres options.
 		authOpts["mysql_host"] = "localhost"

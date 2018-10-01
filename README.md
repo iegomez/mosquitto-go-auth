@@ -482,8 +482,8 @@ User, database and test DB tables may be created with these commands:
 
 ```sql
 create user 'go_auth_test'@'localhost' identified by 'go_auth_test';
-grant all privileges on *.* to 'go_auth_test'@'localhost';
 create database go_auth_test;
+grant all privileges on go_auth_test.* to 'go_auth_test'@'localhost';
 ```
 
 ```sql
@@ -662,6 +662,12 @@ initMqttClient(applicationID, mode, devEUI) {
 
 #### Local mode
 
+*Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with loraserver) is to set it to Username.*
+
+```
+auth_opt_jwt_userfield Username
+```
+
 When set as remote false, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the jwt_db option. Options for the DB connection are the same as the ones given in the Postgres and Mysql backends, but include one new option and 3 options that will override Postgres' or Mysql's ones only for JWT cases (in case both backends are needed). Note that these options will be mandatory (except for jwt_db) only if remote is false.
 
 | Option           | default           |  Mandatory  | Meaning     |
@@ -671,6 +677,7 @@ When set as remote false, the backend will try to validate JWT tokens against a 
 | jwt_userquery    |                   |     Y       | SQL for users              |
 | jwt_superquery   |                   |     N       | SQL for superusers         |
 | jwt_aclquery     |                   |     N       | SQL for ACLs               |
+| jwt_userfield    |   Subject         |     N       | Field to be used for username (Subject or Username)   |
 
 
 Also, as it uses the DB backend for local auth, the following DB backend options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery, or mysql_userquery, mysql_superquery and mysql_aclquery) need not to be correct if the backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:

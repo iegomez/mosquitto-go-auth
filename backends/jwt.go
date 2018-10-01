@@ -41,11 +41,15 @@ type JWT struct {
 
 	ParamsMode   string
 	ResponseMode string
+
+	UserField string
 }
 
-// Claims defines the struct containing the token claims. Subject should contain the username.
+// Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
 type Claims struct {
 	jwt.StandardClaims
+	// If set, Username defines the identity of the user.
+	Username string `json:"username"`
 }
 
 type Response struct {
@@ -65,6 +69,13 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		ResponseMode: "status",
 		ParamsMode:   "json",
 		LocalDB:      "postgres",
+		UserField:    "Subject",
+	}
+
+	if userField, ok := authOpts["jwt_userfield"]; ok && userField == "Username" {
+		jwt.UserField = userField
+	} else {
+		log.Debugln("JWT user field not present or incorrect, defaulting to Subject field.")
 	}
 
 	if remote, ok := authOpts["jwt_remote"]; ok && remote == "true" {
@@ -72,7 +83,6 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 	}
 
 	//If remote, set remote api fields. Else, set jwt secret.
-
 	if jwt.Remote {
 
 		missingOpts := ""
@@ -200,6 +210,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 	return jwt, nil
 }
 
+//GetUser authenticates a given user.
 func (o JWT) GetUser(token, password string) bool {
 
 	if o.Remote {
@@ -216,10 +227,14 @@ func (o JWT) GetUser(token, password string) bool {
 		return false
 	}
 	//Now check against the DB.
+	if o.UserField == "Username" {
+		return o.getLocalUser(claims.Username)
+	}
 	return o.getLocalUser(claims.Subject)
 
 }
 
+//GetSuperuser checks if the given user is a superuser.
 func (o JWT) GetSuperuser(token string) bool {
 
 	if o.Remote {
@@ -240,6 +255,14 @@ func (o JWT) GetSuperuser(token string) bool {
 		return false
 	}
 	//Now check against DB
+	if o.UserField == "Username" {
+		if o.LocalDB == "mysql" {
+			return o.Mysql.GetSuperuser(claims.Username)
+		} else {
+			return o.Postgres.GetSuperuser(claims.Username)
+		}
+	}
+
 	if o.LocalDB == "mysql" {
 		return o.Mysql.GetSuperuser(claims.Subject)
 	} else {
@@ -248,6 +271,7 @@ func (o JWT) GetSuperuser(token string) bool {
 
 }
 
+//CheckAcl checks user authorization.
 func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
 	if o.Remote {
@@ -276,6 +300,13 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		return false
 	}
 	//Now check against the DB.
+	if o.UserField == "Username" {
+		if o.LocalDB == "mysql" {
+			return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
+		} else {
+			return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
+		}
+	}
 	if o.LocalDB == "mysql" {
 		return o.Mysql.CheckAcl(claims.Subject, topic, clientid, acc)
 	} else {
