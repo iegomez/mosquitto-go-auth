@@ -26,7 +26,7 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 
 #### Why?
 
-The plugin was built because I needed a JWT local mode and it was faster to write it in Go than to patch [jpmens'](https://github.com/jpmens) plugin at the. Being written in Go, it was easy to extend too. Also, I wanted to give `cgo` a try.
+The plugin was developed because I needed a JWT local mode and it was faster to write it in Go than to patch [jpmens'](https://github.com/jpmens) plugin at the time. Being written in Go, it was easy to extend too. Also, I wanted to give `cgo` a try.
 
 
 ### Table of contents
