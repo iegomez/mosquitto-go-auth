@@ -1,9 +1,10 @@
-# mosquitto-go-auth
-Mosquitto auth plugin using Go and cgo
+# Mosquitto Go Auth
+
+Mosquitto Go Auth is an authentication and authorization plugin for the Mosquitto MQTT broker.
 
 ### Intro
 
-This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker, written (almost) entirely in Go. It uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. 
+This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker. It's written (almost) entirely in Go: it uses cgo to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. 
 
 It is greatly inspired in [jpmens'](https://github.com/jpmens) [mosquitto-auth-plug](https://github.com/jpmens/mosquitto-auth-plug).
 
@@ -19,18 +20,13 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * MongoDB (added)
 * Custom (experimental)
 
-**Every backend offers user, superuser and acl checks, and they also include proper tests.**
+**Every backend offers user, superuser and acl checks, and include proper tests.**
 
-Please open an issue with the `feature` or `enhancement` tag to request a new backend.
+Please open an issue with the `feature` or `enhancement` tag to request new backends or additions to existing ones.
 
 #### Why?
 
-Ok, so there's jpmens' plugin and it works fine, why create another?
-
-First, that plugin's JWT backend was missing some options that I needed for work. So I forked it and implemented a custom backend that met my needs, but I had some issues. So I went at it again, but instead of modifying the C backend, I developed one in Go that did what I needed and linked it using cgo. This time there were no issues and everything worked just fine, and I realized that writing a backend in Go, specially when dealing with jwt, http, json, etc., was much easier and faster than doing it in C. Nothing against C, though, but if there are no restrictions, I prefer Go over it.
-
-Then I realized that it was kind of weird that not every backend offered all checking options (user, superuser and acls), and that there were some design decisions with which I didn't agree. Thus, the idea of creating a new plugin
-that offered complete support for every backend included, and that was written in Go to facilitate the addition of any new backends, was born.
+The plugin was built because I needed a JWT local mode and it was faster to write it in Go than to patch [jpmens'](https://github.com/jpmens) plugin at the. Being written in Go, it was easy to extend too. Also, I wanted to give `cgo` a try.
 
 
 ### Table of contents
