@@ -4,7 +4,11 @@ all:
 	go build pw-gen/pw.go
 
 requirements:
+	dep ensure -v
+
+dev-requirements:
 	@echo "Installing development tools"
+	go get -u github.com/golang/dep/cmd/dep
 	@go get -u github.com/pkg/errors
 	@go get -u github.com/dgrijalva/jwt-go
 	@go get -u github.com/jmoiron/sqlx
