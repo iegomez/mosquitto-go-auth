@@ -77,7 +77,7 @@ The plugin was developed because I needed a JWT local mode and it was faster to 
 
 This projects was created with Go 1.9.2 (developing with 1.10 right now) and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
 
-It makes use of some Go packages as well. You can check them at the Makefile and install all the dependencies with:
+It makes use of some Go packages as well, which are managed with dep (install it with `make dev-requirements` if you don't have it already). Run this to have dep install the dependencies:
 
 ```
 make requirements
