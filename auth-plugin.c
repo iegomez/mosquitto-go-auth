@@ -89,6 +89,11 @@ int mosquitto_auth_acl_check(void *userdata, int access, const struct mosquitto 
 int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *username, const char *topic, int access)
 #endif
 {
+  #if MOSQ_AUTH_PLUGIN_VERSION == 3
+    const char* clientid = mosquitto_client_id(client);
+    const char* username = mosquitto_client_username(client);
+    const char* topic = msg->topic;
+  #endif
   if (clientid == NULL || username == NULL || topic == NULL || access < 1) {
     printf("error: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
     fflush(stdout);
