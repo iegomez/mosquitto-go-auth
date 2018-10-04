@@ -16,4 +16,4 @@ go-auth.h
 *.out
 
 # dependencies
-/vendor
+vendor
