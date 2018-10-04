@@ -5,6 +5,9 @@
 
 #include <mosquitto.h>
 #include <mosquitto_plugin.h>
+#if MOSQ_AUTH_PLUGIN_VERSION == 3
+#include <mosquitto_broker.h>
+#endif
 #include "go-auth.h"
 
 #if LIBMOSQUITTO_VERSION_NUMBER >= 1004090
