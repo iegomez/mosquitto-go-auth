@@ -1,5 +1,8 @@
 package main
 
+// #cgo CFLAGS: -fPIC
+// #cgo LDFLAGS: -shared
+
 import "C"
 
 import (
