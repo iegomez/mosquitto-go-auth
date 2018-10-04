@@ -7,6 +7,18 @@
 #include <mosquitto_plugin.h>
 #include "go-auth.h"
 
+#if LIBMOSQUITTO_VERSION_NUMBER >= 1004090
+# define MOSQ_DENY_AUTH	MOSQ_ERR_PLUGIN_DEFER
+# define MOSQ_DENY_ACL	MOSQ_ERR_PLUGIN_DEFER
+#else
+# define MOSQ_DENY_AUTH	MOSQ_ERR_AUTH
+# define MOSQ_DENY_ACL	MOSQ_ERR_ACL_DENIED
+#endif
+
+#if MOSQ_AUTH_PLUGIN_VERSION >= 3
+# define mosquitto_auth_opt mosquitto_opt
+#endif
+
 int mosquitto_auth_plugin_version(void) {
   return MOSQ_AUTH_PLUGIN_VERSION;
 }
@@ -49,12 +61,16 @@ int mosquitto_auth_security_cleanup(void *user_data, struct mosquitto_auth_opt *
   return MOSQ_ERR_SUCCESS;
 }
 
-int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char *password) {
-  
+#if MOSQ_AUTH_PLUGIN_VERSION >=3
+int mosquitto_auth_unpwd_check(void *userdata, const struct mosquitto *client, const char *username, const char *password)
+#else
+int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char *password)
+#endif
+{
   if (username == NULL || password == NULL) {
     printf("error: received null username or password for unpwd check\n");
     fflush(stdout);
-    return MOSQ_ERR_AUTH;
+    return MOSQ_DENY_AUTH;
   }
 
   GoString go_username = {username, strlen(username)};
@@ -64,15 +80,19 @@ int mosquitto_auth_unpwd_check(void *user_data, const char *username, const char
     return MOSQ_ERR_SUCCESS;
   }
 
-  return MOSQ_ERR_AUTH;
+  return MOSQ_DENY_AUTH;
 }
 
-int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *username, const char *topic, int access) {
-
+#if MOSQ_AUTH_PLUGIN_VERSION >= 3
+int mosquitto_auth_acl_check(void *userdata, int access, const struct mosquitto *client, const struct mosquitto_acl_msg *msg)
+#else
+int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *username, const char *topic, int access)
+#endif
+{
   if (clientid == NULL || username == NULL || topic == NULL || access < 1) {
     printf("error: received null username, clientid or topic, or access is equal or less than 0 for acl check\n");
     fflush(stdout);
-    return MOSQ_ERR_ACL_DENIED;
+    return MOSQ_DENY_ACL;
   }
   
   GoString go_clientid = {clientid, strlen(clientid)};
@@ -84,9 +104,14 @@ int mosquitto_auth_acl_check(void *user_data, const char *clientid, const char *
     return MOSQ_ERR_SUCCESS;
   }
 
-  return MOSQ_ERR_ACL_DENIED;
+  return MOSQ_DENY_ACL;
 }
 
-int mosquitto_auth_psk_key_get(void *user_data, const char *hint, const char *identity, char *key, int max_key_len) {
-  return MOSQ_ERR_AUTH;
+#if MOSQ_AUTH_PLUGIN_VERSION >= 3
+int mosquitto_auth_psk_key_get(void *userdata, const struct mosquitto *client, const char *hint, const char *identity, char *key, int max_key_len)
+#else
+int mosquitto_auth_psk_key_get(void *userdata, const char *hint, const char *identity, char *key, int max_key_len)
+#endif
+{
+  return MOSQ_DENY_AUTH;
 }
