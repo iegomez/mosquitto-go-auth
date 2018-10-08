@@ -40,14 +40,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	pgOk := true
 	missingOptions := ""
 
-	log.Debugln("Initializing postgres backend with options:")
-
-	for key, value := range authOpts {
-		if strings.Contains(key, "pg_") {
-			log.Debugf("%s: %s", key, value)
-		}
-	}
-
 	var postgres = Postgres{
 		Host:           "localhost",
 		Port:           "5432",
@@ -87,7 +79,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	if userQuery, ok := authOpts["pg_userquery"]; ok {
 		postgres.UserQuery = userQuery
-		log.Debugf("Postgres user query is: %s", userQuery)
 	} else {
 		pgOk = false
 		missingOptions += " pg_userquery"
@@ -95,12 +86,10 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	if superuserQuery, ok := authOpts["pg_superquery"]; ok {
 		postgres.SuperuserQuery = superuserQuery
-		log.Debugf("Postgres superuser query is: %s", superuserQuery)
 	}
 
 	if aclQuery, ok := authOpts["pg_aclquery"]; ok {
 		postgres.AclQuery = aclQuery
-		log.Debugf("Postgres acl query is: %s", aclQuery)
 	}
 
 	checkSSL := true
@@ -162,12 +151,6 @@ func (o Postgres) GetUser(username, password string) bool {
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
-	log.Debugf("Checking Postgres for user with username %s", username)
-	log.WithFields(log.Fields{
-		"query":    o.UserQuery,
-		"username": username,
-	}).Debug("sql query to be executed")
-
 	if err != nil {
 		log.Debugf("PG get user error: %s\n", err)
 		return false
@@ -193,13 +176,6 @@ func (o Postgres) GetSuperuser(username string) bool {
 	if o.SuperuserQuery == "" {
 		return false
 	}
-
-	log.Debugf("Checking Postgres for superuser with username %s", username)
-
-	log.WithFields(log.Fields{
-		"query":    o.SuperuserQuery,
-		"username": username,
-	}).Debug("sql query to be executed")
 
 	var count sql.NullInt64
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
@@ -229,14 +205,6 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if o.AclQuery == "" {
 		return true
 	}
-
-	log.Debugf("Checking Postgres for ACL for username %s, clientid %s, topic %s and access %d", username, clientid, topic, acc)
-
-	log.WithFields(log.Fields{
-		"query":    o.AclQuery,
-		"username": username,
-		"acc":      acc,
-	}).Debug("sql query to be executed")
 
 	var acls []string
 

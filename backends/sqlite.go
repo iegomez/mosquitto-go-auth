@@ -87,12 +87,12 @@ func (o Sqlite) GetUser(username, password string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Debugf("PG get user error: %s\n", err)
+		log.Debugf("SQlite get user error: %s\n", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Debugf("PG get user error: user %s not found.\n", username)
+		log.Debugf("SQlite get user error: user %s not found.\n", username)
 		return false
 	}
 
@@ -116,12 +116,12 @@ func (o Sqlite) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Debugf("PG get superuser error: %s\n", err)
+		log.Debugf("SQlite get superuser error: %s\n", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("PG get superuser error: user %s not found.\n", username)
+		log.Debugf("SQlite get superuser error: user %s not found.\n", username)
 		return false
 	}
 
@@ -145,7 +145,7 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Debugf("PG check acl error: %s\n", err)
+		log.Debugf("SQlite check acl error: %s\n", err)
 		return false
 	}
 

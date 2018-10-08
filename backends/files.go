@@ -220,8 +220,6 @@ func (o *Files) readAcls() (int, error) {
 					o.AclRecords = append(o.AclRecords, aclRecord)
 				}
 
-				log.Infof("created aclrecord %v for user %s\n", aclRecord, currentUser)
-
 				linesCount++
 
 			} else {
@@ -258,7 +256,6 @@ func (o *Files) readAcls() (int, error) {
 				}
 
 				//Append to general acls.
-				log.Infof("Added common acl: %s\n", aclRecord.Topic)
 				o.AclRecords = append(o.AclRecords, aclRecord)
 
 				linesCount++
@@ -307,7 +304,6 @@ func (o Files) GetSuperuser(username string) bool {
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
 func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If there are no acls, all access is allowed.
-	log.Infof("Files acl check with user %s, topic: %s, clientid: %s and acc: %d\n", username, topic, clientid, acc)
 	if !o.CheckAcls {
 		return true
 	}
@@ -318,7 +314,6 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
 			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
-				log.Infof("Files acl check passed.")
 				return true
 			}
 		}
@@ -328,12 +323,10 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
 		if common.TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
-			log.Infof("Files acl check passed.")
 			return true
 		}
 	}
 
-	log.Warnf("Files acl check failed.")
 	return false
 
 }
