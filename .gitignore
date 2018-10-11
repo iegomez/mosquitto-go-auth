@@ -17,3 +17,5 @@ go-auth.h
 
 # dependencies
 vendor
+
+.vscode/

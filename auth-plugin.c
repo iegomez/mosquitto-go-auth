@@ -6,7 +6,7 @@
 #include <mosquitto.h>
 #include <mosquitto_plugin.h>
 #if MOSQ_AUTH_PLUGIN_VERSION >= 3
-#include <mosquitto_broker.h>
+# include <mosquitto_broker.h>
 #endif
 #include "go-auth.h"
 
@@ -94,7 +94,7 @@ int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *u
     fflush(stdout);
     return MOSQ_ERR_ACL_DENIED;
   }
-  
+
   GoString go_clientid = {clientid, strlen(clientid)};
   GoString go_username = {username, strlen(username)};
   GoString go_topic = {topic, strlen(topic)};

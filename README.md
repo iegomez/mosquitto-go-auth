@@ -135,6 +135,8 @@ WantedBy=multi-user.target
 
 If you are running another distro or need more details on building mosquitto, please check the offical mosquitto docs.
 
+#### Build the plugin for mosquitto 1.4.x
+
 Now that mosquitto is installed, building the project is fairly simple given that you meet the requirements. Just run this commands to generate go-auth.h and then go-auth.so:
 
 ```
@@ -153,6 +155,19 @@ You can also run all tests (see Testing X for each backend's testing requirement
 ```
 make test
 ```
+
+#### Build the plugin for mosquitto 1.5.x
+
+For the latest versions of mosquitto we need to export some flags before building and then run the same commands (we'll just use make):
+
+```
+export CGO_CFLAGS="-I/usr/local/include -fPIC"
+export CGO_LDFLAGS="-shared"
+make
+```
+
+This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/local/include`, which is true for a manually built mosquitto version in debian based systems (and probably others too).
+
 
 #### Raspberry Pi
 
