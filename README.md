@@ -450,7 +450,7 @@ rw int not null);
 
 ### Mysql
 
-The `mysql` backend works almost exactly as the `postgres` one, except for a couple of configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, then a socket path must be given:
+The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, then a socket path must be given:
 
 ```
 auth_opt_mysql_protocol unix
@@ -461,7 +461,13 @@ The default protocol when the option is missing will be `tcp`, even if a socket 
 
 Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, sslcert, sslkey and sslrootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
 
-Also, default host `localhost` and port 3306 will be used if none are given.
+Also, default host `localhost` and port 3306 will be used if none are given.  
+
+To allow native passwords, set the option to true:
+
+```
+auth_opt_mysql_allow_native_passwords true
+```
 
 Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. So, following the postgres examples, same queries for mysql would look like these:
 

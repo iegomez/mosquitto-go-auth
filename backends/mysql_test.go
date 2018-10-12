@@ -14,6 +14,7 @@ func TestMysql(t *testing.T) {
 	authOpts["mysql_host"] = "localhost"
 	authOpts["mysql_port"] = "3306"
 	authOpts["mysql_protocol"] = "tcp"
+	authOpts["mysql_allow_native_passwords"] = "true"
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
 		_, err := NewMysql(authOpts, log.DebugLevel)

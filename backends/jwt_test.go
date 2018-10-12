@@ -214,6 +214,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 		authOpts["mysql_dbname"] = "go_auth_test"
 		authOpts["mysql_user"] = "go_auth_test"
 		authOpts["mysql_password"] = "go_auth_test"
+		authOpts["mysql_allow_native_passwords"] = "true"
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
 			jwt, err := NewJWT(authOpts, log.DebugLevel)

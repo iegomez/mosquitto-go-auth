@@ -20,21 +20,22 @@ import (
 
 //Mysql holds all fields of the Mysql db connection.
 type Mysql struct {
-	DB             *sqlx.DB
-	Host           string
-	Port           string
-	DBName         string
-	User           string
-	Password       string
-	UserQuery      string
-	SuperuserQuery string
-	AclQuery       string
-	SSLMode        string
-	SSLCert        string
-	SSLKey         string
-	SSLRootCert    string
-	Protocol       string
-	SocketPath     string
+	DB                   *sqlx.DB
+	Host                 string
+	Port                 string
+	DBName               string
+	User                 string
+	Password             string
+	UserQuery            string
+	SuperuserQuery       string
+	AclQuery             string
+	SSLMode              string
+	SSLCert              string
+	SSLKey               string
+	SSLRootCert          string
+	Protocol             string
+	SocketPath           string
+	AllowNativePasswords bool
 }
 
 func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
@@ -103,6 +104,10 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		mysql.AclQuery = aclQuery
 	}
 
+	if allowNativePasswords, ok := authOpts["mysql_allow_native_passwords"]; ok && allowNativePasswords == "true" {
+		mysql.AllowNativePasswords = true
+	}
+
 	customSSL := false
 
 	if sslmode, ok := authOpts["mysql_sslmode"]; ok {
@@ -136,12 +141,13 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	}
 
 	var msConfig = mq.Config{
-		User:      mysql.User,
-		Passwd:    mysql.Password,
-		Net:       mysql.Protocol,
-		Addr:      fmt.Sprintf("%s:%s", mysql.Host, mysql.Port),
-		DBName:    mysql.DBName,
-		TLSConfig: mysql.SSLMode,
+		User:                 mysql.User,
+		Passwd:               mysql.Password,
+		Net:                  mysql.Protocol,
+		Addr:                 fmt.Sprintf("%s:%s", mysql.Host, mysql.Port),
+		DBName:               mysql.DBName,
+		TLSConfig:            mysql.SSLMode,
+		AllowNativePasswords: mysql.AllowNativePasswords,
 	}
 
 	if customSSL {
