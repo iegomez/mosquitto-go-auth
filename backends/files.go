@@ -314,12 +314,9 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	fileUser, ok := o.Users[username]
 
-	log.Debugf("checking username %s, topic %s, clientid %s and acc %x", username, topic, clientid, acc)
-
 	//If user exists, check against his acls and common ones. If not, check against common acls only.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			log.Debugf("against record topic %s and acc %x", aclRecord.Topic, aclRecord.Acc)
 			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 				return true
 			}
@@ -329,7 +326,6 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 		//Replace all occurrences of %c for clientid and %u for username
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		log.Debugf("against record topic %s and acc %x", aclRecord.Topic, aclRecord.Acc)
 		if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 			return true
 		}
