@@ -614,7 +614,7 @@ When params mode is set to `json`, the backend will send a json encoded string w
 {
 	"topic": "mock/topic",
 	"clientid": "mock_client",
-	"acc": 1 		//1 is read, 2 is write
+	"acc": 1 		//1 is read, 2 is write, 3 is readwrite, 4 is subscribe
 }
 
 When set to `form`, it will send params like a regular html form post, so acc will be a string instead of an int.

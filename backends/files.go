@@ -192,21 +192,23 @@ func (o *Files) readAcls() (int, error) {
 
 				var aclRecord = AclRecord{
 					Topic: "",
-					Acc:   0x00,
+					Acc:   MOSQ_ACL_NONE,
 				}
 
 				//If len is 2, then we assume ReadWrite privileges.
 				if len(lineArr) == 2 {
 					aclRecord.Topic = lineArr[1]
-					aclRecord.Acc = 0x03
+					aclRecord.Acc = MOSQ_ACL_READWRITE
 				} else {
 					aclRecord.Topic = lineArr[2]
 					if lineArr[1] == "read" {
-						aclRecord.Acc = 0x01
+						aclRecord.Acc = MOSQ_ACL_READ
 					} else if lineArr[1] == "write" {
-						aclRecord.Acc = 0x02
+						aclRecord.Acc = MOSQ_ACL_WRITE
 					} else if lineArr[1] == "readwrite" {
-						aclRecord.Acc = 0x03
+						aclRecord.Acc = MOSQ_ACL_READWRITE
+					} else if lineArr[1] == "subscribe" {
+						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
 					} else {
 						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 					}
@@ -235,21 +237,23 @@ func (o *Files) readAcls() (int, error) {
 
 				var aclRecord = AclRecord{
 					Topic: "",
-					Acc:   0x00,
+					Acc:   MOSQ_ACL_NONE,
 				}
 
 				//If len is 2, then we assume ReadWrite privileges.
 				if len(lineArr) == 2 {
 					aclRecord.Topic = lineArr[1]
-					aclRecord.Acc = 0x03
+					aclRecord.Acc = MOSQ_ACL_READWRITE
 				} else {
 					aclRecord.Topic = lineArr[2]
 					if lineArr[1] == "read" {
-						aclRecord.Acc = 0x01
+						aclRecord.Acc = MOSQ_ACL_READ
 					} else if lineArr[1] == "write" {
-						aclRecord.Acc = 0x02
+						aclRecord.Acc = MOSQ_ACL_WRITE
 					} else if lineArr[1] == "readwrite" {
-						aclRecord.Acc = 0x03
+						aclRecord.Acc = MOSQ_ACL_READWRITE
+					} else if lineArr[1] == "subscribe" {
+						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
 					} else {
 						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
 					}
@@ -310,10 +314,13 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	fileUser, ok := o.Users[username]
 
+	log.Debugf("checking username %s, topic %s, clientid %s and acc %x", username, topic, clientid, acc)
+
 	//If user exists, check against his acls and common ones. If not, check against common acls only.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
+			log.Debugf("against record topic %s and acc %x", aclRecord.Topic, aclRecord.Acc)
+			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 				return true
 			}
 		}
@@ -322,7 +329,8 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 		//Replace all occurrences of %c for clientid and %u for username
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == 0x03) {
+		log.Debugf("against record topic %s and acc %x", aclRecord.Topic, aclRecord.Acc)
+		if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 			return true
 		}
 	}
