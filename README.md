@@ -13,11 +13,11 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * Files
 * PostgreSQL
 * JWT (with local DB or remote API)
-* HTTP (added)
-* Redis (added)
-* Mysql (added)
-* SQLite3 (added)
-* MongoDB (added)
+* HTTP
+* Redis
+* Mysql
+* SQLite3
+* MongoDB
 * Custom (experimental)
 
 **Every backend offers user, superuser and acl checks, and include proper tests.**
@@ -75,9 +75,7 @@ The plugin was developed because I needed a JWT local mode and it was faster to 
 
 ### Requirements
 
-This projects was created with Go 1.9.2 (developing with 1.10 right now) and makes use of cgo. It probably works fine with Go 1.8 too, but I haven't tested it yet (any results are welcome).
-
-It makes use of some Go packages as well, which are managed with dep (install it with `make dev-requirements` if you don't have it already). Run this to have dep install the dependencies:
+This is tested against Go 1.10.3 and makes use of cgo. It depends on some Go packages as well, which are managed with dep (install it with `make dev-requirements` if you don't have it already). Run this to have dep install the dependencies:
 
 ```
 make requirements
@@ -94,7 +92,7 @@ First, install dependencies (tested on Debian 9):
 
 `sudo apt-get install libwebsockets8  libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
 
-Download mosquitto and extract it (change versions accordingly):
+Download mosquitto and extract it (**change versions accordingly**):
 
 ```
 wget http://mosquitto.org/files/source/mosquitto-1.4.15.tar.gz

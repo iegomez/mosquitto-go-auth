@@ -43,7 +43,6 @@ type CommonData struct {
 	CheckPrefix      bool
 	Prefixes         map[string]string
 	LogLevel         log.Level
-	StrictMode       bool
 }
 
 //Cache stores necessary values for Redis cache
@@ -66,11 +65,10 @@ var allowedBackends = map[string]bool{
 	"plugin":   true,
 }
 
-var backends []string           //List of selected backends.
-var authOpts map[string]string  //Options passed by mosquitto.
-var cache Cache                 //Cache conf.
-var commonData CommonData       //General struct with options and conf.
-var strictMap map[string]string //Maps users to backends by name.
+var backends []string          //List of selected backends.
+var authOpts map[string]string //Options passed by mosquitto.
+var cache Cache                //Cache conf.
+var commonData CommonData      //General struct with options and conf.
 
 //export AuthPluginInit
 func AuthPluginInit(keys []string, values []string, authOptsNum int) {
@@ -146,15 +144,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			commonData.LogLevel = log.PanicLevel
 		}
 
-	}
-
-	//Check if strict mode is set.
-	if strictMode, ok := authOpts["strict_mode"]; ok && strings.Replace(strictMode, " ", "", -1) == "true" {
-		log.Info("Strict mode set.")
-		commonData.StrictMode = true
-	} else {
-		log.Info("Non strict mode set.")
-		commonData.StrictMode = false
 	}
 
 	//Initialize backends
@@ -424,8 +413,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 //export AuthUnpwdCheck
 func AuthUnpwdCheck(username, password string) bool {
-
-	//Loop through backends checking for user if we are on non strict mode or the user hasn't been seen yet.
 
 	authenticated := false
 	var cached = false
