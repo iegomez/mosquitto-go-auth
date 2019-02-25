@@ -31,7 +31,7 @@ func init() {
 	var err error
 	postgres, err = NewPostgres(authOpts, log.DebugLevel)
 	if err != nil {
-		log.Fatalf("Postgres error: ", err)
+		log.Fatalf("Postgres error: %s", err)
 	}
 	//Empty db
 	postgres.DB.MustExec("delete from test_user where 1 = 1")

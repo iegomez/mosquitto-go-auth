@@ -60,6 +60,10 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		mysql.Protocol = protocol
 	}
 
+	if socket, ok := authOpts["mysql_socket"]; ok {
+		mysql.SocketPath = socket
+	}
+
 	if host, ok := authOpts["mysql_host"]; ok {
 		mysql.Host = host
 	}
@@ -135,6 +139,17 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		customSSL = false
 	}
 
+	//If the protocol is a unix socket, we need to set the address as the socket path. If it's tcp, then set the address using host and port.
+	addr := fmt.Sprintf("%s:%s", mysql.Host, mysql.Port)
+	if mysql.Protocol == "unix" {
+		if mysql.SocketPath != "" {
+			addr = mysql.SocketPath
+		} else {
+			mysqlOk = false
+			missingOptions += " mysql_socket"
+		}
+	}
+
 	//Exit if any mandatory option is missing.
 	if !mysqlOk {
 		return mysql, errors.Errorf("MySql backend error: missing options%s.\n", missingOptions)
@@ -144,7 +159,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		User:                 mysql.User,
 		Passwd:               mysql.Password,
 		Net:                  mysql.Protocol,
-		Addr:                 fmt.Sprintf("%s:%s", mysql.Host, mysql.Port),
+		Addr:                 addr,
 		DBName:               mysql.DBName,
 		TLSConfig:            mysql.SSLMode,
 		AllowNativePasswords: mysql.AllowNativePasswords,

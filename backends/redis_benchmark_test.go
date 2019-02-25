@@ -32,7 +32,7 @@ func init() {
 	var err error
 	redis, err = NewRedis(authOpts, log.ErrorLevel)
 	if err != nil {
-		log.Fatalf("Redis error: ", err)
+		log.Fatalf("Redis error: %s", err)
 	}
 	redis.Conn.FlushDB()
 }
