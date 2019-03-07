@@ -75,13 +75,15 @@ The plugin was developed because I needed a JWT local mode and it was faster to 
 
 ### Requirements
 
-This is tested against Go 1.10.3 and makes use of cgo. It depends on some Go packages as well, which are managed with dep (install it with `make dev-requirements` if you don't have it already). Run this to have dep install the dependencies:
+Starting with Go 1.12 this plugin supports `Go modules` to manage dependencies. If you have `go mod` enabled, you don't need to run any prior commands to get your dependencies.
+
+If you are using an older version of Go (tested with Go 1.10.3, 1.10.8 and 1.11.5) dependencies may be managed with `dep` (you may install it with `make dev-requirements` if you don't have it already **and** you've exported `$HOME/go/src/bin` to your `PATH`). Run this to have `dep` install the dependencies:
 
 ```
 make requirements
 ```
 
-Finally, it (optionally) uses Redis for cache purposes.
+As it interacts with mosquitto, it makes use of Cgo. Also, it (optionally) uses Redis for cache purposes.
 
 
 ### Build
@@ -95,9 +97,9 @@ First, install dependencies (tested on Debian 9):
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.4.15.tar.gz
-tar xzvf mosquitto-1.4.15.tar.gz
-cd mosquitto-1.4.15
+wget http://mosquitto.org/files/source/mosquitto-1.5.7.tar.gz
+tar xzvf mosquitto-1.5.7.tar.gz
+cd mosquitto-1.5.7
 ```
 
 Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
