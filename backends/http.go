@@ -223,7 +223,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 		return false
 	}
 
-	if resp.Status != "200 OK" {
+	if resp.Status != "200" {
 		log.Infof("Wrong http status: %s\n", resp.Status)
 		return false
 	}
