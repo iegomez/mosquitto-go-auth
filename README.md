@@ -75,7 +75,7 @@ The plugin was developed because I needed a JWT local mode and it was faster to 
 
 ### Requirements
 
-Starting with Go 1.12 this plugin supports `Go modules` to manage dependencies. If you have `go mod` enabled, you don't need to run any prior commands to get your dependencies.
+Starting with Go 1.12 this plugin supports `Go modules` to manage dependencies. If you have `go mod` enabled, **you don't need to run any prior commands to get your dependencies.**
 
 If you are using an older version of Go (tested with Go 1.10.3, 1.10.8 and 1.11.5) dependencies may be managed with `dep` (you may install it with `make dev-requirements` if you don't have it already **and** you've exported `$HOME/go/src/bin` to your `PATH`). Run this to have `dep` install the dependencies:
 
@@ -156,7 +156,7 @@ You can also run all tests (see Testing X for each backend's testing requirement
 make test
 ```
 
-#### Build the plugin for mosquitto 1.5.x
+#### Build the plugin for mosquitto 1.5.x and 1.6.x
 
 For the latest versions of mosquitto we need to export some flags before building and then run the same commands (we'll just use make):
 
