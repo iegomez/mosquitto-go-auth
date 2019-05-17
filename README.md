@@ -258,14 +258,22 @@ auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
 
-#### Log level
+#### Logging
 
-You can set the log level with the log_level option. Valid values are: debug, info, warn, error, fatal and panic. If not set, default value is `info`.
+You can set the log level with the `log_level` option. Valid values are: debug, info, warn, error, fatal and panic. If not set, default value is `info`.
 
 ```
 auth_opt_log_level debug
 ```
 
+Log destination may be set with `log_dest` option. Valid values are `stderr` (default), `stdout` and `file`. In the latter case the `log_file` option needs to be set, e.g.:
+
+```
+auth_opt_log_dest file
+auth_opt_log_file /var/log/mosquitto/mosquitto.log
+```
+
+If `log_dest` or `log_file` are invalid, or if there's an error opening the file (e.g. no permissions), logging will default to `stderr`.
 
 #### Prefixes
 
