@@ -234,7 +234,6 @@ func (o Postgres) GetName() string {
 
 //Halt closes the mysql connection.
 func (o Postgres) Halt() {
-	log.Debugln("Cleaning up Postgres backend")
 	if o.DB != nil {
 		err := o.DB.Close()
 		if err != nil {

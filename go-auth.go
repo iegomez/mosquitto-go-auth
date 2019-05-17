@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
 
 	log "github.com/sirupsen/logrus"
 
@@ -43,6 +44,8 @@ type CommonData struct {
 	CheckPrefix      bool
 	Prefixes         map[string]string
 	LogLevel         log.Level
+	LogDest 		 string
+	LogFile 		 string
 }
 
 //Cache stores necessary values for Redis cache
@@ -130,20 +133,41 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 		logLevel = strings.Replace(logLevel, " ", "", -1)
 
-		if logLevel == "debug" {
+		switch logLevel{
+		case "debug":
 			commonData.LogLevel = log.DebugLevel
-		} else if logLevel == "info" {
+		case "info":
 			commonData.LogLevel = log.InfoLevel
-		} else if logLevel == "warn" {
+		case "warn":
 			commonData.LogLevel = log.WarnLevel
-		} else if logLevel == "error" {
+		case "error":
 			commonData.LogLevel = log.ErrorLevel
-		} else if logLevel == "fatal" {
+		case "fatal":
 			commonData.LogLevel = log.FatalLevel
-		} else if logLevel == "panic" {
+		case "panic":
 			commonData.LogLevel = log.PanicLevel
+		default:
+			log.Info("log_level not set or unkwown, using default info level")
 		}
 
+	}
+
+	if logDest, ok := authOpts["log_dest"]; ok {
+		switch logDest{
+		case "stdout":
+			log.SetOutput(os.Stdout)
+		case "file":
+			if logFile, ok := authOpts["log_file"]; ok {
+				file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err == nil {
+				  log.SetOutput(file)
+				} else {
+				  log.Errorf("failed to log to file, using default stderr: %s", err)
+				}
+			}
+		default:
+			log.Info("log_dest not set or unknown, using default stderr")
+		}
 	}
 
 	//Initialize backends
@@ -243,7 +267,8 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 			}
 		} else {
-			if bename == "postgres" {
+			switch bename{
+			case "postgres":
 				beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -251,7 +276,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["postgres"] = beIface.(bes.Postgres)
 				}
-			} else if bename == "jwt" {
+			case "jwt": 
 				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -259,7 +284,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["jwt"] = beIface.(bes.JWT)
 				}
-			} else if bename == "files" {
+			case "files":
 				beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -267,7 +292,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["files"] = beIface.(bes.Files)
 				}
-			} else if bename == "redis" {
+			case "redis":
 				beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -275,7 +300,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["redis"] = beIface.(bes.Redis)
 				}
-			} else if bename == "mysql" {
+			case "mysql":
 				beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -283,7 +308,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["mysql"] = beIface.(bes.Mysql)
 				}
-			} else if bename == "http" {
+			case "http":
 				beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -291,7 +316,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["http"] = beIface.(bes.HTTP)
 				}
-			} else if bename == "sqlite" {
+			case "sqlite":
 				beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -299,7 +324,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["sqlite"] = beIface.(bes.Sqlite)
 				}
-			} else if bename == "mongo" {
+			case "mongo":
 				beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
