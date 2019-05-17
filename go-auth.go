@@ -147,7 +147,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		case "panic":
 			commonData.LogLevel = log.PanicLevel
 		default:
-			log.Info("log_level not set or unkwown, using default info level")
+			log.Info("log_level unkwown, using default info level")
 		}
 
 	}
@@ -166,7 +166,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				}
 			}
 		default:
-			log.Info("log_dest not set or unknown, using default stderr")
+			log.Info("log_dest unknown, using default stderr")
 		}
 	}
 
