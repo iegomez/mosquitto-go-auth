@@ -60,6 +60,10 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		mongo.Port = mongoPort
 	}
 
+	if mongoUsername, ok := authOpts["mongo_username"]; ok {
+		mongo.Username = mongoUsername
+	}
+
 	if mongoPassword, ok := authOpts["mongo_password"]; ok {
 		mongo.Password = mongoPassword
 	}
