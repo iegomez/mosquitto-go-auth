@@ -846,6 +846,11 @@ All this requirements are met with a fresh installation of Redis without any cus
 
 After testing, db 2 will be flushed.
 
+If you wish to test Redis auth, you may set the `requirepass` option at your `redis.conf` to match the password given in the test case:
+
+```
+requirepass go_auth_test
+```
 
 ### MongoDB
 
@@ -913,7 +918,7 @@ All this requirements are met with a fresh installation of MongoDB without any c
 
 As with `sqlite`, this backend constructs the collections and inserts relevant data, which are whiped out after testing is done, so no user actions are required.
 
-
+If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` flag and have a user `go_auth_test` with password `go_auth_test` with the `dbOwner` role over the `mosquitto_test` DB.
 
 ### Custom (experimental)
 

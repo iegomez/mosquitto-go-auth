@@ -11,7 +11,7 @@ dev-requirements:
 	go get -u github.com/smartystreets/goconvey
 
 test:
-	go test ./backends -v -bench=none
+	go test ./backends -v -bench=none -count=1
 
 benchmark:
 	go test ./backends -v -bench=. -run=^a

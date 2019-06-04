@@ -1,6 +1,7 @@
 package backends
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -11,8 +12,9 @@ import (
 
 	"github.com/iegomez/mosquitto-go-auth/common"
 
-	"gopkg.in/mgo.v2"
-	"gopkg.in/mgo.v2/bson"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Mongo struct {
@@ -23,7 +25,7 @@ type Mongo struct {
 	DBName          string
 	UsersCollection string
 	AclsCollection  string
-	Conn            *mgo.Session
+	Conn            *mongo.Client
 }
 
 type MongoAcl struct {
@@ -42,7 +44,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	log.SetLevel(logLevel)
 
-	var mongo = Mongo{
+	var m = Mongo{
 		Host:            "localhost",
 		Port:            "27017",
 		Username:        "",
@@ -53,67 +55,70 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 	}
 
 	if mongoHost, ok := authOpts["mongo_host"]; ok {
-		mongo.Host = mongoHost
+		m.Host = mongoHost
 	}
 
 	if mongoPort, ok := authOpts["mongo_port"]; ok {
-		mongo.Port = mongoPort
+		m.Port = mongoPort
 	}
 
 	if mongoUsername, ok := authOpts["mongo_username"]; ok {
-		mongo.Username = mongoUsername
+		m.Username = mongoUsername
 	}
 
 	if mongoPassword, ok := authOpts["mongo_password"]; ok {
-		mongo.Password = mongoPassword
+		m.Password = mongoPassword
 	}
 
 	if mongoDBName, ok := authOpts["mongo_dbname"]; ok {
-		mongo.DBName = mongoDBName
+		m.DBName = mongoDBName
 	}
 
 	if usersCollection, ok := authOpts["mongo_users"]; ok {
-		mongo.UsersCollection = usersCollection
+		m.UsersCollection = usersCollection
 	}
 
 	if aclsCollection, ok := authOpts["mongo_acls"]; ok {
-		mongo.AclsCollection = aclsCollection
+		m.AclsCollection = aclsCollection
 	}
 
-	addr := fmt.Sprintf("%s:%s", mongo.Host, mongo.Port)
+	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
-	mongoDBDialInfo := &mgo.DialInfo{
-		Addrs:    []string{addr},
-		Timeout:  60 * time.Second,
-		Database: mongo.DBName,
+	to := 60 * time.Second
+	opts := options.ClientOptions{
+		ConnectTimeout: &to,
 	}
 
-	if mongo.Username != "" && mongo.Password != "" {
-		mongoDBDialInfo.Username = mongo.Username
-		mongoDBDialInfo.Password = mongo.Password
+	opts.ApplyURI(addr)
+
+	if m.Username != "" && m.Password != "" {
+		opts.Auth = &options.Credential{
+			AuthSource:  m.DBName,
+			Username:    m.Username,
+			Password:    m.Password,
+			PasswordSet: true,
+		}
 	}
 
-	mongoSession, err := mgo.DialWithInfo(mongoDBDialInfo)
+	client, err := mongo.Connect(context.TODO(), &opts)
 	if err != nil {
-		return mongo, errors.Errorf("couldn't start mongo backend. error: %s\n", err)
+		return m, errors.Errorf("couldn't start mongo backend. error: %s\n", err)
 	}
 
-	mongoSession.SetMode(mgo.Monotonic, true)
+	m.Conn = client
 
-	mongo.Conn = mongoSession
-
-	return mongo, nil
+	return m, nil
 
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
 func (o Mongo) GetUser(username, password string) bool {
 
-	uc := o.Conn.DB(o.DBName).C(o.UsersCollection)
+	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 
 	var user MongoUser
 
-	err := uc.Find(bson.M{"username": username}).One(&user)
+	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get user error: %s", err)
 		return false
@@ -130,11 +135,11 @@ func (o Mongo) GetUser(username, password string) bool {
 //GetSuperuser checks that the key username:su exists and has value "true".
 func (o Mongo) GetSuperuser(username string) bool {
 
-	uc := o.Conn.DB(o.DBName).C(o.UsersCollection)
+	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 
 	var user MongoUser
 
-	err := uc.Find(bson.M{"username": username}).One(&user)
+	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get superuser error: %s", err)
 		return false
@@ -148,11 +153,11 @@ func (o Mongo) GetSuperuser(username string) bool {
 func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	//Get user and check his acls.
-	uc := o.Conn.DB(o.DBName).C(o.UsersCollection)
+	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 
 	var user MongoUser
 
-	err := uc.Find(bson.M{"username": username}).One(&user)
+	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get superuser error: %s", err)
 		return false
@@ -166,24 +171,27 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	//Now check common acls.
 
-	ac := o.Conn.DB(o.DBName).C(o.AclsCollection)
-
-	var acls []MongoAcl
-
-	//aErr := ac.Find(bson.M{"$or": []bson.M{bson.M{"acc": acc}, bson.M{"acc": 3}}}).All(&acls)
-	aErr := ac.Find(bson.M{"acc": bson.M{"$in": []int32{acc, 3}}}).All(&acls)
-	//aErr := ac.
+	ac := o.Conn.Database(o.DBName).Collection(o.AclsCollection)
+	cur, aErr := ac.Find(context.TODO(), bson.M{"acc": bson.M{"$in": []int32{acc, 3}}})
 
 	if aErr != nil {
 		log.Debugf("Mongo check acl error: %s", err)
 		return false
 	}
 
-	for _, acl := range acls {
-		aclTopic := strings.Replace(acl.Topic, "%c", clientid, -1)
-		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) {
-			return true
+	defer cur.Close(context.TODO())
+
+	for cur.Next(context.TODO()) {
+		var acl MongoAcl
+		err = cur.Decode(&acl)
+		if err == nil {
+			aclTopic := strings.Replace(acl.Topic, "%c", clientid, -1)
+			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
+			if common.TopicsMatch(aclTopic, topic) {
+				return true
+			}
+		} else {
+			log.Errorf("mongo cursor decode error: %s", err)
 		}
 	}
 
@@ -199,6 +207,6 @@ func (o Mongo) GetName() string {
 //Halt closes the mongo session.
 func (o Mongo) Halt() {
 	if o.Conn != nil {
-		o.Conn.Close()
+		o.Conn.Disconnect(context.TODO())
 	}
 }

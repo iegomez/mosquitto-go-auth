@@ -14,6 +14,7 @@ func TestRedis(t *testing.T) {
 	authOpts["redis_host"] = "localhost"
 	authOpts["redis_port"] = "6379"
 	authOpts["redis_db"] = "2"
+	authOpts["redis_password"] = "go_auth_test"
 
 	Convey("Given valid params NewRedis should return a Redis backend instance", t, func() {
 		redis, err := NewRedis(authOpts, log.DebugLevel)

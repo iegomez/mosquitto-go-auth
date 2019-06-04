@@ -1,6 +1,7 @@
 package backends
 
 import (
+	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -13,16 +14,19 @@ func TestMongo(t *testing.T) {
 	authOpts := make(map[string]string)
 	authOpts["mongo_host"] = "localhost"
 	authOpts["mongo_port"] = "27017"
+	authOpts["mongo_username"] = "go_auth_test"
+	authOpts["mongo_password"] = "go_auth_test"
+	authOpts["mongo_dbname"] = "mosquitto_test"
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {
 		mongo, err := NewMongo(authOpts, log.DebugLevel)
 		So(err, ShouldBeNil)
 
 		//Drop DB and recreate it
-		mongo.Conn.DB(mongo.DBName).DropDatabase()
-		mongoDb := mongo.Conn.DB(mongo.DBName)
-		usersColl := mongoDb.C(mongo.UsersCollection)
-		aclsColl := mongoDb.C(mongo.AclsCollection)
+		mongo.Conn.Database(mongo.DBName).Drop(context.TODO())
+		mongoDb := mongo.Conn.Database(mongo.DBName)
+		usersColl := mongoDb.Collection(mongo.UsersCollection)
+		aclsColl := mongoDb.Collection(mongo.AclsCollection)
 
 		//Insert a user to test auth
 		username := "test"
@@ -56,7 +60,7 @@ func TestMongo(t *testing.T) {
 		}
 
 		//mongo.Conn.Set(username, userPassHash, 0)
-		usersColl.Insert(&testUser)
+		usersColl.InsertOne(context.TODO(), &testUser)
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
@@ -112,8 +116,8 @@ func TestMongo(t *testing.T) {
 			Acc:   1,
 		}
 
-		aclsColl.Insert(&userAcl)
-		aclsColl.Insert(&clientAcl)
+		aclsColl.InsertOne(context.TODO(), &userAcl)
+		aclsColl.InsertOne(context.TODO(), &clientAcl)
 
 		Convey("Given a topic that mentions username and subscribes to it, acl check should pass", func() {
 			tt1 := mongo.CheckAcl(username, "pattern/test", clientID, 1)
@@ -159,7 +163,7 @@ func TestMongo(t *testing.T) {
 		})
 
 		//Empty db
-		mongoDb.DropDatabase()
+		mongoDb.Drop(context.TODO())
 
 		mongo.Halt()
 

@@ -25,9 +25,10 @@ var redis Redis
 
 func init() {
 	var authOpts = map[string]string{
-		"redis_host": "localhost",
-		"redis_port": "6379",
-		"redis_db":   "2",
+		"redis_host":     "localhost",
+		"redis_port":     "6379",
+		"redis_db":       "2",
+		"redis_password": "go_auth_test",
 	}
 	var err error
 	redis, err = NewRedis(authOpts, log.ErrorLevel)

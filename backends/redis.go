@@ -26,10 +26,9 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 	log.SetLevel(logLevel)
 
 	var redis = Redis{
-		Host:     "localhost",
-		Port:     "6379",
-		Password: "",
-		DB:       1,
+		Host: "localhost",
+		Port: "6379",
+		DB:   1,
 	}
 
 	if redisHost, ok := authOpts["redis_host"]; ok {
@@ -56,13 +55,13 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 	//Try to start redis.
 	goredisClient := goredis.NewClient(&goredis.Options{
 		Addr:     addr,
-		Password: redis.Password, // no password set
-		DB:       int(redis.DB),  // use default DB
+		Password: redis.Password,
+		DB:       int(redis.DB),
 	})
 
 	for {
 		if _, err := goredisClient.Ping().Result(); err != nil {
-			log.Printf("ping redis error, will retry in 2s: %s", err)
+			log.Errorf("ping redis error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)
 		} else {
 			break
