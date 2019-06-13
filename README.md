@@ -19,14 +19,11 @@ It was intended for use with [brocaar's](https://github.com/brocaar) [Loraserver
 * SQLite3
 * MongoDB
 * Custom (experimental)
+* gRPC
 
 **Every backend offers user, superuser and acl checks, and include proper tests.**
 
 Please open an issue with the `feature` or `enhancement` tag to request new backends or additions to existing ones.
-
-#### Why?
-
-The plugin was developed because I needed a JWT local mode and it was faster to write it in Go than to patch [jpmens'](https://github.com/jpmens) plugin at the time. Being written in Go, it was easy to extend too. Also, I wanted to give `cgo` a try.
 
 
 ### Table of contents
@@ -65,6 +62,9 @@ The plugin was developed because I needed a JWT local mode and it was faster to 
 	- [Testing MongoDB](#testing-mongodb)
 - [Custom \(experimental\)](#custom-experimental)
 	- [Testing Custom](#testing-custom)
+- [gRPC](#grpc)
+	- [Service](#service)
+	- [Testing gRPC](#testing-grpc)
 - [Benchmarks](#benchmarks)
 - [Using with loraserver](#using-with-loraserver)
 - [License](#license)
@@ -979,6 +979,87 @@ Check the plugin directory for dummy example and makefile.
 As this option is custom written by yourself, there are no tests included in the project.
 
 
+### gRPC
+
+The `grpc` allows to check for user auth, superuser and acls against a gRPC service.
+
+| Option             | default           |  Mandatory  | Meaning     					|
+| ------------------ | ----------------- | :---------: | ------------------------------ |
+| grpc_host          |                   |      Y      | gRPC server hostname   		|
+| grpc_port          |                   |      Y      | gRPC server port number        |
+| grpc_ca_cert   	 |                   |      N      | gRPC server CA cert path	  	|
+| grpc_tls_cert 	 |                   |      N      | gRPC server TLS cert path      |
+| grpc_tls_key  	 |                   |      N      | gRPC server TLS key path       |
+
+#### Service
+
+The gRPC server should implement the service defined at `grpc/auth.proto`, which looks like this:
+
+```proto
+syntax = "proto3";
+
+package grpc;
+
+import "google/protobuf/empty.proto";
+
+
+// AuthService is the service providing the auth interface.
+service AuthService {
+
+    // GetUser tries to authenticate a user.
+    rpc GetUser(GetUserRequest) returns (AuthResponse) {}
+
+    // GetSuperuser checks if a user is a superuser.
+    rpc GetSuperuser(GetSuperuserRequest) returns (AuthResponse) {}
+
+    // CheckAcl checks user's authorization for the given topic.
+    rpc CheckAcl(CheckAclRequest) returns (AuthResponse) {}
+
+    // GetName retrieves the name of the backend.
+    rpc GetName(google.protobuf.Empty) returns (NameResponse) {}
+
+    // Halt signals the backend to halt.
+    rpc Halt(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    
+}
+
+message GetUserRequest {
+    // Username.
+    string username = 1;
+    // Plain text password.
+    string password = 2;
+}
+
+message GetSuperuserRequest {
+    // Username.
+    string username = 1;
+}
+
+message CheckAclRequest {
+    // Username.
+    string username = 1;
+    // Topic to be checked for.
+    string topic = 2;
+    // The client connection's id.
+    string clientid = 3;
+    // Topic access.
+    int32 acc = 4;
+}
+
+message AuthResponse {
+    // If the user is authorized/authenticated.
+    bool ok = 1;
+}
+
+message NameResponse {
+    // The name of the gRPC backend.
+    string name = 1;
+}
+```
+
+#### Testing gRPC
+
+This backend has no special requirements as a gRPC server is mocked to test different scenarios.
 
 ### Benchmarks
 

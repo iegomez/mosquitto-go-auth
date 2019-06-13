@@ -15,3 +15,7 @@ test:
 
 benchmark:
 	go test ./backends -v -bench=. -run=^a
+
+service:
+	@echo "Generating gRPC code from .proto files"
+	@go generate grpc/grpc.go

@@ -66,7 +66,6 @@ func TestHTTPAllJsonServer(t *testing.T) {
 				httpResponse.Error = "Not a superuser."
 			}
 		} else if r.URL.Path == "/acl" {
-			//uAcc := float64.(params["acc"])
 			paramsAcc := int64(params["acc"].(float64))
 			if params["username"].(string) == username && params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
 				httpResponse.Ok = true

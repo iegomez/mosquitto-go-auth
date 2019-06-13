@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package grpc;
+
+import "google/protobuf/empty.proto";
+
+
+// AuthService is the service providing the auth interface.
+service AuthService {
+
+    // GetUser tries to authenticate a user.
+    rpc GetUser(GetUserRequest) returns (AuthResponse) {}
+
+    // GetSuperuser checks if a user is a superuser.
+    rpc GetSuperuser(GetSuperuserRequest) returns (AuthResponse) {}
+
+    // CheckAcl checks user's authorization for the given topic.
+    rpc CheckAcl(CheckAclRequest) returns (AuthResponse) {}
+
+    // GetName retrieves the name of the backend.
+    rpc GetName(google.protobuf.Empty) returns (NameResponse) {}
+
+    // Halt signals the backend to halt.
+    rpc Halt(google.protobuf.Empty) returns (google.protobuf.Empty) {}
+    
+}
+
+message GetUserRequest {
+    // Username.
+    string username = 1;
+    // Plain text password.
+    string password = 2;
+}
+
+message GetSuperuserRequest {
+    // Username.
+    string username = 1;
+}
+
+message CheckAclRequest {
+    // Username.
+    string username = 1;
+    // Topic to be checked for.
+    string topic = 2;
+    // The client connection's id.
+    string clientid = 3;
+    // Topic access.
+    int32 acc = 4;
+}
+
+message AuthResponse {
+    // If the user is authorized/authenticated.
+    bool ok = 1;
+}
+
+message NameResponse {
+    // The name of the gRPC backend.
+    string name = 1;
+}
