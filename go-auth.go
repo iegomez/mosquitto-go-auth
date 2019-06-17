@@ -66,6 +66,7 @@ var allowedBackends = map[string]bool{
 	"sqlite":   true,
 	"mongo":    true,
 	"plugin":   true,
+	"grpc": 	true,
 }
 
 var backends []string          //List of selected backends.
@@ -331,6 +332,14 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["mongo"] = beIface.(bes.Mongo)
+				}
+			case "grpc":
+				beIface, bErr = bes.NewGRPC(authOpts, commonData.LogLevel)
+				if bErr != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				} else {
+					log.Infof("Backend registered: %s", beIface.GetName())
+					cmbackends["grpc"] = beIface.(bes.GRPC)
 				}
 			}
 		}
