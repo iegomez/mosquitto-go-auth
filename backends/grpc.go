@@ -12,6 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"github.com/golang/protobuf/ptypes/empty"
 
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 )
@@ -102,6 +103,20 @@ func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	return resp.Ok
 
+}
+
+// GetName gets the gRPC backend's name.
+func (o GRPC) GetName() string {
+	resp, err := o.client.GetName(context.Background(), &empty.Empty{})
+	if err != nil {
+		return "gRPC name error"
+	}
+	return resp.Name
+}
+
+// Halt signals the gRPC backend that mosquitto is halting.
+func (o GRPC) Halt() {
+	o.client.Halt(context.Background(), &empty.Empty{})
 }
 
 func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.ClientConn, gs.AuthServiceClient, error) {
