@@ -4,10 +4,10 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
-	"os"
 
 	log "github.com/sirupsen/logrus"
 
@@ -44,8 +44,8 @@ type CommonData struct {
 	CheckPrefix      bool
 	Prefixes         map[string]string
 	LogLevel         log.Level
-	LogDest 		 string
-	LogFile 		 string
+	LogDest          string
+	LogFile          string
 }
 
 //Cache stores necessary values for Redis cache
@@ -66,7 +66,7 @@ var allowedBackends = map[string]bool{
 	"sqlite":   true,
 	"mongo":    true,
 	"plugin":   true,
-	"grpc": 	true,
+	"grpc":     true,
 }
 
 var backends []string          //List of selected backends.
@@ -134,7 +134,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 		logLevel = strings.Replace(logLevel, " ", "", -1)
 
-		switch logLevel{
+		switch logLevel {
 		case "debug":
 			commonData.LogLevel = log.DebugLevel
 		case "info":
@@ -154,16 +154,16 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	}
 
 	if logDest, ok := authOpts["log_dest"]; ok {
-		switch logDest{
+		switch logDest {
 		case "stdout":
 			log.SetOutput(os.Stdout)
 		case "file":
 			if logFile, ok := authOpts["log_file"]; ok {
 				file, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 				if err == nil {
-				  log.SetOutput(file)
+					log.SetOutput(file)
 				} else {
-				  log.Errorf("failed to log to file, using default stderr: %s", err)
+					log.Errorf("failed to log to file, using default stderr: %s", err)
 				}
 			}
 		default:
@@ -268,7 +268,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 			}
 		} else {
-			switch bename{
+			switch bename {
 			case "postgres":
 				beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
 				if bErr != nil {
@@ -277,7 +277,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmbackends["postgres"] = beIface.(bes.Postgres)
 				}
-			case "jwt": 
+			case "jwt":
 				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
 				if bErr != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
@@ -378,16 +378,20 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 		if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
 			authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
-			if err != nil {
+			if err == nil {
 				commonData.AuthCacheSeconds = authSec
+			} else {
+				log.Warningf("couldn't parse AuthCacheSeconds (err: %s), defaulting to %d", err, commonData.AuthCacheSeconds)
 			}
 
 		}
 
 		if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
 			aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
-			if err != nil {
+			if err == nil {
 				commonData.AclCacheSeconds = aclSec
+			} else {
+				log.Warningf("couldn't parse AclCacheSeconds (err: %s), defaulting to %d", err, commonData.AclCacheSeconds)
 			}
 
 		}
