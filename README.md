@@ -66,7 +66,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 	- [Service](#service)
 	- [Testing gRPC](#testing-grpc)
 - [Benchmarks](#benchmarks)
-- [Using with loraserver](#using-with-loraserver)
+- [Using with LoRa Server](#using-with-lora-server)
+- [Docker](#docker)
 - [License](#license)
 
 <!-- /MarkdownTOC -->
@@ -97,9 +98,9 @@ First, install dependencies (tested on Debian 9):
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.5.7.tar.gz
-tar xzvf mosquitto-1.5.7.tar.gz
-cd mosquitto-1.5.7
+wget http://mosquitto.org/files/source/mosquitto-1.6.3.tar.gz
+tar xzvf mosquitto-1.6.3.tar.gz
+cd mosquitto-1.6.3
 ```
 
 Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
@@ -109,6 +110,7 @@ make
 sudo make install
 sudo groupadd mosquitto
 sudo useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto
+sudo mkdir -p /var/log/mosquitto/ /var/lib/mosquitto/
 sudo chown -R mosquitto:mosquitto /var/log/mosquitto/
 sudo chown -R mosquitto:mosquitto /var/lib/mosquitto/
 ```
@@ -171,7 +173,7 @@ This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` a
 
 #### Raspberry Pi
 
-To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. You can install latest version (1.10.1) like this:
+To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
 
 ```
 wget https://storage.googleapis.com/golang/go1.10.1.linux-armv6l.tar.gz
@@ -1098,11 +1100,14 @@ BenchmarkRedisSingleLevelAcl-4     	   	 20000	     			84241 ns/op
 BenchmarkRedisHierarchyAcl-4       	   	 20000	     			83835 ns/op
 ```
 
-### Using with loraserver
+### Using with LoRa Server
 
-Check [LORASERVER.md](LORASERVER.md) for an experience report from Rogerio Cassares on building, debugging, configuring and using the plugin with the loraserver stack.
+See the official [MQTT authentication & authorization guide](https://www.loraserver.io/guides/mqtt-authentication/) for isntructions on using the plugin with the LoRa Server project.
 
-Thanks Rogerio!
+
+### Docker
+
+See the [docker](docker/README.md) dir for an example image.
 
 
 ### License
