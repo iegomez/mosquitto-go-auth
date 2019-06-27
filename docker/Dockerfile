@@ -52,13 +52,15 @@ COPY --from=builder /app/mosquitto/ /mosquitto/
 COPY --from=builder /app/go-auth.so /mosquitto/go-auth.so
 COPY --from=builder /usr/local/sbin/mosquitto /usr/sbin/mosquitto
 
-#Copy your custom confs (change accordingly).
-COPY mosquitto.conf mosquitto/mosquitto.conf
-COPY go-auth.conf mosquitto/conf.d/go-auth.conf
-COPY auth/acls mosquitto/auth/acls
-COPY auth/passwords mosquitto/auth/passwords
+#Uncomment to copy your custom confs (change accordingly) directly when building the image.
+#Leave commented if you want to mount a volume for these (see docker-compose.yml).
+
+#COPY conf/mosquitto.conf /etc/mosquitto/mosquitto.conf
+#COPY conf/conf.d/go-auth.conf /etc/mosquitto/conf.d/go-auth.conf
+#COPY conf/auth/acls /etc/mosquitto/auth/acls
+#COPY conf/auth/passwords /etc/mosquitto/auth/passwords
 
 #Expose tcp and websocket ports as defined at mosquitto.conf (change accordingly).
 EXPOSE 1883 1884
 
-ENTRYPOINT ["sh", "-c", "/usr/sbin/mosquitto -c /mosquitto/mosquitto.conf" ]
+ENTRYPOINT ["sh", "-c", "/usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf" ]

@@ -1107,7 +1107,7 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 
 ### Docker
 
-See the [docker](docker/README.md) dir for an example image.
+See the [docker](docker/) dir for an example image.
 
 
 ### License

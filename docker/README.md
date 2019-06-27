@@ -6,4 +6,4 @@ It uses an intermediate image based on `debian:stable-slim` to build both mosqui
 
 The example `Dockerfile` will also copy `conf` files present at the current dir as well as set the versions for Go, mosquitto and the plugin. Please change values as needed.
 
-This is just a working example of how a docker image could be built for this project. Any contributions to make it better are very welcome.
+This is just a working example of how a docker image could be built for this project and composed with other images such as a `redis` one for cache (check [docker-compose](docker-compose.yml)). Any contributions to make it better are very welcome.
