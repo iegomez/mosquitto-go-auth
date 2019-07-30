@@ -19,3 +19,5 @@ go-auth.h
 vendor
 
 .vscode/
+
+Gopkg.lock
