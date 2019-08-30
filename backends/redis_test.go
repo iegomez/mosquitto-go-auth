@@ -75,8 +75,8 @@ func TestRedis(t *testing.T) {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
 
-			tt1 := redis.CheckAcl(username, testTopic1, clientID, 1)
-			tt2 := redis.CheckAcl(username, testTopic2, clientID, 1)
+			tt1 := redis.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+			tt2 := redis.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
@@ -85,8 +85,8 @@ func TestRedis(t *testing.T) {
 
 		Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-			tt1 := redis.CheckAcl(username, singleLevelAcl, clientID, 1)
-			tt2 := redis.CheckAcl(username, hierarchyAcl, clientID, 1)
+			tt1 := redis.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
+			tt2 := redis.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeFalse)
 			So(tt2, ShouldBeFalse)
@@ -97,14 +97,14 @@ func TestRedis(t *testing.T) {
 		redis.Conn.SAdd("common:racls", userPattern)
 
 		Convey("Given a topic that mentions username and subscribes to it, acl check should pass", func() {
-			tt1 := redis.CheckAcl(username, "test/test", clientID, 1)
+			tt1 := redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		redis.Conn.SAdd("common:racls", clientPattern)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := redis.CheckAcl(username, "test/test_client", clientID, 1)
+			tt1 := redis.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -113,7 +113,7 @@ func TestRedis(t *testing.T) {
 		redis.Conn.SAdd(username+":racls", singleLevelAcl)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-			tt1 := redis.CheckAcl(username, "test/topic/whatever", clientID, 1)
+			tt1 := redis.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -122,28 +122,28 @@ func TestRedis(t *testing.T) {
 		redis.Conn.SAdd(username+":racls", hierarchyAcl)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-			tt1 := redis.CheckAcl(username, "test/what/ever", clientID, 1)
+			tt1 := redis.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		//Now test against a publish subscription
 		Convey("Given a publish attempt for a read only acl, acl check should fail", func() {
-			tt1 := redis.CheckAcl(username, "test/test", clientID, 2)
+			tt1 := redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_WRITE)
 			So(tt1, ShouldBeFalse)
 		})
 
 		//Add a write only acl and check for subscription.
 		redis.Conn.SAdd(username+":wacls", writeAcl)
 		Convey("Given a subscription attempt on a write only acl, acl check should fail", func() {
-			tt1 := redis.CheckAcl(username, writeAcl, clientID, 1)
+			tt1 := redis.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeFalse)
 		})
 
 		//Add a readwrite acl and check for subscription.
 		redis.Conn.SAdd(username+":rwacls", readWriteAcl)
 		Convey("Given a sub/pub attempt on a readwrite acl, acl check should pass for both", func() {
-			tt1 := redis.CheckAcl(username, readWriteAcl, clientID, 1)
-			tt2 := redis.CheckAcl(username, readWriteAcl, clientID, 2)
+			tt1 := redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_READ)
+			tt2 := redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_WRITE)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 		})
@@ -152,8 +152,31 @@ func TestRedis(t *testing.T) {
 		redis.Conn.SAdd("common:racls", commonTopic)
 
 		Convey("Given a topic not present in user's acls but present in common ones, acl check should pass", func() {
-			tt1 := redis.CheckAcl("unknown", commonTopic, clientID, 1)
+			tt1 := redis.CheckAcl("unknown", commonTopic, clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
+		})
+
+		Convey("Given a topic thay may be read but not subscribed to, checking for subscribe should failbut read shoud succeed", func() {
+			topic := "some/topic"
+			redis.Conn.SAdd(username+":racls", topic)
+			tt1 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+			tt2 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+			So(tt1, ShouldBeFalse)
+			So(tt2, ShouldBeTrue)
+			Convey("When adding subscribe permissions, both should be accepted", func() {
+				redis.Conn.SAdd(username+":sacls", topic)
+				tt1 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+				tt2 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+				So(tt1, ShouldBeTrue)
+				So(tt2, ShouldBeTrue)
+			})
+			Convey("When adding it as a common subscribe acl, both should be accepted", func() {
+				redis.Conn.SAdd("common:sacls", topic)
+				tt1 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+				tt2 := redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+				So(tt1, ShouldBeTrue)
+				So(tt2, ShouldBeTrue)
+			})
 		})
 
 		//Empty db

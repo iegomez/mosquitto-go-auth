@@ -58,7 +58,7 @@ func BenchmarkRedisSuperuser(b *testing.B) {
 func BenchmarkRedisStrictAcl(b *testing.B) {
 	redis.Conn.SAdd(rbUsername+":acls", strictAcl)
 	for n := 0; n < b.N; n++ {
-		redis.CheckAcl(rbUsername, rbTestTopic1, rbClientID, 1)
+		redis.CheckAcl(rbUsername, rbTestTopic1, rbClientID, MOSQ_ACL_READ)
 	}
 	redis.Conn.FlushDB()
 }
@@ -66,7 +66,7 @@ func BenchmarkRedisStrictAcl(b *testing.B) {
 func BenchmarkRedisUserPatternAcl(b *testing.B) {
 	redis.Conn.SAdd(rbUsername+":acls", userPattern)
 	for n := 0; n < b.N; n++ {
-		redis.CheckAcl(rbUsername, "test/test", rbClientID, 1)
+		redis.CheckAcl(rbUsername, "test/test", rbClientID, MOSQ_ACL_READ)
 	}
 	redis.Conn.FlushDB()
 }
@@ -74,7 +74,7 @@ func BenchmarkRedisUserPatternAcl(b *testing.B) {
 func BenchmarkRedisClientPatternAcl(b *testing.B) {
 	redis.Conn.SAdd(rbUsername+":acls", clientPattern)
 	for n := 0; n < b.N; n++ {
-		redis.CheckAcl(rbUsername, "test/test_client", rbClientID, 1)
+		redis.CheckAcl(rbUsername, "test/test_client", rbClientID, MOSQ_ACL_READ)
 	}
 	redis.Conn.FlushDB()
 }
@@ -82,7 +82,7 @@ func BenchmarkRedisClientPatternAcl(b *testing.B) {
 func BenchmarkRedisSingleLevelAcl(b *testing.B) {
 	redis.Conn.SAdd(rbUsername+":acls", singleLevelAcl)
 	for n := 0; n < b.N; n++ {
-		redis.CheckAcl(rbUsername, "test/topic/whatever", rbClientID, 1)
+		redis.CheckAcl(rbUsername, "test/topic/whatever", rbClientID, MOSQ_ACL_READ)
 	}
 	redis.Conn.FlushDB()
 }
@@ -90,7 +90,7 @@ func BenchmarkRedisSingleLevelAcl(b *testing.B) {
 func BenchmarkRedisHierarchyAcl(b *testing.B) {
 	redis.Conn.SAdd(rbUsername+":acls", hierarchyAcl)
 	for n := 0; n < b.N; n++ {
-		redis.CheckAcl(rbUsername, "test/what/ever", rbClientID, 1)
+		redis.CheckAcl(rbUsername, "test/what/ever", rbClientID, MOSQ_ACL_READ)
 	}
 	redis.Conn.FlushDB()
 }

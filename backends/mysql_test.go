@@ -87,7 +87,7 @@ func TestMysql(t *testing.T) {
 
 		aclID := int64(0)
 		aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values(?, ?, ?)"
-		res, aqErr := mysql.DB.Exec(aclQuery, userID, strictAcl, 1)
+		res, aqErr := mysql.DB.Exec(aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 		aclID, aclIdErr := res.LastInsertId()
 
 		So(aqErr, ShouldBeNil)
@@ -99,8 +99,8 @@ func TestMysql(t *testing.T) {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
 
-			tt1 := mysql.CheckAcl(username, testTopic1, clientID, 1)
-			tt2 := mysql.CheckAcl(username, testTopic2, clientID, 1)
+			tt1 := mysql.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+			tt2 := mysql.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
@@ -110,15 +110,15 @@ func TestMysql(t *testing.T) {
 		Convey("Given read only privileges, a pub check should fail", func() {
 
 			testTopic1 := "test/topic/1"
-			tt1 := mysql.CheckAcl(username, testTopic1, clientID, 2)
+			tt1 := mysql.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_WRITE)
 			So(tt1, ShouldBeFalse)
 
 		})
 
 		Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-			tt1 := mysql.CheckAcl(username, singleLevelAcl, clientID, 1)
-			tt2 := mysql.CheckAcl(username, hierarchyAcl, clientID, 1)
+			tt1 := mysql.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
+			tt2 := mysql.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeFalse)
 			So(tt2, ShouldBeFalse)
@@ -127,39 +127,39 @@ func TestMysql(t *testing.T) {
 
 		//Now check against patterns.
 
-		_, aqErr = mysql.DB.Exec(aclQuery, userID, userPattern, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, userPattern, MOSQ_ACL_READ)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
-			tt1 := mysql.CheckAcl(username, "test/test", clientID, 1)
+			tt1 := mysql.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
-		_, aqErr = mysql.DB.Exec(aclQuery, userID, clientPattern, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, clientPattern, MOSQ_ACL_READ)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := mysql.CheckAcl(username, "test/test_client", clientID, 1)
+			tt1 := mysql.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		//Now insert single level topic to check against.
 
-		_, aqErr = mysql.DB.Exec(aclQuery, userID, singleLevelAcl, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-			tt1 := mysql.CheckAcl(username, "test/topic/whatever", clientID, 1)
+			tt1 := mysql.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		//Now insert hierarchy wildcard to check against.
 
-		_, aqErr = mysql.DB.Exec(aclQuery, userID, hierarchyAcl, 1)
+		_, aqErr = mysql.DB.Exec(aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
 		So(aqErr, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-			tt1 := mysql.CheckAcl(username, "test/what/ever", clientID, 1)
+			tt1 := mysql.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 

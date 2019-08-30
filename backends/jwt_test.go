@@ -123,7 +123,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			aclID := 0
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values($1, $2, $3) returning id"
-			aqErr := jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, 1)
+			aqErr := jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 
 			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
@@ -131,8 +131,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`
 
-				tt1 := jwt.CheckAcl(token, testTopic1, clientID, 1)
-				tt2 := jwt.CheckAcl(token, testTopic2, clientID, 1)
+				tt1 := jwt.CheckAcl(token, testTopic1, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, testTopic2, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeTrue)
 				So(tt2, ShouldBeFalse)
@@ -142,15 +142,15 @@ func TestLocalPostgresJWT(t *testing.T) {
 			Convey("Given read only privileges, a pub check should fail", func() {
 
 				testTopic1 := "test/topic/1"
-				tt1 := jwt.CheckAcl(token, testTopic1, clientID, 2)
+				tt1 := jwt.CheckAcl(token, testTopic1, clientID, MOSQ_ACL_WRITE)
 				So(tt1, ShouldBeFalse)
 
 			})
 
 			Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, 1)
-				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, 1)
+				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeFalse)
 				So(tt2, ShouldBeFalse)
@@ -159,21 +159,21 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, 1)
+			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, 1)
+				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, MOSQ_ACL_READ)
 				So(tt1, ShouldBeTrue)
 			})
 
 			//Now insert hierarchy wildcard to check against.
 
-			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, 1)
+			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, 1)
+				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, MOSQ_ACL_READ)
 				So(tt1, ShouldBeTrue)
 			})
 
@@ -270,7 +270,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			aclID := int64(0)
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values(?, ?, ?)"
-			res, aqErr := jwt.Mysql.DB.Exec(aclQuery, userID, strictAcl, 1)
+			res, aqErr := jwt.Mysql.DB.Exec(aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 			aclID, aclIdErr := res.LastInsertId()
 			So(aclIdErr, ShouldBeNil)
@@ -281,8 +281,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`
 
-				tt1 := jwt.CheckAcl(token, testTopic1, clientID, 1)
-				tt2 := jwt.CheckAcl(token, testTopic2, clientID, 1)
+				tt1 := jwt.CheckAcl(token, testTopic1, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, testTopic2, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeTrue)
 				So(tt2, ShouldBeFalse)
@@ -292,15 +292,15 @@ func TestLocalMysqlJWT(t *testing.T) {
 			Convey("Given read only privileges, a pub check should fail", func() {
 
 				testTopic1 := "test/topic/1"
-				tt1 := jwt.CheckAcl(token, testTopic1, clientID, 2)
+				tt1 := jwt.CheckAcl(token, testTopic1, clientID, MOSQ_ACL_WRITE)
 				So(tt1, ShouldBeFalse)
 
 			})
 
 			Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, 1)
-				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, 1)
+				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeFalse)
 				So(tt2, ShouldBeFalse)
@@ -309,21 +309,21 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, singleLevelAcl, 1)
+			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, 1)
+				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, MOSQ_ACL_READ)
 				So(tt1, ShouldBeTrue)
 			})
 
 			//Now insert hierarchy wildcard to check against.
 
-			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, hierarchyAcl, 1)
+			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
 			So(aqErr, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, 1)
+				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, MOSQ_ACL_READ)
 				So(tt1, ShouldBeTrue)
 			})
 
@@ -338,8 +338,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 				Convey("So checking against them should give false and true for any user", func() {
 
-					tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, 1)
-					tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, 1)
+					tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
+					tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
 					So(tt1, ShouldBeTrue)
 					So(tt2, ShouldBeTrue)
@@ -477,28 +477,28 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -599,28 +599,28 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -725,28 +725,28 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -863,28 +863,28 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -979,28 +979,28 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -1100,28 +1100,28 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 1)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, 2)
+			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})

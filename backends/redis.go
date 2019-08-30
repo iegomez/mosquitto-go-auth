@@ -113,11 +113,28 @@ func (o Redis) GetSuperuser(username string) bool {
 //CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
 func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 
-	//We need to check if client is subscribing or publishing to get correct acls.
+	var acls []string       //User specific acls.
+	var commonAcls []string //Common acls.
 
-	if acc == 1 {
-		//Subscribe
+	//We need to check if client is subscribing, reading or publishing to get correct acls.
+	switch acc {
+	case MOSQ_ACL_SUBSCRIBE:
+		//Get all user subscribe acls.
+		var err error
+		acls, err = o.Conn.SMembers(fmt.Sprintf("%s:sacls", username)).Result()
+		if err != nil {
+			log.Debugf("Redis check acl error: %s\n", err)
+			return false
+		}
 
+		//Get common subscribe acls.
+		commonAcls, err = o.Conn.SMembers("common:sacls").Result()
+		if err != nil {
+			log.Debugf("Redis check acl error: %s\n", err)
+			return false
+		}
+
+	case MOSQ_ACL_READ:
 		//Get all user read and readwrite acls.
 		urAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:racls", username)).Result()
 		if err != nil {
@@ -142,31 +159,14 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 			return false
 		}
 
-		acls := make([]string, len(urAcls)+len(urwAcls), len(urAcls)+len(urwAcls))
+		acls = make([]string, len(urAcls)+len(urwAcls), len(urAcls)+len(urwAcls))
 		acls = append(acls, urAcls...)
 		acls = append(acls, urwAcls...)
 
-		commonAcls := make([]string, len(rAcls)+len(rwAcls), len(rAcls)+len(rwAcls))
+		commonAcls = make([]string, len(rAcls)+len(rwAcls), len(rAcls)+len(rwAcls))
 		commonAcls = append(commonAcls, rAcls...)
 		commonAcls = append(commonAcls, rwAcls...)
-
-		for _, acl := range acls {
-			if common.TopicsMatch(acl, topic) {
-				return true
-			}
-		}
-
-		for _, acl := range commonAcls {
-			aclTopic := strings.Replace(acl, "%c", clientid, -1)
-			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-			if common.TopicsMatch(aclTopic, topic) {
-				return true
-			}
-		}
-
-	} else if acc == 2 {
-		//Publish
-
+	case MOSQ_ACL_WRITE:
 		//Get all user write and readwrite acls.
 		uwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:wacls", username)).Result()
 		if err != nil {
@@ -191,28 +191,28 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 			return false
 		}
 
-		acls := make([]string, len(uwAcls)+len(urwAcls), len(uwAcls)+len(urwAcls))
+		acls = make([]string, len(uwAcls)+len(urwAcls), len(uwAcls)+len(urwAcls))
 		acls = append(acls, uwAcls...)
 		acls = append(acls, urwAcls...)
 
-		commonAcls := make([]string, len(wAcls)+len(rwAcls), len(wAcls)+len(rwAcls))
+		commonAcls = make([]string, len(wAcls)+len(rwAcls), len(wAcls)+len(rwAcls))
 		commonAcls = append(commonAcls, wAcls...)
 		commonAcls = append(commonAcls, rwAcls...)
+	}
 
-		for _, acl := range acls {
-			if common.TopicsMatch(acl, topic) {
-				return true
-			}
+	//Now loop through acls looking for a match.
+	for _, acl := range acls {
+		if common.TopicsMatch(acl, topic) {
+			return true
 		}
+	}
 
-		for _, acl := range commonAcls {
-			aclTopic := strings.Replace(acl, "%c", clientid, -1)
-			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-			if common.TopicsMatch(aclTopic, topic) {
-				return true
-			}
+	for _, acl := range commonAcls {
+		aclTopic := strings.Replace(acl, "%c", clientid, -1)
+		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
+		if common.TopicsMatch(aclTopic, topic) {
+			return true
 		}
-
 	}
 
 	return false

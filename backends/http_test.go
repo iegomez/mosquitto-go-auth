@@ -132,28 +132,28 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -260,28 +260,28 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -392,28 +392,28 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -534,28 +534,28 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -653,28 +653,28 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -777,28 +777,28 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 1)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, 2)
+			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, 1)
+			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", 1)
+			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})

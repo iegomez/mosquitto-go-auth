@@ -14,8 +14,8 @@ func TestMongo(t *testing.T) {
 	authOpts := make(map[string]string)
 	authOpts["mongo_host"] = "localhost"
 	authOpts["mongo_port"] = "27017"
-	authOpts["mongo_username"] = "go_auth_test"
-	authOpts["mongo_password"] = "go_auth_test"
+	//authOpts["mongo_username"] = "go_auth_test"
+	//authOpts["mongo_password"] = "go_auth_test"
 	authOpts["mongo_dbname"] = "mosquitto_test"
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {
@@ -88,8 +88,8 @@ func TestMongo(t *testing.T) {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `not/matching/topic`
 
-			tt1 := mongo.CheckAcl(username, testTopic1, clientID, 1)
-			tt2 := mongo.CheckAcl(username, testTopic2, clientID, 1)
+			tt1 := mongo.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+			tt2 := mongo.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
@@ -98,8 +98,8 @@ func TestMongo(t *testing.T) {
 
 		Convey("Given wildcard subscriptions that don't match user acls, acl checks should fail", func() {
 
-			tt1 := mongo.CheckAcl(username, "not/matching/+", clientID, 1)
-			tt2 := mongo.CheckAcl(username, "not/matching/#", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "not/matching/+", clientID, MOSQ_ACL_READ)
+			tt2 := mongo.CheckAcl(username, "not/matching/#", clientID, MOSQ_ACL_READ)
 
 			So(tt1, ShouldBeFalse)
 			So(tt2, ShouldBeFalse)
@@ -120,44 +120,44 @@ func TestMongo(t *testing.T) {
 		aclsColl.InsertOne(context.TODO(), &clientAcl)
 
 		Convey("Given a topic that mentions username and subscribes to it, acl check should pass", func() {
-			tt1 := mongo.CheckAcl(username, "pattern/test", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "pattern/test", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := mongo.CheckAcl(username, "pattern/test_client", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "pattern/test_client", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-			tt1 := mongo.CheckAcl(username, "single/topic/whatever", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "single/topic/whatever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		Convey("Given a topic that matches single level but has more levels, acl check should not pass", func() {
-			tt1 := mongo.CheckAcl(username, "single/topic/whatever/extra", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "single/topic/whatever/extra", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeFalse)
 		})
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-			tt1 := mongo.CheckAcl(username, "hierarchy/what/ever", clientID, 1)
+			tt1 := mongo.CheckAcl(username, "hierarchy/what/ever", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
 		//Now test against a publish subscription
 		Convey("Given a publish attempt for a read only acl, acl check should fail", func() {
-			tt1 := mongo.CheckAcl(username, strictAcl, clientID, 2)
+			tt1 := mongo.CheckAcl(username, strictAcl, clientID, MOSQ_ACL_WRITE)
 			So(tt1, ShouldBeFalse)
 		})
 
 		Convey("Given a subscription attempt on a write only acl, acl check should fail", func() {
-			tt1 := mongo.CheckAcl(username, writeAcl, clientID, 1)
+			tt1 := mongo.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeFalse)
 		})
 
 		Convey("Given a sub/pub attempt on a readwrite acl, acl check should pass for both", func() {
-			tt1 := mongo.CheckAcl(username, readWriteAcl, clientID, 1)
-			tt2 := mongo.CheckAcl(username, readWriteAcl, clientID, 2)
+			tt1 := mongo.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_READ)
+			tt2 := mongo.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_WRITE)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 		})

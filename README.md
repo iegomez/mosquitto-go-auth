@@ -822,11 +822,11 @@ For user check, Redis must contain the KEY `username` and the password hash as v
 
 For superuser check, a user will be a superuser if there exists a KEY `username:su` and it returns a string value "true".
 
-Acls may be defined as user specific or for any user, and as read only (subscribe), write only (publish) or readwrite (pub or sub) rules. 
+Acls may be defined as user specific or for any user, and as subscribe only (MOSQL_ACL_SUBSCRIBE), read only (MOSQ_ACL_READ), write only (MOSQ_ACL_WRITE) or readwrite (MOSQ_ACL_READ | MOSQ_ACL_WRITE, **not** MOSQL_ACL_SUBSCRIBE) rules.
 
-For user specific rules, SETS with KEYS "username:racls", "username:wacls" and "username:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics. "username" must be replaced with the specific username for each user containing acls.
+For user specific rules, SETS with KEYS "username:sacls", "username:racls", "username:wacls" and "username:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for subscribe, read, write and readwrite topics. "username" must be replaced with the specific username for each user containing acls.
 
-For common rules, SETS with KEYS "common:racls", "common:wacls" and "common:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics.
+For common rules, SETS with KEYS "common:sacls", "common:racls", "common:wacls" and "common:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics.
 
 Finally, options for Redis are not mandatory and are the following:
 

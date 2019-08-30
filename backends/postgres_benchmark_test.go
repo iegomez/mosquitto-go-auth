@@ -45,7 +45,7 @@ func init() {
 	aclID := 0
 	//Insert acls
 	aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values($1, $2, $3) returning id"
-	postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, 1)
+	postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 
 }
 
@@ -64,18 +64,18 @@ func BenchmarkPostgresSuperser(b *testing.B) {
 
 func BenchmarkPostgresStrictAcl(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		postgres.CheckAcl(pgUsername, "test/topic/1", "test_id", 1)
+		postgres.CheckAcl(pgUsername, "test/topic/1", "test_id", MOSQ_ACL_READ)
 	}
 }
 
 func BenchmarkPostgresSingleLevelAcl(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		postgres.CheckAcl(pgUsername, "test/topic/+", "test_id", 1)
+		postgres.CheckAcl(pgUsername, "test/topic/+", "test_id", MOSQ_ACL_READ)
 	}
 }
 
 func BenchmarkPostgresHierarchyAcl(b *testing.B) {
 	for n := 0; n < b.N; n++ {
-		postgres.CheckAcl(pgUsername, "test/#", "test_id", 1)
+		postgres.CheckAcl(pgUsername, "test/#", "test_id", MOSQ_ACL_READ)
 	}
 }
