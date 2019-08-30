@@ -920,7 +920,12 @@ All this requirements are met with a fresh installation of MongoDB without any c
 
 As with `sqlite`, this backend constructs the collections and inserts relevant data, which are whiped out after testing is done, so no user actions are required.
 
-If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` flag and have a user `go_auth_test` with password `go_auth_test` with the `dbOwner` role over the `mosquitto_test` DB.
+If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` flag, have a user `go_auth_test` with password `go_auth_test` with the `dbOwner` role over the `mosquitto_test` DB and uncomment these lines from `mongo_test.go`:
+
+```
+	//authOpts["mongo_username"] = "go_auth_test"
+	//authOpts["mongo_password"] = "go_auth_test"
+```
 
 ### Custom (experimental)
 
