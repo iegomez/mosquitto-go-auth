@@ -911,6 +911,7 @@ When not set, these options default to:
 	users: 			 "users"
 	acls:  			 "acls"
 
+If you experience any problem connecting to a replica set, please refer to [this issue](https://github.com/iegomez/mosquitto-go-auth/issues/32).
 
 #### Testing MongoDB
 
