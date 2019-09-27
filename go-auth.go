@@ -726,24 +726,23 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 //CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
 func CheckPluginAuth(username, password string) bool {
-	if commonData.Plugin != nil {
-		return commonData.PGetUser(username, password)
+	if commonData.Plugin == nil {
+		return false
 	}
-	return false
+	return commonData.PGetUser(username, password)
 }
 
 //CheckPluginAcl checks that the plugin is not nil and returns the superuser/acl response.
 func CheckPluginAcl(username, topic, clientid string, acc int) bool {
-	if commonData.Plugin != nil {
-		//If superuser, authorize it.
-		aclCheck := commonData.PGetSuperuser(username)
-		if aclCheck {
-			return true
-		}
-		//Check against the plugin's check acl function.
-		return commonData.PCheckAcl(username, topic, clientid, acc)
+	if commonData.Plugin == nil {
+		return false
 	}
-	return false
+	//If superuser, authorize it.
+	if commonData.PGetSuperuser(username) {
+		return true
+	}
+	//Check against the plugin's check acl function.
+	return commonData.PCheckAcl(username, topic, clientid, acc)
 }
 
 //export AuthPluginCleanup
