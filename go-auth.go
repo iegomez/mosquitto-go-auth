@@ -735,10 +735,13 @@ func CheckPluginAuth(username, password string) bool {
 //CheckPluginAcl checks that the plugin is not nil and returns the superuser/acl response.
 func CheckPluginAcl(username, topic, clientid string, acc int) bool {
 	if commonData.Plugin != nil {
+		//If superuser, authorize it.
 		aclCheck := commonData.PGetSuperuser(username)
-		if !aclCheck {
-			aclCheck = commonData.PCheckAcl(username, topic, clientid, acc)
+		if aclCheck {
+			return true
 		}
+		//Check against the plugin's check acl function.
+		return commonData.PCheckAcl(username, topic, clientid, acc)
 	}
 	return false
 }
