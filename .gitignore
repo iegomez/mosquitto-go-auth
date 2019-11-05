@@ -7,6 +7,7 @@
 *.so
 *.a
 pw
+pwcheck
 go-auth.h
 
 # Test binary, build with `go test -c`

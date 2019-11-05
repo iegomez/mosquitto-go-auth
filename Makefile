@@ -2,6 +2,7 @@ all:
 	go build -buildmode=c-archive go-auth.go
 	go build -buildmode=c-shared -o go-auth.so
 	go build pw-gen/pw.go
+	go build pw-gen/pwcheck.go
 
 requirements:
 	dep ensure -v
