@@ -164,6 +164,7 @@ For the latest versions of mosquitto we need to export some flags before buildin
 
 ```
 export CGO_CFLAGS="-I/usr/local/include -fPIC"
+export CGO_LDFLAGS="-undefined dynamic_lookup" (MacOS)
 export CGO_LDFLAGS="-shared"
 make
 ```
