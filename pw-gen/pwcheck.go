@@ -8,20 +8,17 @@ import (
 	"github.com/iegomez/mosquitto-go-auth/common"
 )
 
-// saltSize defines the salt size
-
 func main() {
 
-	var pkdf2 = flag.String("h", "", "pbkdf2 password hash")
-	var password = flag.String("p", "", "password to compare with")
+	var password = flag.String("p", "", "plain text password")
+	var hashed = flag.String("h", "", "pbkdf2 password hash")
 
 	flag.Parse()
 
-	isEqual := common.HashCompare(*password, *pkdf2)
-	if (isEqual) {
-		fmt.Println("True")
-	} else {
-		fmt.Println("False")
-        os.Exit(1)
+	if (common.HashCompare(*password, *hashed)) {
+		fmt.Println("success: plain and hashed passwords match")
+        return
 	}
+	fmt.Println("error: plain and hashed passwords don't match")
+    os.Exit(1)
 }
