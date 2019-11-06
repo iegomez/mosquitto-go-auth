@@ -162,15 +162,24 @@ make test
 
 For the latest versions of mosquitto we need to export some flags before building and then run the same commands (we'll just use make):
 
+##### Debian (and maybe others)
 ```
 export CGO_CFLAGS="-I/usr/local/include -fPIC"
-export CGO_LDFLAGS="-undefined dynamic_lookup" (MacOS)
 export CGO_LDFLAGS="-shared"
 make
 ```
 
 This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/local/include`, which is true for a manually built mosquitto version in debian based systems (and probably others too).
 
+##### MacOS
+```
+export CGO_CFLAGS="-I/usr/local/include -fPIC"
+export CGO_LDFLAGS="-undefined dynamic_lookup"
+export CGO_LDFLAGS="-shared"
+make
+```
+
+This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/local/include`, which is true for a manually built or using brew (```brew install mosquitto```) to install mosquitto version in MacOS.
 
 #### Raspberry Pi
 
