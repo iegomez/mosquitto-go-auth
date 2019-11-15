@@ -310,7 +310,21 @@ Individual backends have their options described in the sections below.
 
 ### Files
 
-The `files` backend implements the regular password and acl checks as described in mosquitto. Passwords should be in PBKDF2 format (for other backends too), and may be generated using the `pw` utility (built by default when running `make`) included in the plugin (or one of your own). Check pw-gen dir for `pw` flags.
+The `files` backend implements the regular password and acl checks as described in mosquitto. Passwords should be in PBKDF2 format (for other backends too), and may be generated using the `pw` utility (built by default when running `make`) included in the plugin (or one of your own). Passwords may also be tested using the [pw-test package](https://github.com/iegomez/pw-test).
+
+Usage of `pw`:
+
+```
+Usage of ./pw:
+  -a string
+    	algorithm: sha256 or sha512 (default "sha512")
+  -i int
+    	hash iterations (default 100000)
+  -p string
+    	password
+  -s int
+    	salt size (default 16)
+```
 
 For this backend passwords and acls file paths must be given:
 
