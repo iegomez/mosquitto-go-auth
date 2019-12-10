@@ -1,0 +1,54 @@
+mosquitto-go-auth (0.6.1-1) unstable; urgency=medium
+
+  * Debian release. Fix for compiling auth-plugin.c
+
+ -- Myna-Project.org Srl <info@myna-project.org>  Fri, 6 Dec 2019 13:45:00 +0100
+
+mosquitto-go-auth (0.6.1) unstable; urgency=medium
+
+  * Fix plugin ACL checks. This release fixes ACL checks for the plugin backend.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Tue, 1 Oct 2019 14:09:00 +0200
+
+mosquitto-go-auth (0.6.0) unstable; urgency=medium
+
+  * Redis MOSQL_ACL_SUBSCRIBE support. This release adds MOSQL_ACL_SUBSCRIBE support to the Redis backend, removes the default username and password for MongoDB tests and cleans up access ints at tests acl checks.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Fri, 30 Aug 2019 21:35:00 +0200
+
+mosquitto-go-auth (0.5.0) unstable; urgency=medium
+
+  * gRPC support. Added gRPC backend.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Fri, 30 Aug 2019 21:35:00 +0200
+
+mosquitto-go-auth (0.4.0) unstable; urgency=medium
+
+  * Migrate to MongoDB driver. The Mongo DB backend was migrated to the official driver https://github.com/mongodb/mongo-go-driver. Fixed Mongo DB auth issue. Added auth tests for Mongo DB and Redis. 
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Fri, 7 Jun 2019 17:17:00 +0200
+
+mosquitto-go-auth (0.3.0) unstable; urgency=medium
+
+  * Log options. Options to log to stderr, stdout and a file are now available.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Fri, 17 May 2019 17:58:00 +0200
+
+mosquitto-go-auth (0.2.0) unstable; urgency=medium
+
+  * Go modules. This release adds Go modules support.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Thu, 7 Mar 2019 18:59:00 +0100
+
+mosquitto-go-auth (0.1.1) unstable; urgency=medium
+
+  * Mysql and file patterns fix. Mysql now supports a unix socket connection properly. File patterns had a typo on the check that was introduced when adding mosquitto 1.5.x support. It's now been fixed.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Mon, 25 Feb 2019 18:41:00 +0100
+
+mosquitto-go-auth (0.1.0) unstable; urgency=medium
+
+  * 0.1.0 mosquitto 1.5.X support. This release stabilizes support for mosquitto's latest versions. Check the readme for instructions on building for 1.5.X and 1.4.X.
+
+ -- Ignacio Gómez <iegomez@uc.cl>  Wed, 12 Dec 2018 18:29:00 +0100
+

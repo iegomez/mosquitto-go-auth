@@ -1,0 +1,3 @@
+usr/bin/pw
+usr/lib/mosquitto-auth-plugin/go-auth.so
+usr/share/doc/mosquitto-go-auth/README.md

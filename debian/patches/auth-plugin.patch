@@ -1,0 +1,22 @@
+--- a/auth-plugin.c     2019-11-30 13:21:59.924192772 +0100
++++ b/auth-plugin.c     2019-11-30 13:34:14.294787459 +0100
+@@ -6,7 +6,7 @@
+ #include <mosquitto.h>
+ #include <mosquitto_plugin.h>
+ #if MOSQ_AUTH_PLUGIN_VERSION >= 3
+-# include <mosquitto_broker.h>
++# include "mosquitto_internal.h"
+ #endif
+ #include "go-auth.h"
+ 
+@@ -89,8 +89,8 @@
+ #endif
+ {
+   #if MOSQ_AUTH_PLUGIN_VERSION >= 3
+-    const char* clientid = mosquitto_client_id(client);
+-    const char* username = mosquitto_client_username(client);
++    const char* clientid = client->id;
++    const char* username = client->username;
+     const char* topic = msg->topic;
+   #endif
+   if (clientid == NULL || username == NULL || topic == NULL || access < 1) {

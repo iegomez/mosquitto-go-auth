@@ -1,0 +1,42 @@
+Source: mosquitto-go-auth
+Section: net
+Priority: optional
+Maintainer: Myna-Project.org Srl <info@myna-project.org>
+Build-Depends: debhelper (>=2.0),
+               libc6-dev (>=1.0.0),
+               golang,
+               golang-go,
+               mosquitto (=1.5.7)
+Standards-Version: 0.6.1
+Homepage: https://github.com/iegomez/mosquitto-go-auth
+
+Package: mosquitto-go-auth
+Architecture: any
+Multi-Arch: foreign
+Depends: mosquitto,
+         lsb-base (>=4.1+Debian3),
+         ${misc:Depends},
+         ${shlibs:Depends}
+Suggests: apparmor
+Description: Auth plugin for mosquitto. 
+ This is an authentication and authorization plugin for mosquitto, a well
+ known open source MQTT broker. It's written (almost) entirely in Go: it 
+ uses cgo to expose mosquitto's auth plugin needed functions, but 
+ internally just calls Go to get everything done.
+ .
+ It is greatly inspired in jpmens' mosquitto-auth-plug.
+ .
+ It was intended for use with brocaar's Loraserver project, and thus Files,
+ Postgres and JWT backends were the first to be developed, but more have 
+ been added. These are the backends that this plugin implements right now:
+ .
+ * Files
+ * PostgreSQL
+ * JWT (with local DB or remote API)
+ * HTTP
+ * Redis
+ * Mysql
+ * SQLite3
+ * MongoDB
+ * Custom (experimental)
+ * gRPC

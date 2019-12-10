@@ -1,0 +1,6 @@
+#!/bin/sh
+# postinst script for mosquitto-go-auth
+#
+# see: dh_installdeb(1)
+
+exit 0

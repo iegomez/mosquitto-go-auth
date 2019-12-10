@@ -1,0 +1,22 @@
+#!/usr/bin/make -f
+
+export CGO_CFLAGS = -fPIC -I../mosquitto-1.5.7 -I../mosquitto-1.5.7/lib
+export CGO_LDFLAGS = -shared
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+export prefix=/usr
+export libdir=/usr/lib/$(shell dpkg-architecture -qDEB_HOST_MULTIARCH)
+
+%:
+	dh $@ --buildsystem=makefile
+
+override_dh_auto_test:
+	echo "make test disabled"
+
+override_dh_auto_install:
+	dh_auto_install
+	install -d debian/tmp/usr/bin
+	install -m 755 pw debian/tmp/usr/bin/pw
+	install -d debian/tmp/usr/lib/mosquitto-auth-plugin
+	install -m 644 go-auth.so debian/tmp/usr/lib/mosquitto-auth-plugin/go-auth.so
+	install -d debian/tmp/usr/share/doc/mosquitto-go-auth
+	install -m 644 README.md debian/tmp/usr/share/doc/mosquitto-go-auth/README.md

@@ -1,0 +1,3 @@
+mosquitto-go-auth-dbgsym_0.6.1-1_amd64.deb debug optional automatic=yes
+mosquitto-go-auth_0.6.1-1_amd64.buildinfo net optional
+mosquitto-go-auth_0.6.1-1_amd64.deb net optional
