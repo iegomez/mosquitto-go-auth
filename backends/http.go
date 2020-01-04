@@ -26,6 +26,7 @@ type HTTP struct {
 	VerifyPeer   bool
 	ParamsMode   string
 	ResponseMode string
+	Client       *h.Client
 }
 
 type HTTPResponse struct {
@@ -109,6 +110,17 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 		return http, errors.Errorf("HTTP backend error: missing remote options%s.\n", missingOpts)
 	}
 
+	// create instance of transport and client to be reused for all
+	// http calls
+	http.Client = &h.Client{Timeout: 5 * time.Second}
+
+	if !http.VerifyPeer {
+		tr := &h.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		http.Client.Transport = tr
+	}
+
 	return http, nil
 }
 
@@ -124,7 +136,7 @@ func (o HTTP) GetUser(username, password string) bool {
 		"password": []string{password},
 	}
 
-	return httpRequest(o.Host, o.UserUri, username, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
+	return o.httpRequest(o.UserUri, username, dataMap, urlValues)
 
 }
 
@@ -138,7 +150,7 @@ func (o HTTP) GetSuperuser(username string) bool {
 		"username": []string{username},
 	}
 
-	return httpRequest(o.Host, o.SuperuserUri, username, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
+	return o.httpRequest(o.SuperuserUri, username, dataMap, urlValues)
 
 }
 
@@ -158,37 +170,28 @@ func (o HTTP) CheckAcl(username, topic, clientid string, acc int32) bool {
 		"acc":      []string{strconv.Itoa(int(acc))},
 	}
 
-	return httpRequest(o.Host, o.AclUri, username, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
+	return o.httpRequest(o.AclUri, username, dataMap, urlValues)
 
 }
 
-func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port, paramsMode, responseMode string, urlValues map[string][]string) bool {
+func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, urlValues map[string][]string) bool {
 
 	tlsStr := "http://"
 
-	if withTLS {
+	if o.WithTLS {
 		tlsStr = "https://"
 	}
 
-	fullUri := fmt.Sprintf("%s%s%s", tlsStr, host, uri)
-	if port != "" {
-		fullUri = fmt.Sprintf("%s%s:%s%s", tlsStr, host, port, uri)
-	}
-
-	client := &h.Client{Timeout: 5 * time.Second}
-
-	if !verifyPeer {
-		tr := &h.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
-		client.Transport = tr
+	fullUri := fmt.Sprintf("%s%s%s", tlsStr, o.Host, uri)
+	if o.Port != "" {
+		fullUri = fmt.Sprintf("%s%s:%s%s", tlsStr, o.Host, o.Port, uri)
 	}
 
 	var resp *h.Response
 	var err error
 
-	if paramsMode == "form" {
-		resp, err = client.PostForm(fullUri, urlValues)
+	if o.ParamsMode == "form" {
+		resp, err = o.Client.PostForm(fullUri, urlValues)
 	} else {
 		dataJson, mErr := json.Marshal(dataMap)
 
@@ -207,7 +210,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, err = client.Do(req)
+		resp, err = o.Client.Do(req)
 	}
 
 	if err != nil {
@@ -228,7 +231,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 		return false
 	}
 
-	if responseMode == "text" {
+	if o.ResponseMode == "text" {
 
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
@@ -236,7 +239,7 @@ func httpRequest(host, uri, username string, withTLS, verifyPeer bool, dataMap m
 			return false
 		}
 
-	} else if responseMode == "json" {
+	} else if o.ResponseMode == "json" {
 
 		//For json response, we expect Ok and Error fields.
 		response := HTTPResponse{Ok: false, Error: ""}
