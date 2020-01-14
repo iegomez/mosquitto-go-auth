@@ -23,7 +23,7 @@ type Mongo struct {
 	Username        string
 	Password        string
 	DBName          string
-	AuthSource		string
+	AuthSource      string
 	UsersCollection string
 	AclsCollection  string
 	Conn            *mongo.Client
@@ -51,7 +51,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		Username:        "",
 		Password:        "",
 		DBName:          "mosquitto",
-		AuthSource:		 "",
+		AuthSource:	     "",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
 	}
