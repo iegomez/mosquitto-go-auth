@@ -105,8 +105,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 				Password:    m.Password,
 				PasswordSet: true,
 			}
-		}
-		else {
+		} else {
 			opts.Auth = &options.Credential{
 				AuthSource:  m.DBName,
 				Username:    m.Username,
