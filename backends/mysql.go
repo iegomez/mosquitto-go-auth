@@ -26,6 +26,7 @@ type Mysql struct {
 	DBName               string
 	User                 string
 	Password             string
+	SaltEncoding         string
 	UserQuery            string
 	SuperuserQuery       string
 	AclQuery             string
@@ -91,6 +92,12 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	} else {
 		mysqlOk = false
 		missingOptions += " mysql_password"
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		mysql.SaltEncoding = saltEncoding
+	} else {
+		mysql.SaltEncoding = "base64"
 	}
 
 	if userQuery, ok := authOpts["mysql_userquery"]; ok {
@@ -215,7 +222,7 @@ func (o Mysql) GetUser(username, password string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String) {
+	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
 		return true
 	}
 

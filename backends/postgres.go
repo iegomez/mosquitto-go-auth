@@ -22,6 +22,7 @@ type Postgres struct {
 	DBName         string
 	User           string
 	Password       string
+	SaltEncoding   string
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
@@ -75,6 +76,12 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	} else {
 		pgOk = false
 		missingOptions += " pg_password"
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		postgres.SaltEncoding = saltEncoding
+	} else {
+		postgres.SaltEncoding = "base64"
 	}
 
 	if userQuery, ok := authOpts["pg_userquery"]; ok {
@@ -161,7 +168,7 @@ func (o Postgres) GetUser(username, password string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String) {
+	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
 		return true
 	}
 

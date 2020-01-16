@@ -22,6 +22,7 @@ type Mongo struct {
 	Port            string
 	Username        string
 	Password        string
+	SaltEncoding    string
 	DBName          string
 	UsersCollection string
 	AclsCollection  string
@@ -68,6 +69,12 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	if mongoPassword, ok := authOpts["mongo_password"]; ok {
 		m.Password = mongoPassword
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		m.SaltEncoding = saltEncoding
+	} else {
+		m.SaltEncoding = "base64"
 	}
 
 	if mongoDBName, ok := authOpts["mongo_dbname"]; ok {
@@ -124,7 +131,7 @@ func (o Mongo) GetUser(username, password string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, user.PasswordHash) {
+	if common.HashCompare(password, user.PasswordHash, o.SaltEncoding) {
 		return true
 	}
 

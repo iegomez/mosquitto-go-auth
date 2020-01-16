@@ -14,11 +14,12 @@ import (
 )
 
 type Redis struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int32
-	Conn     *goredis.Client
+	Host         string
+	Port         string
+	Password     string
+	SaltEncoding string
+	DB           int32
+	Conn         *goredis.Client
 }
 
 func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
@@ -41,6 +42,12 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 
 	if redisPassword, ok := authOpts["redis_password"]; ok {
 		redis.Password = redisPassword
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		redis.SaltEncoding = saltEncoding
+	} else {
+		redis.SaltEncoding = "base64"
 	}
 
 	if redisDB, ok := authOpts["redis_db"]; ok {
@@ -84,7 +91,7 @@ func (o Redis) GetUser(username, password string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash) {
+	if common.HashCompare(password, pwHash, o.SaltEncoding) {
 		return true
 	}
 

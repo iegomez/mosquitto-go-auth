@@ -20,6 +20,7 @@ type Sqlite struct {
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
+	SaltEncoding   string
 }
 
 func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
@@ -56,6 +57,12 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 
 	if aclQuery, ok := authOpts["sqlite_aclquery"]; ok {
 		sqlite.AclQuery = aclQuery
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		sqlite.SaltEncoding = saltEncoding
+	} else {
+		sqlite.SaltEncoding = "base64"
 	}
 
 	//Exit if any mandatory option is missing.
@@ -96,7 +103,7 @@ func (o Sqlite) GetUser(username, password string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String) {
+	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
 		return true
 	}
 
