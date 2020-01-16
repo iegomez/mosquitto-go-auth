@@ -24,6 +24,7 @@ type Mongo struct {
 	Password        string
 	SaltEncoding    string
 	DBName          string
+	AuthSource      string
 	UsersCollection string
 	AclsCollection  string
 	Conn            *mongo.Client
@@ -51,6 +52,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		Username:        "",
 		Password:        "",
 		DBName:          "mosquitto",
+		AuthSource:	     "",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
 	}
@@ -81,6 +83,10 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		m.DBName = mongoDBName
 	}
 
+	if mongoAuthSource, ok := authOpts["mongo_authsource"]; ok {
+		m.AuthSource = mongoAuthSource
+	}
+
 	if usersCollection, ok := authOpts["mongo_users"]; ok {
 		m.UsersCollection = usersCollection
 	}
@@ -99,11 +105,20 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 	opts.ApplyURI(addr)
 
 	if m.Username != "" && m.Password != "" {
-		opts.Auth = &options.Credential{
-			AuthSource:  m.DBName,
-			Username:    m.Username,
-			Password:    m.Password,
-			PasswordSet: true,
+		if m.AuthSource != "" {
+			opts.Auth = &options.Credential{
+				AuthSource:  m.AuthSource,
+				Username:    m.Username,
+				Password:    m.Password,
+				PasswordSet: true,
+			}
+		} else {
+			opts.Auth = &options.Credential{
+				AuthSource:  m.DBName,
+				Username:    m.Username,
+				Password:    m.Password,
+				PasswordSet: true,
+			}
 		}
 	}
 
