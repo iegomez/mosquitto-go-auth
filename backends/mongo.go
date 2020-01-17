@@ -75,6 +75,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
 		m.SaltEncoding = saltEncoding
+		log.Infof("Mongo set salt encoding to: %s", saltEncoding)
 	} else {
 		m.SaltEncoding = "base64"
 	}
@@ -106,6 +107,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	if m.Username != "" && m.Password != "" {
 		if m.AuthSource != "" {
+			log.Infof("Mongo set AuthSource to: %s", m.AuthSource)
 			opts.Auth = &options.Credential{
 				AuthSource:  m.AuthSource,
 				Username:    m.Username,
