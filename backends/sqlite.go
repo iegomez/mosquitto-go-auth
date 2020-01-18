@@ -59,7 +59,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 		sqlite.AclQuery = aclQuery
 	}
 
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+	if saltEncoding, ok := authOpts["sqlite_salt_encoding"]; ok {
 		sqlite.SaltEncoding = saltEncoding
 	} else {
 		sqlite.SaltEncoding = "base64"

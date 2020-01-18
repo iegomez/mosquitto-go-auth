@@ -122,7 +122,7 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 	}
 	buffer.WriteString("$")
 	buffer.WriteString(base64.StdEncoding.EncodeToString(hash))
-	//log.Println("Generated: ", buffer.String())
+	//log.Debugf("Generated: ", buffer.String())
 	return buffer.String()
 }
 
@@ -130,20 +130,29 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 // passed passwordHash.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func HashCompare(password string, passwordHash string, saltEncoding string) bool {
-	//log.Println("Supplied:  ", passwordHash)
+	//log.Debugf("Supplied:  ", passwordHash)
 	// Split the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
 	// Get the iterations from PBKDF2 string
 	iterations, _ := strconv.Atoi(hashSplit[2])
 	// Convert salt to bytes, using encoding supplied in saltEncoding param
 	salt := []byte{}
+	var err error
 	if saltEncoding == "utf-8" {
 		salt = []byte(hashSplit[3])
 	} else {
-		salt, _ = base64.StdEncoding.DecodeString(hashSplit[3])
+		salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
+		if err != nil {
+			log.Errorf("Error decoding supplied base64 salt")
+			return false
+		}
 	}
 	// Work out key length, assumes base64 encoding
-	hash, _ := base64.StdEncoding.DecodeString(hashSplit[4])
+	hash, err := base64.StdEncoding.DecodeString(hashSplit[4])
+	if err != nil {
+		log.Errorf("Error decoding supplied base64 hash")
+		return false
+	}
 	keylen := len(hash)
 	// Get the algorithm from PBKDF2 string
 	algorithm := hashSplit[1]

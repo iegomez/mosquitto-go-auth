@@ -44,7 +44,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		redis.Password = redisPassword
 	}
 
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+	if saltEncoding, ok := authOpts["redis_salt_encoding"]; ok {
 		redis.SaltEncoding = saltEncoding
 	} else {
 		redis.SaltEncoding = "base64"

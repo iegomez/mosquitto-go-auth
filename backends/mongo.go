@@ -73,7 +73,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		m.Password = mongoPassword
 	}
 
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+	if saltEncoding, ok := authOpts["mongo_salt_encoding"]; ok {
 		m.SaltEncoding = saltEncoding
 		log.Infof("Mongo set salt encoding to: %s", saltEncoding)
 	} else {

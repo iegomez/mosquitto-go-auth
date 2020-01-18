@@ -78,7 +78,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		missingOptions += " pg_password"
 	}
 
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+	if saltEncoding, ok := authOpts["pg_salt_encoding"]; ok {
 		postgres.SaltEncoding = saltEncoding
 	} else {
 		postgres.SaltEncoding = "base64"

@@ -94,7 +94,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		missingOptions += " mysql_password"
 	}
 
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+	if saltEncoding, ok := authOpts["mysql_salt_encoding"]; ok {
 		mysql.SaltEncoding = saltEncoding
 	} else {
 		mysql.SaltEncoding = "base64"
