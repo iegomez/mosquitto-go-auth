@@ -46,6 +46,43 @@ var wrongJwtToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 	"username": "wrong_user",
 })
 
+func TestLocalValidationJWT(t *testing.T) {
+	Convey("Supplying an invalid token should return a nil error", t, func() {
+		token, err := jwtToken.SignedString([]byte(jwtSecret))
+		So(err, ShouldBeNil)
+
+		//Initialize JWT in local mode.
+		authOpts := make(map[string]string)
+		authOpts["jwt_remote"] = "false"
+		authOpts["jwt_secret"] = jwtSecret
+		authOpts["jwt_validate_only"] = "true"
+
+		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
+			jwt, err := NewJWT(authOpts, log.DebugLevel)
+			So(err, ShouldBeNil)
+
+			Convey("Given a correct token, it should correctly authenticate it", func() {
+
+				authenticated := jwt.GetUser(token, "")
+				So(authenticated, ShouldBeTrue)
+
+			})
+
+			Convey("Given an incorrect token, it should not authenticate it", func() {
+
+				wrongToken, err := wrongJwtToken.SignedString([]byte(jwtSecret))
+				So(err, ShouldBeNil)
+
+				authenticated := jwt.GetUser(wrongToken, "")
+				So(authenticated, ShouldBeFalse)
+
+			})
+
+			jwt.Halt()
+		})
+	})
+}
+
 func TestLocalPostgresJWT(t *testing.T) {
 
 	Convey("Creating a token should return a nil error", t, func() {
