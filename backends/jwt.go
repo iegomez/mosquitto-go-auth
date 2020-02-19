@@ -21,8 +21,9 @@ import (
 )
 
 type JWT struct {
-	Remote  bool
-	LocalDB string
+	Remote       bool
+	LocalDB      string
+	ValidateOnly bool
 
 	Postgres       Postgres
 	Mysql          Mysql
@@ -64,6 +65,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 	//Initialize with defaults
 	var jwt = JWT{
 		Remote:       false,
+		ValidateOnly: false,
 		WithTLS:      false,
 		VerifyPeer:   false,
 		ResponseMode: "status",
@@ -158,11 +160,17 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 			return jwt, errors.New("JWT backend error: missing jwt secret.\n")
 		}
 
+		if validateOnly, ok := authOpts["jwt_validate_only"]; ok && validateOnly == "true" {
+			jwt.ValidateOnly = true
+		}
+
 		if userQuery, ok := authOpts["jwt_userquery"]; ok {
 			jwt.UserQuery = userQuery
 		} else {
-			localOk = false
-			missingOpts += " jwt_userquery"
+			if !jwt.ValidateOnly {
+				localOk = false
+				missingOpts += " jwt_userquery"
+			}
 		}
 
 		if superuserQuery, ok := authOpts["jwt_superquery"]; ok {
@@ -181,30 +189,31 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 			return jwt, errors.Errorf("JWT backend error: missing local options%s.\n", missingOpts)
 		}
 
-		if jwt.LocalDB == "mysql" {
-			//Try to create a mysql backend with these custom queries
-			mysql, err := NewMysql(authOpts, logLevel)
-			if err != nil {
-				return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s\n", err)
-			}
-			mysql.UserQuery = jwt.UserQuery
-			mysql.SuperuserQuery = jwt.SuperuserQuery
-			mysql.AclQuery = jwt.AclQuery
+		if !jwt.ValidateOnly {
+			if jwt.LocalDB == "mysql" {
+				//Try to create a mysql backend with these custom queries
+				mysql, err := NewMysql(authOpts, logLevel)
+				if err != nil {
+					return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s\n", err)
+				}
+				mysql.UserQuery = jwt.UserQuery
+				mysql.SuperuserQuery = jwt.SuperuserQuery
+				mysql.AclQuery = jwt.AclQuery
 
-			jwt.Mysql = mysql
-		} else {
-			//Try to create a postgres backend with these custom queries.
-			postgres, err := NewPostgres(authOpts, logLevel)
-			if err != nil {
-				return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
-			}
-			postgres.UserQuery = jwt.UserQuery
-			postgres.SuperuserQuery = jwt.SuperuserQuery
-			postgres.AclQuery = jwt.AclQuery
+				jwt.Mysql = mysql
+			} else {
+				//Try to create a postgres backend with these custom queries.
+				postgres, err := NewPostgres(authOpts, logLevel)
+				if err != nil {
+					return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+				}
+				postgres.UserQuery = jwt.UserQuery
+				postgres.SuperuserQuery = jwt.SuperuserQuery
+				postgres.AclQuery = jwt.AclQuery
 
-			jwt.Postgres = postgres
+				jwt.Postgres = postgres
+			}
 		}
-
 	}
 
 	return jwt, nil
@@ -226,6 +235,12 @@ func (o JWT) GetUser(token, password string) bool {
 		log.Printf("jwt get user error: %s\n", err)
 		return false
 	}
+
+	//Check if the JWT is valid only.
+	if o.ValidateOnly {
+		return true
+	}
+
 	//Now check against the DB.
 	if o.UserField == "Username" {
 		return o.getLocalUser(claims.Username)
@@ -254,6 +269,12 @@ func (o JWT) GetSuperuser(token string) bool {
 		log.Debugf("jwt get superuser error: %s\n", err)
 		return false
 	}
+
+	//Check if the JWT is valid only.
+	if o.ValidateOnly {
+		return true
+	}
+
 	//Now check against DB
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
@@ -299,6 +320,12 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		log.Debugf("jwt check acl error: %s\n", err)
 		return false
 	}
+
+	//Check if the JWT is valid only.
+	if o.ValidateOnly {
+		return true
+	}
+
 	//Now check against the DB.
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {

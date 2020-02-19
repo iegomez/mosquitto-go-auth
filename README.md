@@ -710,8 +710,20 @@ initMqttClient(applicationID, mode, devEUI) {
   }
 ```
 
+#### Local mode - Token validation only
 
-#### Local mode
+If you want to simply [validate](https://pkg.go.dev/github.com/dgrijalva/jwt-go?tab=doc#StandardClaims.Valid) the supplied JWT use the following options. 
+
+>This method does not perform any user level checks, all users are considered "Super" users.
+
+| Option            | default           |  Mandatory  | Meaning     |
+| ----------------- | ----------------- | :---------: | ----------  |
+| jwt_remote 	    |  false			| 	   Y	  | Use Local Only             |
+| jwt_validate_only |  true			    |      Y	  | JWT is validated only      |
+| jwt_secret 		|				    |      Y      | JWT secret to check tokens | 
+
+
+#### Local mode - Database support
 
 *Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with loraserver) is to set it to Username.*
 
@@ -1137,8 +1149,10 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 
 ### Docker
 
-See the [docker](docker/) dir for an example image.
+If you want to build the container using:
 
+- Local plug-in source, use the Dockerfile in the root directory. 
+- Released plugin, see the [docker](docker/) dir for an example image.
 
 ### License
 
