@@ -600,7 +600,7 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 ### JWT
 
-The `jwt` backend is for auth with a JWT remote API or a local DB. The option jwt_remote sets the nature of the plugin:
+The `jwt` backend is for auth with a JWT remote API, local DB or token validation. The option jwt_remote sets the nature of the plugin:
 
 ```
 auth_opt_jwt_remote true
@@ -714,11 +714,11 @@ initMqttClient(applicationID, mode, devEUI) {
 
 If you want to simply [validate](https://pkg.go.dev/github.com/dgrijalva/jwt-go?tab=doc#StandardClaims.Valid) the supplied JWT use the following options. 
 
->This method does not perform any user level checks, all users are considered "Super" users.
+>This method does not perform any user access checks, all users are considered "Super" users.
 
 | Option            | default           |  Mandatory  | Meaning     |
 | ----------------- | ----------------- | :---------: | ----------  |
-| jwt_remote 	    |  false			| 	   Y	  | Use Local Only             |
+| jwt_remote 	    |  false			| 	   Y	  | Remote mode disabled       |
 | jwt_validate_only |  true			    |      Y	  | JWT is validated only      |
 | jwt_secret 		|				    |      Y      | JWT secret to check tokens | 
 
