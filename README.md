@@ -50,7 +50,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 	- [Testing SQLite3](#testing-sqlite3)
 - [JWT](#jwt)
 	- [Remote mode](#remote-mode)
-	- [Local mode](#local-mode)
+	- [Local mode - Validation](#local-mode---jwt-validation)
+	- [Local mode - Database](#local-mode---database)
 	- [Testing JWT](#testing-jwt)
 - [HTTP](#http)
 	- [Response mode](#response-mode)
@@ -710,7 +711,7 @@ initMqttClient(applicationID, mode, devEUI) {
   }
 ```
 
-#### Local mode - Token validation only
+#### Local mode - JWT Validation
 
 If you want to simply [validate](https://pkg.go.dev/github.com/dgrijalva/jwt-go?tab=doc#StandardClaims.Valid) the supplied JWT use the following options. 
 
@@ -723,7 +724,7 @@ If you want to simply [validate](https://pkg.go.dev/github.com/dgrijalva/jwt-go?
 | jwt_secret 		|				    |      Y      | JWT secret to check tokens | 
 
 
-#### Local mode - Database support
+#### Local mode - Database
 
 *Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with loraserver) is to set it to Username.*
 
@@ -798,7 +799,6 @@ When option jwt_aclquery is not present, AclCheck will always return true, hence
 #### Testing JWT
 
 This backend expects the same test DBs from the Postgres and Mysql test suites.
-
 
 
 ### HTTP
