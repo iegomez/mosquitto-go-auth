@@ -75,14 +75,7 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 
 ### Requirements
 
-Starting with Go 1.12 this plugin supports `Go modules` to manage dependencies. If you have `go mod` enabled, **you don't need to run any prior commands to get your dependencies.**
-
-If you are using an older version of Go (tested with Go 1.10.3, 1.10.8 and 1.11.5) dependencies may be managed with `dep` (you may install it with `make dev-requirements` if you don't have it already **and** you've exported `$HOME/go/src/bin` to your `PATH`). Run this to have `dep` install the dependencies:
-
-```
-make requirements
-```
-
+This package uses `Go modules` to manage dependencies, `dep` is no longer supported.
 As it interacts with mosquitto, it makes use of Cgo. Also, it (optionally) uses Redis for cache purposes.
 
 
@@ -90,16 +83,16 @@ As it interacts with mosquitto, it makes use of Cgo. Also, it (optionally) uses 
 
 Before building, you need to build mosquitto. For completeness, we'll build it with websockets, ssl and srv support.
 
-First, install dependencies (tested on Debian 9):
+First, install dependencies (tested on Debian 9 and later, Linux Mint 18 and 19):
 
 `sudo apt-get install libwebsockets8  libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
 
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.6.3.tar.gz
-tar xzvf mosquitto-1.6.3.tar.gz
-cd mosquitto-1.6.3
+wget http://mosquitto.org/files/source/mosquitto-1.6.8.tar.gz
+tar xzvf mosquitto-1.6.8.tar.gz
+cd mosquitto-1.6.8
 ```
 
 Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).

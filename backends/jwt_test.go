@@ -86,9 +86,9 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			userID := 0
 
-			iqErr := jwt.Postgres.DB.Get(&userID, insertQuery, username, userPassHash, true)
+			err = jwt.Postgres.DB.Get(&userID, insertQuery, username, userPassHash, true)
 
-			So(iqErr, ShouldBeNil)
+			So(err, ShouldBeNil)
 			So(userID, ShouldBeGreaterThan, 0)
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
@@ -123,8 +123,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			aclID := 0
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values($1, $2, $3) returning id"
-			aqErr := jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
+			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 
 			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
 
@@ -159,8 +159,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
+			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
 				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, MOSQ_ACL_READ)
@@ -169,8 +169,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now insert hierarchy wildcard to check against.
 
-			aqErr = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
+			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
 				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, MOSQ_ACL_READ)
@@ -230,12 +230,12 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			userID := int64(0)
 
-			res, iqErr := jwt.Mysql.DB.Exec(insertQuery, username, userPassHash, true)
-			So(iqErr, ShouldBeNil)
+			res, err := jwt.Mysql.DB.Exec(insertQuery, username, userPassHash, true)
+			So(err, ShouldBeNil)
 
-			userID, idErr := res.LastInsertId()
+			userID, err = res.LastInsertId()
 
-			So(idErr, ShouldBeNil)
+			So(err, ShouldBeNil)
 			So(userID, ShouldBeGreaterThan, 0)
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
@@ -270,10 +270,10 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			aclID := int64(0)
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values(?, ?, ?)"
-			res, aqErr := jwt.Mysql.DB.Exec(aclQuery, userID, strictAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
-			aclID, aclIdErr := res.LastInsertId()
-			So(aclIdErr, ShouldBeNil)
+			res, err = jwt.Mysql.DB.Exec(aclQuery, userID, strictAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			aclID, err = res.LastInsertId()
+			So(err, ShouldBeNil)
 			So(aclID, ShouldBeGreaterThan, 0)
 
 			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
@@ -309,8 +309,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
+			_, err = jwt.Mysql.DB.Exec(aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
 				tt1 := jwt.CheckAcl(token, "test/topic/whatever", clientID, MOSQ_ACL_READ)
@@ -319,8 +319,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			//Now insert hierarchy wildcard to check against.
 
-			_, aqErr = jwt.Mysql.DB.Exec(aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
-			So(aqErr, ShouldBeNil)
+			_, err = jwt.Mysql.DB.Exec(aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
 				tt1 := jwt.CheckAcl(token, "test/what/ever", clientID, MOSQ_ACL_READ)
@@ -398,9 +398,9 @@ func TestJWTAllJsonServer(t *testing.T) {
 			body, _ := ioutil.ReadAll(r.Body)
 			defer r.Body.Close()
 
-			uErr := json.Unmarshal(body, &data)
+			err := json.Unmarshal(body, &data)
 
-			if uErr != nil {
+			if err != nil {
 				httpResponse.Ok = false
 				httpResponse.Error = "Json unmarshal error"
 
@@ -420,8 +420,8 @@ func TestJWTAllJsonServer(t *testing.T) {
 			}
 		}
 
-		jsonResponse, mjErr := json.Marshal(httpResponse)
-		if mjErr != nil {
+		jsonResponse, err := json.Marshal(httpResponse)
+		if err != nil {
 			w.Write([]byte("error"))
 		}
 
@@ -431,7 +431,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -525,9 +525,9 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 		body, _ := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
 
-		uErr := json.Unmarshal(body, &data)
+		err := json.Unmarshal(body, &data)
 
-		if uErr != nil {
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 
@@ -553,7 +553,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -647,12 +647,12 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 		body, _ := ioutil.ReadAll(r.Body)
 		defer r.Body.Close()
 
-		uErr := json.Unmarshal(body, &data)
+		err := json.Unmarshal(body, &data)
 
 		w.WriteHeader(http.StatusOK)
 
-		if uErr != nil {
-			w.Write([]byte(uErr.Error()))
+		if err != nil {
+			w.Write([]byte(err.Error()))
 		}
 
 		gToken := r.Header.Get("authorization")
@@ -679,7 +679,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -772,15 +772,14 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 			Error: "",
 		}
 
-		pfErr := r.ParseForm()
-		if pfErr != nil {
+		err := r.ParseForm()
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
-		var jsonResponse []byte
 		var params = r.Form
-		log.Debugf("Got params: %v\n", params)
+		log.Debugf("got params: %s", params)
 
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
@@ -806,8 +805,8 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 			}
 		}
 
-		jsonResponse, mjErr := json.Marshal(httpResponse)
-		if mjErr != nil {
+		jsonResponse, err := json.Marshal(httpResponse)
+		if err != nil {
 			w.Write([]byte("error"))
 		}
 
@@ -817,7 +816,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -905,8 +904,8 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
-		pfErr := r.ParseForm()
-		if pfErr != nil {
+		err := r.ParseForm()
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -933,7 +932,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -1023,8 +1022,8 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 		w.WriteHeader(http.StatusOK)
 
-		pfErr := r.ParseForm()
-		if pfErr != nil {
+		err := r.ParseForm()
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -1054,7 +1053,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("Trying host: %s\n", mockServer.URL)
+	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"

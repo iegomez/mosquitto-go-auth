@@ -128,6 +128,10 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 func HashCompare(password string, passwordHash string) bool {
 	// SPlit the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
+	if len(hashSplit) != 5 {
+		log.Error("invalid PBKDF2 hash supplied")
+		return false
+	}
 
 	// Get the iterations and the salt and use them to encode the password
 	// being compared.cre

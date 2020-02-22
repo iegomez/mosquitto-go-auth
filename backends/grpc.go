@@ -117,7 +117,10 @@ func (o GRPC) GetName() string {
 
 // Halt signals the gRPC backend that mosquitto is halting.
 func (o GRPC) Halt() {
-	o.client.Halt(context.Background(), &empty.Empty{})
+	_, err := o.client.Halt(context.Background(), &empty.Empty{})
+	if err != nil {
+		log.Errorf("grpc halt: %s", err)
+	}
 }
 
 func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.ClientConn, gs.AuthServiceClient, error) {
