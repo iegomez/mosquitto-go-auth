@@ -18,7 +18,7 @@ func main() {
 
 	pwHash, err := common.Hash(*password, *saltSize, *HashIterations, *algorithm)
 	if err != nil {
-		fmt.Printf("error: %s\n", err)
+		fmt.Printf("error: %s", err)
 	} else {
 		fmt.Println(pwHash)
 	}

@@ -107,7 +107,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 	}
 
 	if !httpOk {
-		return http, errors.Errorf("HTTP backend error: missing remote options%s.\n", missingOpts)
+		return http, errors.Errorf("HTTP backend error: missing remote options: %s", missingOpts)
 	}
 
 	// create instance of transport and client to be reused for all
@@ -195,18 +195,18 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	if o.ParamsMode == "form" {
 		resp, err = o.Client.PostForm(fullUri, urlValues)
 	} else {
-		dataJson, mErr := json.Marshal(dataMap)
+		dataJson, err := json.Marshal(dataMap)
 
-		if mErr != nil {
-			log.Errorf("marshal error: %v\n", mErr)
+		if err != nil {
+			log.Errorf("marshal error: %s", err)
 			return false
 		}
 
 		contentReader := bytes.NewReader(dataJson)
-		req, reqErr := h.NewRequest("POST", fullUri, contentReader)
+		req, err := h.NewRequest("POST", fullUri, contentReader)
 
-		if reqErr != nil {
-			log.Errorf("req error: %v\n", reqErr)
+		if err != nil {
+			log.Errorf("req error: %s", err)
 			return false
 		}
 
@@ -216,20 +216,20 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	}
 
 	if err != nil {
-		log.Errorf("POST error: %v\n", err)
+		log.Errorf("POST error: %s", err)
 		return false
 	}
 
-	body, bErr := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
-	if bErr != nil {
-		log.Errorf("read error: %v\n", bErr)
+	if err != nil {
+		log.Errorf("read error: %s", err)
 		return false
 	}
 
 	if resp.StatusCode != 200 {
-		log.Infof("Wrong http status: %v\n", resp.StatusCode)
+		log.Infof("Wrong http status: %d", resp.StatusCode)
 		return false
 	}
 
@@ -237,7 +237,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
-			log.Infof("api error: %s\n", string(body))
+			log.Infof("api error: %s", string(body))
 			return false
 		}
 
@@ -245,21 +245,21 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		//For json response, we expect Ok and Error fields.
 		response := HTTPResponse{Ok: false, Error: ""}
-		jErr := json.Unmarshal(body, &response)
+		err := json.Unmarshal(body, &response)
 
-		if jErr != nil {
-			log.Errorf("unmarshal error: %v\n", jErr)
+		if err != nil {
+			log.Errorf("unmarshal error: %s", err)
 			return false
 		}
 
 		if !response.Ok {
-			log.Infof("api error: %s\n", response.Error)
+			log.Infof("api error: %s", response.Error)
 			return false
 		}
 
 	}
 
-	log.Debugf("http request approved for %s\n", username)
+	log.Debugf("http request approved for %s", username)
 	return true
 
 }

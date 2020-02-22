@@ -152,7 +152,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 
 	//Exit if any mandatory option is missing.
 	if !mysqlOk {
-		return mysql, errors.Errorf("MySql backend error: missing options%s.\n", missingOptions)
+		return mysql, errors.Errorf("MySql backend error: missing options: %s", missingOptions)
 	}
 
 	var msConfig = mq.Config{
@@ -170,15 +170,15 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		rootCertPool := x509.NewCertPool()
 		pem, err := ioutil.ReadFile(mysql.SSLRootCert)
 		if err != nil {
-			return mysql, errors.Errorf("Mysql read root CA error: %s\n", err)
+			return mysql, errors.Errorf("Mysql read root CA error: %s", err)
 		}
 		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
-			return mysql, errors.Errorf("Mysql failed to append root CA pem error: %s\n", err)
+			return mysql, errors.Errorf("Mysql failed to append root CA pem error: %s", err)
 		}
 		clientCert := make([]tls.Certificate, 0, 1)
 		certs, err := tls.LoadX509KeyPair(mysql.SSLCert, mysql.SSLKey)
 		if err != nil {
-			return mysql, errors.Errorf("Mysql load key and cert error: %s\n", err)
+			return mysql, errors.Errorf("Mysql load key and cert error: %s", err)
 		}
 		clientCert = append(clientCert, certs)
 
@@ -188,11 +188,11 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		})
 	}
 
-	var dbErr error
-	mysql.DB, dbErr = common.OpenDatabase(msConfig.FormatDSN(), "mysql")
+	var err error
+	mysql.DB, err = common.OpenDatabase(msConfig.FormatDSN(), "mysql")
 
-	if dbErr != nil {
-		return mysql, errors.Errorf("MySql backend error: couldn't open DB: %s\n", dbErr)
+	if err != nil {
+		return mysql, errors.Errorf("MySql backend error: couldn't open DB: %s", err)
 	}
 
 	return mysql, nil
@@ -206,12 +206,12 @@ func (o Mysql) GetUser(username, password, clientid string) bool {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Debugf("MySql get user error: %s\n", err)
+		log.Debugf("MySql get user error: %s", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Debugf("MySql get user error: user %s not found.\n", username)
+		log.Debugf("MySql get user error: user %s not found", username)
 		return false
 	}
 
@@ -235,12 +235,12 @@ func (o Mysql) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Debugf("MySql get superuser error: %s\n", err)
+		log.Debugf("MySql get superuser error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("MySql get superuser error: user %s not found.\n", username)
+		log.Debugf("MySql get superuser error: user %s not found", username)
 		return false
 	}
 
@@ -264,7 +264,7 @@ func (o Mysql) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Debugf("MySql check acl error: %s\n", err)
+		log.Debugf("MySql check acl error: %s", err)
 		return false
 	}
 

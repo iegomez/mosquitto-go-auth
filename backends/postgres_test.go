@@ -45,9 +45,9 @@ func TestPostgres(t *testing.T) {
 
 		userID := 0
 
-		iqErr := postgres.DB.Get(&userID, insertQuery, username, userPassHash, true)
+		err = postgres.DB.Get(&userID, insertQuery, username, userPassHash, true)
 
-		So(iqErr, ShouldBeNil)
+		So(err, ShouldBeNil)
 		So(userID, ShouldBeGreaterThan, 0)
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
@@ -82,8 +82,8 @@ func TestPostgres(t *testing.T) {
 
 		aclID := 0
 		aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values($1, $2, $3) returning id"
-		aqErr := postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
-		So(aqErr, ShouldBeNil)
+		err = postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
+		So(err, ShouldBeNil)
 
 		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
 
@@ -118,16 +118,16 @@ func TestPostgres(t *testing.T) {
 
 		//Now check against patterns.
 
-		aqErr = postgres.DB.Get(&aclID, aclQuery, userID, userPattern, MOSQ_ACL_READ)
-		So(aqErr, ShouldBeNil)
+		err = postgres.DB.Get(&aclID, aclQuery, userID, userPattern, MOSQ_ACL_READ)
+		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
 			tt1 := postgres.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
 			So(tt1, ShouldBeTrue)
 		})
 
-		aqErr = postgres.DB.Get(&aclID, aclQuery, userID, clientPattern, MOSQ_ACL_READ)
-		So(aqErr, ShouldBeNil)
+		err = postgres.DB.Get(&aclID, aclQuery, userID, clientPattern, MOSQ_ACL_READ)
+		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
 			tt1 := postgres.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
@@ -136,8 +136,8 @@ func TestPostgres(t *testing.T) {
 
 		//Now insert single level topic to check against.
 
-		aqErr = postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
-		So(aqErr, ShouldBeNil)
+		err = postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
+		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
 			tt1 := postgres.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
@@ -146,8 +146,8 @@ func TestPostgres(t *testing.T) {
 
 		//Now insert hierarchy wildcard to check against.
 
-		aqErr = postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
-		So(aqErr, ShouldBeNil)
+		err = postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
+		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
 			tt1 := postgres.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)

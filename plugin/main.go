@@ -11,7 +11,7 @@ func Init(authOpts map[string]string, logLevel log.Level) error {
 	return nil
 }
 
-func GetUser(username, password string) bool {
+func GetUser(username, password, clientid string) bool {
 	log.Infof("Checking get user with custom plugin.")
 	return false
 }

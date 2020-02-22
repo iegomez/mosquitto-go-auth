@@ -3,9 +3,6 @@ all:
 	go build -buildmode=c-shared -o go-auth.so
 	go build pw-gen/pw.go
 
-requirements:
-	dep ensure -v
-
 dev-requirements:
 	go get -u github.com/golang/dep/cmd/dep
 	go get -u github.com/smartystreets/goconvey
