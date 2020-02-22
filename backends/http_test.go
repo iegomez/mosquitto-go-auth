@@ -104,14 +104,14 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -232,14 +232,14 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -364,14 +364,14 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -506,14 +506,14 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -625,14 +625,14 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -749,14 +749,14 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password)
+			authenticated := hb.GetUser(username, password, clientId)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password")
+			authenticated := hb.GetUser(username, "wrong_password", clientId)
 			So(authenticated, ShouldBeFalse)
 
 		})

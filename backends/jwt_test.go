@@ -93,7 +93,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
 
-				authenticated := jwt.GetUser(token, "")
+				authenticated := jwt.GetUser(token, "", "")
 				So(authenticated, ShouldBeTrue)
 
 			})
@@ -103,7 +103,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 				wrongToken, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 				So(err, ShouldBeNil)
 
-				authenticated := jwt.GetUser(wrongToken, "")
+				authenticated := jwt.GetUser(wrongToken, "", "")
 				So(authenticated, ShouldBeFalse)
 
 			})
@@ -240,7 +240,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
 
-				authenticated := jwt.GetUser(token, "")
+				authenticated := jwt.GetUser(token, "", "")
 				So(authenticated, ShouldBeTrue)
 
 			})
@@ -250,7 +250,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 				wrongToken, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 				So(err, ShouldBeNil)
 
-				authenticated := jwt.GetUser(wrongToken, "")
+				authenticated := jwt.GetUser(wrongToken, "", "")
 				So(authenticated, ShouldBeFalse)
 
 			})
@@ -449,14 +449,14 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -571,14 +571,14 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -697,14 +697,14 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -835,14 +835,14 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -951,14 +951,14 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -1072,14 +1072,14 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(token, "")
+			authenticated := hb.GetUser(token, "", "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(wrongToken, "")
+			authenticated := hb.GetUser(wrongToken, "", "")
 			So(authenticated, ShouldBeFalse)
 
 		})

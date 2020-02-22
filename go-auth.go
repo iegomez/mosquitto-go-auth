@@ -20,7 +20,7 @@ import (
 )
 
 type Backend interface {
-	GetUser(username, password string) bool
+	GetUser(username, password, clientid string) bool
 	GetSuperuser(username string) bool
 	CheckAcl(username, topic, clientId string, acc int32) bool
 	GetName() string
@@ -450,7 +450,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 }
 
 //export AuthUnpwdCheck
-func AuthUnpwdCheck(username, password string) bool {
+func AuthUnpwdCheck(username, password, clientid string) bool {
 
 	authenticated := false
 	var cached = false
@@ -470,12 +470,12 @@ func AuthUnpwdCheck(username, password string) bool {
 		if validPrefix {
 
 			if bename == "plugin" {
-				authenticated = CheckPluginAuth(username, password)
+				authenticated = CheckPluginAuth(username, password, clientid)
 			} else {
 
 				var backend = commonData.Backends[bename]
 
-				if backend.GetUser(username, password) {
+				if backend.GetUser(username, password, clientid) {
 					authenticated = true
 					log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 				}
@@ -484,17 +484,17 @@ func AuthUnpwdCheck(username, password string) bool {
 
 		} else {
 			//If there's no valid prefix, check all backends.
-			authenticated = CheckBackendsAuth(username, password)
+			authenticated = CheckBackendsAuth(username, password, clientid)
 			//If not authenticated, check for a present plugin
 			if !authenticated {
-				authenticated = CheckPluginAuth(username, password)
+				authenticated = CheckPluginAuth(username, password, clientid)
 			}
 		}
 	} else {
-		authenticated = CheckBackendsAuth(username, password)
+		authenticated = CheckBackendsAuth(username, password, clientid)
 		//If not authenticated, check for a present plugin
 		if !authenticated {
-			authenticated = CheckPluginAuth(username, password)
+			authenticated = CheckPluginAuth(username, password, clientid)
 		}
 	}
 
@@ -655,7 +655,7 @@ func CheckPrefix(username string) (bool, string) {
 }
 
 //CheckBackendsAuth checks for all backends if a username is authenticated and sets the authenticated param.
-func CheckBackendsAuth(username, password string) bool {
+func CheckBackendsAuth(username, password, clientid string) bool {
 
 	authenticated := false
 
@@ -669,7 +669,7 @@ func CheckBackendsAuth(username, password string) bool {
 
 		log.Debugf("checking user %s with backend %s", username, backend.GetName())
 
-		if backend.GetUser(username, password) {
+		if backend.GetUser(username, password, clientid) {
 			authenticated = true
 			log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 			break
@@ -725,7 +725,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 }
 
 //CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
-func CheckPluginAuth(username, password string) bool {
+func CheckPluginAuth(username, password, clientid string) bool {
 	if commonData.Plugin == nil {
 		return false
 	}

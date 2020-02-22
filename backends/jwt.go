@@ -211,7 +211,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 }
 
 //GetUser authenticates a given user.
-func (o JWT) GetUser(token, password string) bool {
+func (o JWT) GetUser(token, password, clientid string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}

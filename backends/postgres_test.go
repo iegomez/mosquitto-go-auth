@@ -52,14 +52,14 @@ func TestPostgres(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := postgres.GetUser(username, userPass)
+			authenticated := postgres.GetUser(username, userPass, "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := postgres.GetUser(username, "wrong_password")
+			authenticated := postgres.GetUser(username, "wrong_password", "")
 			So(authenticated, ShouldBeFalse)
 
 		})

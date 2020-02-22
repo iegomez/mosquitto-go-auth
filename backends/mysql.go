@@ -200,7 +200,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Mysql) GetUser(username, password string) bool {
+func (o Mysql) GetUser(username, password, clientid string) bool {
 
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)

@@ -283,7 +283,7 @@ func checkCommentOrEmpty(line string) bool {
 }
 
 //GetUser checks that user exists and password is correct.
-func (o Files) GetUser(username, password string) bool {
+func (o Files) GetUser(username, password, clientid string) bool {
 
 	fileUser, ok := o.Users[username]
 	if !ok {

@@ -81,7 +81,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Sqlite) GetUser(username, password string) bool {
+func (o Sqlite) GetUser(username, password, clientid string) bool {
 
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)

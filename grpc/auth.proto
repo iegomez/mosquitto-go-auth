@@ -30,6 +30,8 @@ message GetUserRequest {
     string username = 1;
     // Plain text password.
     string password = 2;
+    // The client connection's id.
+    string clientid = 3;
 }
 
 message GetSuperuserRequest {

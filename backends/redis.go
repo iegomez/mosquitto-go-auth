@@ -75,7 +75,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Redis) GetUser(username, password string) bool {
+func (o Redis) GetUser(username, password, clientid string) bool {
 
 	pwHash, err := o.Conn.Get(username).Result()
 

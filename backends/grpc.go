@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"github.com/golang/protobuf/ptypes/empty"
 
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 )
@@ -48,11 +48,12 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
 }
 
 // GetUser checks that the username exists and the given password hashes to the same password.
-func (o GRPC) GetUser(username, password string) bool {
+func (o GRPC) GetUser(username, password, clientid string) bool {
 
 	req := gs.GetUserRequest{
 		Username: username,
 		Password: password,
+		Clientid: clientid,
 	}
 
 	resp, err := o.client.GetUser(context.Background(), &req)
