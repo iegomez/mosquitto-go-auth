@@ -146,7 +146,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Postgres) GetUser(username, password string) bool {
+func (o Postgres) GetUser(username, password, clientid string) bool {
 
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)

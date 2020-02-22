@@ -87,14 +87,14 @@ func TestFileSqlite(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, userPass)
+			authenticated := sqlite.GetUser(username, userPass, "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, "wrong_password")
+			authenticated := sqlite.GetUser(username, "wrong_password", "")
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -256,14 +256,14 @@ func TestMemorySqlite(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, userPass)
+			authenticated := sqlite.GetUser(username, userPass, "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, "wrong_password")
+			authenticated := sqlite.GetUser(username, "wrong_password", "")
 			So(authenticated, ShouldBeFalse)
 
 		})

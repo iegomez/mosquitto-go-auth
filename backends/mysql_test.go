@@ -57,14 +57,14 @@ func TestMysql(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := mysql.GetUser(username, userPass)
+			authenticated := mysql.GetUser(username, userPass, "")
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := mysql.GetUser(username, "wrong_password")
+			authenticated := mysql.GetUser(username, "wrong_password", "")
 			So(authenticated, ShouldBeFalse)
 
 		})

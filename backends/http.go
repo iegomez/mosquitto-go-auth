@@ -124,16 +124,18 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 	return http, nil
 }
 
-func (o HTTP) GetUser(username, password string) bool {
+func (o HTTP) GetUser(username, password, clientid string) bool {
 
 	var dataMap = map[string]interface{}{
 		"username": username,
 		"password": password,
+		"clientid": clientid,
 	}
 
 	var urlValues = url.Values{
 		"username": []string{username},
 		"password": []string{password},
+		"clientid": []string{clientid},
 	}
 
 	return o.httpRequest(o.UserUri, username, dataMap, urlValues)

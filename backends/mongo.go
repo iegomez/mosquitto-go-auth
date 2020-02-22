@@ -112,7 +112,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Mongo) GetUser(username, password string) bool {
+func (o Mongo) GetUser(username, password, clientid string) bool {
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 
