@@ -38,25 +38,25 @@ The Dockerfiles can also copy `conf` files found in the `/docker/conf` project d
 
 In case you're not familiar with [Docker](https://docs.docker.com/), here are some basic commands for getting going.
 
-Build Container:
+#### Build Container:
 ```sh
 # Ensure your PWD is either project root or /docker
 docker build -t mosquitto-go-auth .
 ```
 
-Run Container:
+#### Run Container:
 ```sh
 # This command will run the container and map the corresponding ports locally.
 # You can access Mosquitto running inside the container on localhost:1883 and localhost:1884 (WebSockets)
 docker run -it -p 1884:1884 -p 1883:1883 mosquitto-go-auth 
 ```
 
-Stop Container:
+#### Stop Container:
 ```sh
 docker stop $(docker ps -q --filter ancestor=mosquitto-go-auth)
 ```
 
-Remove Container locally:
+#### Remove Container locally:
 ```sh
 docker rmi $(docker images -q --filter reference='mosquitto-go-auth:*')
 ```
