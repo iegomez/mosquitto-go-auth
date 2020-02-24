@@ -24,12 +24,8 @@ RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make instal
 RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 RUN export PATH=$PATH:/usr/local/go/bin && go version && rm go${GO_VERSION}.linux-amd64.tar.gz
 
-#Get the plugin.
-RUN wget https://github.com/iegomez/mosquitto-go-auth/archive/${PLUGIN_VERSION}.tar.gz \
-    && ls -l \
-    && tar xvf *.tar.gz --strip-components=1 \
-    && rm -Rf go*.tar.gz \
-    && ls -l
+#Build the plugin from local source
+COPY ./ ./
 
 #Build the plugin.
 RUN export PATH=$PATH:/usr/local/go/bin && export CGO_CFLAGS="-I/usr/local/include -fPIC" && export CGO_LDFLAGS="-shared" &&  make
@@ -55,10 +51,10 @@ COPY --from=builder /usr/local/sbin/mosquitto /usr/sbin/mosquitto
 #Uncomment to copy your custom confs (change accordingly) directly when building the image.
 #Leave commented if you want to mount a volume for these (see docker-compose.yml).
 
-#COPY conf/mosquitto.conf /etc/mosquitto/mosquitto.conf
-#COPY conf/conf.d/go-auth.conf /etc/mosquitto/conf.d/go-auth.conf
-#COPY conf/auth/acls /etc/mosquitto/auth/acls
-#COPY conf/auth/passwords /etc/mosquitto/auth/passwords
+# COPY ./docker/conf/mosquitto.conf /etc/mosquitto/mosquitto.conf
+# COPY ./docker/conf/conf.d/go-auth.conf /etc/mosquitto/conf.d/go-auth.conf
+# COPY ./docker/conf/auth/acls /etc/mosquitto/auth/acls
+# COPY ./docker/conf/auth/passwords /etc/mosquitto/auth/passwords
 
 #Expose tcp and websocket ports as defined at mosquitto.conf (change accordingly).
 EXPOSE 1883 1884
