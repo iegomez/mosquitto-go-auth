@@ -1137,8 +1137,9 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 
 ### Docker
 
-See the [docker](docker/) dir for an example image.
+This project provides example Dockerfiles for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
 
+Please read the [documentation](./docker/README.md) in the [docker](/docker) directory for more information.
 
 ### License
 
