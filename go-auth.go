@@ -175,7 +175,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		if bename == "plugin" {
 			plug, err := plugin.Open(authOpts["plugin_path"])
 			if err != nil {
-				log.Errorf("Could not init custom plugin: %s", plErr)
+				log.Errorf("Could not init custom plugin: %s", err)
 				commonData.Plugin = nil
 			} else {
 				commonData.Plugin = plug
@@ -183,7 +183,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				plInit, err := commonData.Plugin.Lookup("Init")
 
 				if err != nil {
-					log.Errorf("Couldn't find func Init in plugin: %s", plErr)
+					log.Errorf("Couldn't find func Init in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -192,7 +192,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 				err = initFunc(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Errorf("Couldn't init plugin: %s", ipErr)
+					log.Errorf("Couldn't init plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -202,7 +202,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				plName, err := commonData.Plugin.Lookup("GetName")
 
 				if err != nil {
-					log.Errorf("Couldn't find func GetName in plugin: %s", gErr)
+					log.Errorf("Couldn't find func GetName in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -270,7 +270,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "jwt":
 				beIface, err = bes.NewJWT(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["jwt"] = beIface.(bes.JWT)
@@ -278,7 +278,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "files":
 				beIface, err = bes.NewFiles(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["files"] = beIface.(bes.Files)
@@ -286,7 +286,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "redis":
 				beIface, err = bes.NewRedis(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["redis"] = beIface.(bes.Redis)
@@ -294,7 +294,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "mysql":
 				beIface, err = bes.NewMysql(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["mysql"] = beIface.(bes.Mysql)
@@ -302,7 +302,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "http":
 				beIface, err = bes.NewHTTP(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["http"] = beIface.(bes.HTTP)
@@ -310,7 +310,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "sqlite":
 				beIface, err = bes.NewSqlite(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["sqlite"] = beIface.(bes.Sqlite)
@@ -318,7 +318,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "mongo":
 				beIface, err = bes.NewMongo(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["mongo"] = beIface.(bes.Mongo)
@@ -326,7 +326,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			case "grpc":
 				beIface, err = bes.NewGRPC(authOpts, commonData.LogLevel)
 				if err != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends["grpc"] = beIface.(bes.GRPC)
