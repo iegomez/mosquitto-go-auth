@@ -127,7 +127,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	//Exit if any mandatory option is missing.
 	if !pgOk {
-		return postgres, errors.Errorf("PG backend error: missing options%s.\n", missingOptions)
+		return postgres, errors.Errorf("PG backend error: missing options: %s", missingOptions)
 	}
 
 	//Build the dsn string and try to connect to the DB.
@@ -141,11 +141,11 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
-	var dbErr error
-	postgres.DB, dbErr = common.OpenDatabase(connStr, "postgres")
+	var err error
+	postgres.DB, err = common.OpenDatabase(connStr, "postgres")
 
-	if dbErr != nil {
-		return postgres, errors.Errorf("PG backend error: couldn't open DB: %s\n", dbErr)
+	if err != nil {
+		return postgres, errors.Errorf("PG backend error: couldn't open DB: %s", err)
 	}
 
 	return postgres, nil
@@ -153,18 +153,18 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Postgres) GetUser(username, password string) bool {
+func (o Postgres) GetUser(username, password, clientid string) bool {
 
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Debugf("PG get user error: %s\n", err)
+		log.Debugf("PG get user error: %s", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Debugf("PG get user error: user %s not found.\n", username)
+		log.Debugf("PG get user error: user %s not found", username)
 		return false
 	}
 
@@ -188,12 +188,12 @@ func (o Postgres) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Debugf("PG get superuser error: %s\n", err)
+		log.Debugf("PG get superuser error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("PG get superuser error: user %s not found.\n", username)
+		log.Debugf("PG get superuser error: user %s not found", username)
 		return false
 	}
 
@@ -218,7 +218,7 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Debugf("PG check acl error: %s\n", err)
+		log.Debugf("PG check acl error: %s", err)
 		return false
 	}
 

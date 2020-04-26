@@ -82,12 +82,12 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Redis) GetUser(username, password string) bool {
+func (o Redis) GetUser(username, password, clientid string) bool {
 
 	pwHash, err := o.Conn.Get(username).Result()
 
 	if err != nil {
-		log.Debugf("Redis get user error: %s\n", err)
+		log.Debugf("Redis get user error: %s", err)
 		return false
 	}
 
@@ -105,7 +105,7 @@ func (o Redis) GetSuperuser(username string) bool {
 	isSuper, err := o.Conn.Get(fmt.Sprintf("%s:su", username)).Result()
 
 	if err != nil {
-		log.Debugf("Redis get superuser error: %s\n", err)
+		log.Debugf("Redis get superuser error: %s", err)
 		return false
 	}
 
@@ -130,14 +130,14 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 		var err error
 		acls, err = o.Conn.SMembers(fmt.Sprintf("%s:sacls", username)).Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common subscribe acls.
 		commonAcls, err = o.Conn.SMembers("common:sacls").Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
@@ -145,64 +145,64 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 		//Get all user read and readwrite acls.
 		urAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:racls", username)).Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 		urwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:rwacls", username)).Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common read and readwrite acls
 		rAcls, err := o.Conn.SMembers("common:racls").Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 		rwAcls, err := o.Conn.SMembers("common:rwacls").Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
-		acls = make([]string, len(urAcls)+len(urwAcls), len(urAcls)+len(urwAcls))
+		acls = make([]string, len(urAcls)+len(urwAcls))
 		acls = append(acls, urAcls...)
 		acls = append(acls, urwAcls...)
 
-		commonAcls = make([]string, len(rAcls)+len(rwAcls), len(rAcls)+len(rwAcls))
+		commonAcls = make([]string, len(rAcls)+len(rwAcls))
 		commonAcls = append(commonAcls, rAcls...)
 		commonAcls = append(commonAcls, rwAcls...)
 	case MOSQ_ACL_WRITE:
 		//Get all user write and readwrite acls.
 		uwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:wacls", username)).Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 		urwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:rwacls", username)).Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common write and readwrite acls
 		wAcls, err := o.Conn.SMembers("common:wacls").Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 		rwAcls, err := o.Conn.SMembers("common:rwacls").Result()
 		if err != nil {
-			log.Debugf("Redis check acl error: %s\n", err)
+			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
-		acls = make([]string, len(uwAcls)+len(urwAcls), len(uwAcls)+len(urwAcls))
+		acls = make([]string, len(uwAcls)+len(urwAcls))
 		acls = append(acls, uwAcls...)
 		acls = append(acls, urwAcls...)
 
-		commonAcls = make([]string, len(wAcls)+len(rwAcls), len(wAcls)+len(rwAcls))
+		commonAcls = make([]string, len(wAcls)+len(rwAcls))
 		commonAcls = append(commonAcls, wAcls...)
 		commonAcls = append(commonAcls, rwAcls...)
 	}

@@ -14,7 +14,7 @@ import (
 	. "github.com/smartystreets/goconvey/convey"
 )
 
-var (
+const (
 	grpcUsername  string = "test_user"
 	grpcSuperuser string = "superuser"
 	grpcPassword  string = "test_password"
@@ -94,11 +94,11 @@ func TestGRPC(t *testing.T) {
 
 			Convey("given incorrect credentials user should not be authenticated", func(c C) {
 
-				auth := g.GetUser(grpcUsername, "wrong")
+				auth := g.GetUser(grpcUsername, "wrong", grpcClientId)
 				c.So(auth, ShouldBeFalse)
 				Convey("given correct credential user should be authenticated", func(c C) {
 
-					auth := g.GetUser(grpcUsername, grpcPassword)
+					auth := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
 					c.So(auth, ShouldBeTrue)
 
 					Convey("given a non superuser user the service should respond false", func(c C) {

@@ -65,7 +65,6 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 - [gRPC](#grpc)
 	- [Service](#service)
 	- [Testing gRPC](#testing-grpc)
-- [Benchmarks](#benchmarks)
 - [Using with LoRa Server](#using-with-lora-server)
 - [Docker](#docker)
 - [License](#license)
@@ -76,14 +75,7 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 
 ### Requirements
 
-Starting with Go 1.12 this plugin supports `Go modules` to manage dependencies. If you have `go mod` enabled, **you don't need to run any prior commands to get your dependencies.**
-
-If you are using an older version of Go (tested with Go 1.10.3, 1.10.8 and 1.11.5) dependencies may be managed with `dep` (you may install it with `make dev-requirements` if you don't have it already **and** you've exported `$HOME/go/src/bin` to your `PATH`). Run this to have `dep` install the dependencies:
-
-```
-make requirements
-```
-
+This package uses `Go modules` to manage dependencies, `dep` is no longer supported.
 As it interacts with mosquitto, it makes use of Cgo. Also, it (optionally) uses Redis for cache purposes.
 
 
@@ -91,16 +83,16 @@ As it interacts with mosquitto, it makes use of Cgo. Also, it (optionally) uses 
 
 Before building, you need to build mosquitto. For completeness, we'll build it with websockets, ssl and srv support.
 
-First, install dependencies (tested on Debian 9):
+First, install dependencies (tested on Debian 9 and later, Linux Mint 18 and 19):
 
 `sudo apt-get install libwebsockets8  libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
 
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.6.3.tar.gz
-tar xzvf mosquitto-1.6.3.tar.gz
-cd mosquitto-1.6.3
+wget http://mosquitto.org/files/source/mosquitto-1.6.8.tar.gz
+tar xzvf mosquitto-1.6.8.tar.gz
+cd mosquitto-1.6.8
 ```
 
 Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
@@ -826,7 +818,8 @@ When params mode is set to `json`, the backend will send a json encoded string w
 
 {
 	"username": "user",
-	"password": "pass"
+	"password": "pass",
+	"clientid": "clientid"
 }
 
 When set to `form`, it will send params like a regular html form post.
@@ -970,7 +963,7 @@ func Init(authOpts map[string]string, logLevel log.Level) error {
 	return nil
 }
 
-func GetUser(username, password string) bool {
+func GetUser(username, password, clientid string) bool {
 	return false
 }
 
@@ -1060,6 +1053,8 @@ message GetUserRequest {
     string username = 1;
     // Plain text password.
     string password = 2;
+    // The client connection's id.
+    string clientid = 3;
 }
 
 message GetSuperuserRequest {
@@ -1093,42 +1088,6 @@ message NameResponse {
 
 This backend has no special requirements as a gRPC server is mocked to test different scenarios.
 
-### Benchmarks
-
-Running benchmarks on the plugin doesn't make much sense, as there are a number of factors to be considered, like mosquitto's own performance. Also, they are highly tied to other applications and specific infrastructure, such as local postgres instance versus a remote with enabled tls one, network latency for http and jwt, etc. Anyway, there are a couple of benchmarks written for the Files, Postgres and Redis backends. They were ran on an Asus laptop with normal work load (a bunch of Chrome tabs and programs running) with the following specs:
-
-	OS: 					Linux Mint 18 Cinnamon 3.07 64-bit
-	Kernel: 				4.11.0-14
-	Processor: 				Intel Core i5-6200U CPU @ 2.30GHz x 2
-	Memory: 				5.7 GiB
-
-As said, take these benchmarks with a grain of salt and consider them just as a reference. A much better benchmark would be running mosquitto with this plugin and an alternative one (such as [jpmens'](https://github.com/jpmens)) and compare how they do against similarly configured backends. I'd expect that one to be faster, as it's written in C, but hopefully the difference isn't so big. I'd gladly include something like this if anyone is willing to do such benchmark.
-
-You could check files_benchmark_test.go and redis_benchmark_test.go to see the benchmarks details, but the titles should be self explanatory.
-
-Benchmarks can be ran with:
-
-`make benchmarks`
-
-Finally, here are the results:
-
-```
-BenchmarkFilesUser-4               	      	10 				151611011 ns/op
-BenchmarkFilesSuperuser-4           1000000000         			 2.94 ns/op
-BenchmarkFilesAcl-4                	  10000000       			  167 ns/op
-BenchmarkPostgresUser-4             	      10	 			167902778 ns/op
-BenchmarkPostgresSuperser-4         	   10000	   		164956 ns/op
-BenchmarkPostgresStrictAcl-4        	   10000	    	202321 ns/op
-BenchmarkPostgresSingleLevelAcl-4   	   10000	    	202027 ns/op
-BenchmarkPostgresHierarchyAcl-4     	   10000	    	201217 ns/op
-BenchmarkRedisUser-4               	      	10	 			152723368 ns/op
-BenchmarkRedisSuperuser-4          	  	100000	     			21330 ns/op
-BenchmarkRedisStrictAcl-4          	   	 20000	     			84570 ns/op
-BenchmarkRedisUserPatternAcl-4     	   	 20000	     			83076 ns/op
-BenchmarkRedisClientPatternAcl-4   	   	 20000	     			84883 ns/op
-BenchmarkRedisSingleLevelAcl-4     	   	 20000	     			84241 ns/op
-BenchmarkRedisHierarchyAcl-4       	   	 20000	     			83835 ns/op
-```
 
 ### Using with LoRa Server
 
@@ -1137,8 +1096,9 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 
 ### Docker
 
-See the [docker](docker/) dir for an example image.
+This project provides example Dockerfiles for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
 
+Please read the [documentation](./docker/README.md) in the [docker](/docker) directory for more information.
 
 ### License
 

@@ -20,7 +20,7 @@ import (
 )
 
 type Backend interface {
-	GetUser(username, password string) bool
+	GetUser(username, password, clientid string) bool
 	GetSuperuser(username string) bool
 	CheckAcl(username, topic, clientId string, acc int32) bool
 	GetName() string
@@ -36,7 +36,6 @@ type CommonData struct {
 	PGetSuperuser    func(username string) bool
 	PCheckAcl        func(username, topic, clientid string, acc int) bool
 	PHalt            func()
-	Superusers       []string
 	AclCacheSeconds  int64
 	AuthCacheSeconds int64
 	UseCache         bool
@@ -89,13 +88,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		FullTimestamp: true,
 	})
 
-	superusers := make([]string, 10, 10)
-
-	cmbackends := make(map[string]Backend)
+	cmBackends := make(map[string]Backend)
 
 	//Initialize common struct with default and given values
 	commonData = CommonData{
-		Superusers:       superusers,
 		AclCacheSeconds:  30,
 		AuthCacheSeconds: 30,
 		CheckPrefix:      false,
@@ -126,7 +122,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	//Log and end program if backends are wrong
 	if !backendsOk {
-		log.Fatal("\nbackends error\n")
+		log.Fatal("backends error")
 	}
 
 	//Check if log level is given. Set level if any valid option is given.
@@ -174,39 +170,39 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	//Initialize backends
 	for _, bename := range backends {
 		var beIface Backend
-		var bErr error
+		var err error
 
 		if bename == "plugin" {
-			plug, plErr := plugin.Open(authOpts["plugin_path"])
-			if plErr != nil {
-				log.Errorf("Could not init custom plugin: %s", plErr)
+			plug, err := plugin.Open(authOpts["plugin_path"])
+			if err != nil {
+				log.Errorf("Could not init custom plugin: %s", err)
 				commonData.Plugin = nil
 			} else {
 				commonData.Plugin = plug
 
-				plInit, piErr := commonData.Plugin.Lookup("Init")
+				plInit, err := commonData.Plugin.Lookup("Init")
 
-				if piErr != nil {
-					log.Errorf("Couldn't find func Init in plugin: %s", plErr)
+				if err != nil {
+					log.Errorf("Couldn't find func Init in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
 
 				initFunc := plInit.(func(authOpts map[string]string, logLevel log.Level) error)
 
-				ipErr := initFunc(authOpts, commonData.LogLevel)
-				if ipErr != nil {
-					log.Errorf("Couldn't init plugin: %s", ipErr)
+				err = initFunc(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Errorf("Couldn't init plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
 
 				commonData.PInit = initFunc
 
-				plName, gErr := commonData.Plugin.Lookup("GetName")
+				plName, err := commonData.Plugin.Lookup("GetName")
 
-				if gErr != nil {
-					log.Errorf("Couldn't find func GetName in plugin: %s", gErr)
+				if err != nil {
+					log.Errorf("Couldn't find func GetName in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -214,10 +210,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				nameFunc := plName.(func() string)
 				commonData.PGetName = nameFunc
 
-				plGetUser, pgErr := commonData.Plugin.Lookup("GetUser")
+				plGetUser, err := commonData.Plugin.Lookup("GetUser")
 
-				if pgErr != nil {
-					log.Errorf("Couldn't find func GetUser in plugin: %s", pgErr)
+				if err != nil {
+					log.Errorf("couldn't find func GetUser in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -225,16 +221,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				getUserFunc := plGetUser.(func(username, password string) bool)
 				commonData.PGetUser = getUserFunc
 
-				if pgErr != nil {
-					log.Errorf("Couldn't find func GetUser in plugin: %s", pgErr)
-					commonData.Plugin = nil
-					continue
-				}
+				plGetSuperuser, err := commonData.Plugin.Lookup("GetSuperuser")
 
-				plGetSuperuser, psErr := commonData.Plugin.Lookup("GetSuperuser")
-
-				if psErr != nil {
-					log.Errorf("Couldn't find func GetSuperuser in plugin: %s", psErr)
+				if err != nil {
+					log.Errorf("couldn't find func GetSuperuser in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -242,10 +232,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				getSuperuserFunc := plGetSuperuser.(func(username string) bool)
 				commonData.PGetSuperuser = getSuperuserFunc
 
-				plCheckAcl, pcErr := commonData.Plugin.Lookup("CheckAcl")
+				plCheckAcl, err := commonData.Plugin.Lookup("CheckAcl")
 
-				if pcErr != nil {
-					log.Errorf("Couldn't find func CheckAcl in plugin: %s", pcErr)
+				if err != nil {
+					log.Errorf("couldn't find func CheckAcl in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -253,10 +243,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				checkAclFunc := plCheckAcl.(func(username, topic, clientid string, acc int) bool)
 				commonData.PCheckAcl = checkAclFunc
 
-				plHalt, phErr := commonData.Plugin.Lookup("Halt")
+				plHalt, err := commonData.Plugin.Lookup("Halt")
 
-				if phErr != nil {
-					log.Errorf("Couldn't find func Halt in plugin: %s", phErr)
+				if err != nil {
+					log.Errorf("Couldn't find func Halt in plugin: %s", err)
 					commonData.Plugin = nil
 					continue
 				}
@@ -270,76 +260,76 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else {
 			switch bename {
 			case "postgres":
-				beIface, bErr = bes.NewPostgres(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewPostgres(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
-					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["postgres"] = beIface.(bes.Postgres)
+					log.Infof("backend registered: %s", beIface.GetName())
+					cmBackends["postgres"] = beIface.(bes.Postgres)
 				}
 			case "jwt":
-				beIface, bErr = bes.NewJWT(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewJWT(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["jwt"] = beIface.(bes.JWT)
+					cmBackends["jwt"] = beIface.(bes.JWT)
 				}
 			case "files":
-				beIface, bErr = bes.NewFiles(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewFiles(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["files"] = beIface.(bes.Files)
+					cmBackends["files"] = beIface.(bes.Files)
 				}
 			case "redis":
-				beIface, bErr = bes.NewRedis(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewRedis(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["redis"] = beIface.(bes.Redis)
+					cmBackends["redis"] = beIface.(bes.Redis)
 				}
 			case "mysql":
-				beIface, bErr = bes.NewMysql(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewMysql(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["mysql"] = beIface.(bes.Mysql)
+					cmBackends["mysql"] = beIface.(bes.Mysql)
 				}
 			case "http":
-				beIface, bErr = bes.NewHTTP(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewHTTP(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["http"] = beIface.(bes.HTTP)
+					cmBackends["http"] = beIface.(bes.HTTP)
 				}
 			case "sqlite":
-				beIface, bErr = bes.NewSqlite(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewSqlite(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["sqlite"] = beIface.(bes.Sqlite)
+					cmBackends["sqlite"] = beIface.(bes.Sqlite)
 				}
 			case "mongo":
-				beIface, bErr = bes.NewMongo(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewMongo(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["mongo"] = beIface.(bes.Mongo)
+					cmBackends["mongo"] = beIface.(bes.Mongo)
 				}
 			case "grpc":
-				beIface, bErr = bes.NewGRPC(authOpts, commonData.LogLevel)
-				if bErr != nil {
-					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, bErr)
+				beIface, err = bes.NewGRPC(authOpts, commonData.LogLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmbackends["grpc"] = beIface.(bes.GRPC)
+					cmBackends["grpc"] = beIface.(bes.GRPC)
 				}
 			}
 		}
@@ -445,16 +435,16 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		commonData.CheckPrefix = false
 	}
 
-	commonData.Backends = cmbackends
+	commonData.Backends = cmBackends
 
 }
 
 //export AuthUnpwdCheck
-func AuthUnpwdCheck(username, password string) bool {
+func AuthUnpwdCheck(username, password, clientid string) bool {
 
-	authenticated := false
-	var cached = false
-	var granted = false
+	var authenticated bool
+	var cached bool
+	var granted bool
 	if commonData.UseCache {
 		log.Debugf("checking auth cache for %s", username)
 		cached, granted = CheckAuthCache(username, password)
@@ -470,12 +460,12 @@ func AuthUnpwdCheck(username, password string) bool {
 		if validPrefix {
 
 			if bename == "plugin" {
-				authenticated = CheckPluginAuth(username, password)
+				authenticated = CheckPluginAuth(username, password, clientid)
 			} else {
 
 				var backend = commonData.Backends[bename]
 
-				if backend.GetUser(username, password) {
+				if backend.GetUser(username, password, clientid) {
 					authenticated = true
 					log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 				}
@@ -484,17 +474,17 @@ func AuthUnpwdCheck(username, password string) bool {
 
 		} else {
 			//If there's no valid prefix, check all backends.
-			authenticated = CheckBackendsAuth(username, password)
+			authenticated = CheckBackendsAuth(username, password, clientid)
 			//If not authenticated, check for a present plugin
 			if !authenticated {
-				authenticated = CheckPluginAuth(username, password)
+				authenticated = CheckPluginAuth(username, password, clientid)
 			}
 		}
 	} else {
-		authenticated = CheckBackendsAuth(username, password)
+		authenticated = CheckBackendsAuth(username, password, clientid)
 		//If not authenticated, check for a present plugin
 		if !authenticated {
-			authenticated = CheckPluginAuth(username, password)
+			authenticated = CheckPluginAuth(username, password, clientid)
 		}
 	}
 
@@ -504,7 +494,10 @@ func AuthUnpwdCheck(username, password string) bool {
 			authGranted = "true"
 		}
 		log.Debugf("setting auth cache for %s", username)
-		SetAuthCache(username, password, authGranted)
+		if err := SetAuthCache(username, password, authGranted); err != nil {
+			log.Errorf("set auth cache: %s", err)
+			return false
+		}
 	}
 
 	return authenticated
@@ -513,9 +506,9 @@ func AuthUnpwdCheck(username, password string) bool {
 //export AuthAclCheck
 func AuthAclCheck(clientid, username, topic string, acc int) bool {
 
-	aclCheck := false
-	var cached = false
-	var granted = false
+	var aclCheck bool
+	var cached bool
+	var granted bool
 	if commonData.UseCache {
 		log.Debugf("checking acl cache for %s", username)
 		cached, granted = CheckAclCache(username, topic, clientid, acc)
@@ -577,7 +570,10 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 			authGranted = "true"
 		}
 		log.Debugf("setting acl cache (granted = %s) for %s", authGranted, username)
-		SetAclCache(username, topic, clientid, acc, authGranted)
+		if err := SetAclCache(username, topic, clientid, acc, authGranted); err != nil {
+			log.Errorf("set acl cache: %s", err)
+			return false
+		}
 	}
 
 	log.Debugf("Acl is %t for user %s", aclCheck, username)
@@ -655,7 +651,7 @@ func CheckPrefix(username string) (bool, string) {
 }
 
 //CheckBackendsAuth checks for all backends if a username is authenticated and sets the authenticated param.
-func CheckBackendsAuth(username, password string) bool {
+func CheckBackendsAuth(username, password, clientid string) bool {
 
 	authenticated := false
 
@@ -669,7 +665,7 @@ func CheckBackendsAuth(username, password string) bool {
 
 		log.Debugf("checking user %s with backend %s", username, backend.GetName())
 
-		if backend.GetUser(username, password) {
+		if backend.GetUser(username, password, clientid) {
 			authenticated = true
 			log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 			break
@@ -725,7 +721,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 }
 
 //CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
-func CheckPluginAuth(username, password string) bool {
+func CheckPluginAuth(username, password, clientid string) bool {
 	if commonData.Plugin == nil {
 		return false
 	}

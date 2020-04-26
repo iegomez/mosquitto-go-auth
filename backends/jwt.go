@@ -144,7 +144,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		}
 
 		if !remoteOk {
-			return jwt, errors.Errorf("JWT backend error: missing remote options%s.\n", missingOpts)
+			return jwt, errors.Errorf("JWT backend error: missing remote options: %s", missingOpts)
 		}
 
 	} else {
@@ -155,7 +155,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		if secret, ok := authOpts["jwt_secret"]; ok {
 			jwt.Secret = secret
 		} else {
-			return jwt, errors.New("JWT backend error: missing jwt secret.\n")
+			return jwt, errors.New("JWT backend error: missing jwt secret")
 		}
 
 		if userQuery, ok := authOpts["jwt_userquery"]; ok {
@@ -178,14 +178,14 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		}
 
 		if !localOk {
-			return jwt, errors.Errorf("JWT backend error: missing local options%s.\n", missingOpts)
+			return jwt, errors.Errorf("JWT backend error: missing local options: %s", missingOpts)
 		}
 
 		if jwt.LocalDB == "mysql" {
 			//Try to create a mysql backend with these custom queries
 			mysql, err := NewMysql(authOpts, logLevel)
 			if err != nil {
-				return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s\n", err)
+				return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s", err)
 			}
 			mysql.UserQuery = jwt.UserQuery
 			mysql.SuperuserQuery = jwt.SuperuserQuery
@@ -196,7 +196,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 			//Try to create a postgres backend with these custom queries.
 			postgres, err := NewPostgres(authOpts, logLevel)
 			if err != nil {
-				return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s\n", err)
+				return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s", err)
 			}
 			postgres.UserQuery = jwt.UserQuery
 			postgres.SuperuserQuery = jwt.SuperuserQuery
@@ -211,7 +211,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 }
 
 //GetUser authenticates a given user.
-func (o JWT) GetUser(token, password string) bool {
+func (o JWT) GetUser(token, password, clientid string) bool {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
@@ -223,7 +223,7 @@ func (o JWT) GetUser(token, password string) bool {
 	claims, err := o.getClaims(token)
 
 	if err != nil {
-		log.Printf("jwt get user error: %s\n", err)
+		log.Printf("jwt get user error: %s", err)
 		return false
 	}
 	//Now check against the DB.
@@ -251,7 +251,7 @@ func (o JWT) GetSuperuser(token string) bool {
 	claims, err := o.getClaims(token)
 
 	if err != nil {
-		log.Debugf("jwt get superuser error: %s\n", err)
+		log.Debugf("jwt get superuser error: %s", err)
 		return false
 	}
 	//Now check against DB
@@ -296,7 +296,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	claims, err := o.getClaims(token)
 
 	if err != nil {
-		log.Debugf("jwt check acl error: %s\n", err)
+		log.Debugf("jwt check acl error: %s", err)
 		return false
 	}
 	//Now check against the DB.
@@ -332,6 +332,7 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 
 	var resp *http.Response
 	var err error
+	var req *http.Request
 
 	if !verifyPeer {
 		tr := &http.Transport{
@@ -340,32 +341,29 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		client.Transport = tr
 	}
 
-	var req *http.Request
-	var reqErr error
-
 	if paramsMode == "json" {
-		dataJson, mErr := json.Marshal(dataMap)
+		dataJson, err := json.Marshal(dataMap)
 
-		if mErr != nil {
-			log.Errorf("marshal error: %v\n", mErr)
+		if err != nil {
+			log.Errorf("marshal error: %s", err)
 			return false
 		}
 
 		contentReader := bytes.NewReader(dataJson)
-		req, reqErr = http.NewRequest("POST", fullUri, contentReader)
+		req, err = http.NewRequest("POST", fullUri, contentReader)
 
-		if reqErr != nil {
-			log.Errorf("req error: %v\n", reqErr)
+		if err != nil {
+			log.Errorf("req error: %s", err)
 			return false
 		}
 		req.Header.Set("Content-Type", "application/json")
 	} else {
-		req, reqErr = http.NewRequest("POST", fullUri, strings.NewReader(urlValues.Encode()))
+		req, err = http.NewRequest("POST", fullUri, strings.NewReader(urlValues.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Content-Length", strconv.Itoa(len(urlValues.Encode())))
 
-		if reqErr != nil {
-			log.Errorf("req error: %v\n", reqErr)
+		if err != nil {
+			log.Errorf("req error: %s", err)
 			return false
 		}
 	}
@@ -375,20 +373,20 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 	resp, err = client.Do(req)
 
 	if err != nil {
-		log.Errorf("error: %v\n", err)
+		log.Errorf("error: %v", err)
 		return false
 	}
 
-	body, bErr := ioutil.ReadAll(resp.Body)
+	body, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 
-	if bErr != nil {
-		log.Errorf("read error: %v\n", bErr)
+	if err != nil {
+		log.Errorf("read error: %s", err)
 		return false
 	}
 
 	if resp.Status != "200 OK" {
-		log.Infof("error code: %v\n", err)
+		log.Infof("error code: %d", resp.StatusCode)
 		return false
 	}
 
@@ -396,7 +394,7 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
-			log.Infof("api error: %s\n", string(body))
+			log.Infof("api error: %s", string(body))
 			return false
 		}
 
@@ -404,21 +402,21 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 
 		//For json response, we expect Ok and Error fields.
 		response := Response{Ok: false, Error: ""}
-		jErr := json.Unmarshal(body, &response)
+		err = json.Unmarshal(body, &response)
 
-		if jErr != nil {
-			log.Errorf("unmarshal error: %v\n", jErr)
+		if err != nil {
+			log.Errorf("unmarshal error: %s", err)
 			return false
 		}
 
 		if !response.Ok {
-			log.Infof("api error: %s\n", response.Error)
+			log.Infof("api error: %s", response.Error)
 			return false
 		}
 
 	}
 
-	log.Debugf("jwt request approved for %s\n", token)
+	log.Debugf("jwt request approved for %s", token)
 	return true
 
 }
@@ -443,12 +441,12 @@ func (o JWT) getLocalUser(username string) bool {
 	}
 
 	if err != nil {
-		log.Debugf("Local JWT get user error: %s\n", err)
+		log.Debugf("Local JWT get user error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("Local JWT get user error: user %s not found.\n", username)
+		log.Debugf("Local JWT get user error: user %s not found", username)
 		return false
 	}
 
@@ -466,7 +464,7 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 	})
 
 	if err != nil {
-		log.Debugf("jwt parse error: %s\n", err)
+		log.Debugf("jwt parse error: %s", err)
 		return nil, err
 	}
 

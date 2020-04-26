@@ -67,7 +67,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 
 	//Exit if any mandatory option is missing.
 	if !sqliteOk {
-		return sqlite, errors.Errorf("Sqlite backend error: missing options%s.\n", missingOptions)
+		return sqlite, errors.Errorf("sqlite backend error: missing options: %s", missingOptions)
 	}
 
 	//Build the dsn string and try to connect to the DB.
@@ -76,11 +76,11 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 		connStr = sqlite.Source
 	}
 
-	var dbErr error
-	sqlite.DB, dbErr = common.OpenDatabase(connStr, "sqlite3")
+	var err error
+	sqlite.DB, err = common.OpenDatabase(connStr, "sqlite3")
 
-	if dbErr != nil {
-		return sqlite, errors.Errorf("Sqlite backend error: couldn't open DB %s: %s\n", connStr, dbErr)
+	if err != nil {
+		return sqlite, errors.Errorf("sqlite backend error: couldn't open DB %s: %s", connStr, err)
 	}
 
 	return sqlite, nil
@@ -88,18 +88,18 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Sqlite) GetUser(username, password string) bool {
+func (o Sqlite) GetUser(username, password, clientid string) bool {
 
 	var pwHash sql.NullString
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
-		log.Debugf("SQlite get user error: %s\n", err)
+		log.Debugf("SQlite get user error: %s", err)
 		return false
 	}
 
 	if !pwHash.Valid {
-		log.Debugf("SQlite get user error: user %s not found.\n", username)
+		log.Debugf("SQlite get user error: user %s not found.", username)
 		return false
 	}
 
@@ -123,12 +123,12 @@ func (o Sqlite) GetSuperuser(username string) bool {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
-		log.Debugf("SQlite get superuser error: %s\n", err)
+		log.Debugf("sqlite get superuser error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("SQlite get superuser error: user %s not found.\n", username)
+		log.Debugf("sqlite get superuser error: user %s not found", username)
 		return false
 	}
 
@@ -152,7 +152,7 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := o.DB.Select(&acls, o.AclQuery, username, acc)
 
 	if err != nil {
-		log.Debugf("SQlite check acl error: %s\n", err)
+		log.Debugf("sqlite check acl error: %s", err)
 		return false
 	}
 
@@ -178,7 +178,7 @@ func (o Sqlite) Halt() {
 	if o.DB != nil {
 		err := o.DB.Close()
 		if err != nil {
-			log.Errorf("Mysql cleanup error: %s", err)
+			log.Errorf("sqlite cleanup error: %s", err)
 		}
 	}
 }

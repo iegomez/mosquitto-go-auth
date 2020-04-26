@@ -51,13 +51,13 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		AclPath:      "",
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
-		AclRecords:   make([]AclRecord, 0, 0),
+		AclRecords:   make([]AclRecord, 0),
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
 		files.PasswordPath = passwordPath
 	} else {
-		return files, errors.New("Files backend error: no password path given.\n")
+		return files, errors.New("Files backend error: no password path given")
 	}
 
 	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
@@ -71,24 +71,24 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		files.CheckAcls = true
 	} else {
 		files.CheckAcls = false
-		log.Info("Acls won't be checked.\n")
+		log.Info("Acls won't be checked")
 	}
 
 	//Now initialize FileUsers by reading from password and acl files.
-	uCount, uErr := files.readPasswords()
-	if uErr != nil {
-		return files, errors.Errorf("Fatal: %s\n", uErr)
+	uCount, err := files.readPasswords()
+	if err != nil {
+		return files, errors.Errorf("read passwords: %s", err)
 	} else {
-		log.Infof("Got %d users from passwords file.\n", uCount)
+		log.Debugf("got %d users from passwords file", uCount)
 	}
 
 	//Only read acls if path was given.
 	if files.CheckAcls {
-		aclCount, aclErr := files.readAcls()
-		if aclErr != nil {
-			return files, errors.Errorf("Fatal: %s\n", aclErr)
+		aclCount, err := files.readAcls()
+		if err != nil {
+			return files, errors.Errorf("read acls: %s", err)
 		} else {
-			log.Infof("Got %d lines from acl file.\n", aclCount)
+			log.Infof("got %d lines from acl file", aclCount)
 		}
 	}
 
@@ -101,11 +101,11 @@ func (o Files) readPasswords() (int, error) {
 
 	usersCount := 0
 
-	file, fErr := os.Open(o.PasswordPath)
-	defer file.Close()
-	if fErr != nil {
-		return usersCount, fmt.Errorf("Files backend error: couldn't open passwords file: %s\n", fErr)
+	file, err := os.Open(o.PasswordPath)
+	if err != nil {
+		return usersCount, fmt.Errorf("Files backend error: couldn't open passwords file: %s", err)
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
 
@@ -121,7 +121,7 @@ func (o Files) readPasswords() (int, error) {
 
 		lineArr := strings.Split(scanner.Text(), ":")
 		if len(lineArr) != 2 {
-			log.Errorf("Read passwords error: line %d is not well formatted.\n", index)
+			log.Errorf("Read passwords error: line %d is not well formatted", index)
 			continue
 		}
 		//Create user if it doesn't exist and save password; override password if user existed.
@@ -134,7 +134,7 @@ func (o Files) readPasswords() (int, error) {
 			usersCount++
 			fileUser = &FileUser{
 				Password:   lineArr[1],
-				AclRecords: make([]AclRecord, 0, 0),
+				AclRecords: make([]AclRecord, 0),
 			}
 			o.Users[lineArr[0]] = fileUser
 		}
@@ -152,11 +152,11 @@ func (o *Files) readAcls() (int, error) {
 	//Set currentUser as empty string
 	currentUser := ""
 
-	file, fErr := os.Open(o.AclPath)
-	defer file.Close()
-	if fErr != nil {
-		return linesCount, errors.Errorf("Files backend error: couldn't open acl file: %s\n", fErr)
+	file, err := os.Open(o.AclPath)
+	if err != nil {
+		return linesCount, errors.Errorf("Files backend error: couldn't open acl file: %s", err)
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
 
@@ -182,13 +182,13 @@ func (o *Files) readAcls() (int, error) {
 
 				//Check that user exists
 				if !ok {
-					return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d\n", lineArr[1], index)
+					return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d", lineArr[1], index)
 				}
 
 				currentUser = lineArr[1]
 
 			} else {
-				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
 		} else if strings.Contains(line, "topic") {
 
@@ -217,13 +217,16 @@ func (o *Files) readAcls() (int, error) {
 					} else if lineArr[1] == "subscribe" {
 						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
 					} else {
-						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
+						return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 					}
 				}
 
 				//Append to user or general depending on currentUser.
 				if currentUser != "" {
-					fUser, _ := o.Users[currentUser]
+					fUser, ok := o.Users[currentUser]
+					if !ok {
+						return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d", lineArr[1], index)
+					}
 					fUser.AclRecords = append(fUser.AclRecords, aclRecord)
 				} else {
 					o.AclRecords = append(o.AclRecords, aclRecord)
@@ -232,7 +235,7 @@ func (o *Files) readAcls() (int, error) {
 				linesCount++
 
 			} else {
-				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
 
 		} else if strings.Contains(line, "pattern") {
@@ -262,7 +265,7 @@ func (o *Files) readAcls() (int, error) {
 					} else if lineArr[1] == "subscribe" {
 						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
 					} else {
-						return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
+						return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 					}
 				}
 
@@ -272,7 +275,7 @@ func (o *Files) readAcls() (int, error) {
 				linesCount++
 
 			} else {
-				return 0, errors.Errorf("Files backend error: wrong acl format at line %d\n", index)
+				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
 
 		}
@@ -290,7 +293,7 @@ func checkCommentOrEmpty(line string) bool {
 }
 
 //GetUser checks that user exists and password is correct.
-func (o Files) GetUser(username, password string) bool {
+func (o Files) GetUser(username, password, clientid string) bool {
 
 	fileUser, ok := o.Users[username]
 	if !ok {
@@ -301,7 +304,7 @@ func (o Files) GetUser(username, password string) bool {
 		return true
 	}
 
-	log.Warnf("wrong password for user %s\n", username)
+	log.Warnf("wrong password for user %s", username)
 
 	return false
 

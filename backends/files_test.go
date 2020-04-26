@@ -22,6 +22,7 @@ func TestFiles(t *testing.T) {
 	aclPath, _ := filepath.Abs("../test-files/acls")
 	authOpts["password_path"] = pwPath
 	authOpts["acl_path"] = aclPath
+	clientID := "test_client"
 
 	Convey("Given valid params NewFiles should return a new files backend instance", t, func() {
 		files, err := NewFiles(authOpts, log.DebugLevel)
@@ -52,14 +53,14 @@ func TestFiles(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := files.GetUser(user1, user1)
+			authenticated := files.GetUser(user1, user1, clientID)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := files.GetUser(user1, user2)
+			authenticated := files.GetUser(user1, user2, clientID)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -70,7 +71,6 @@ func TestFiles(t *testing.T) {
 			So(superuser, ShouldBeFalse)
 		})
 
-		clientID := "test_client"
 		testTopic1 := `test/topic/1`
 		testTopic2 := `test/topic/2`
 		testTopic3 := `test/other/1`

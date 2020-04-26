@@ -18,6 +18,10 @@ go-auth.h
 # dependencies
 vendor
 
+# ides and editors
+.idea/
 .vscode/
 
-Gopkg.lock
+
+# todo
+TODO

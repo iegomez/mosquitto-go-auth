@@ -7,12 +7,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"github.com/golang/protobuf/ptypes/empty"
 
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 )
@@ -48,11 +48,12 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
 }
 
 // GetUser checks that the username exists and the given password hashes to the same password.
-func (o GRPC) GetUser(username, password string) bool {
+func (o GRPC) GetUser(username, password, clientid string) bool {
 
 	req := gs.GetUserRequest{
 		Username: username,
 		Password: password,
+		Clientid: clientid,
 	}
 
 	resp, err := o.client.GetUser(context.Background(), &req)
@@ -116,7 +117,10 @@ func (o GRPC) GetName() string {
 
 // Halt signals the gRPC backend that mosquitto is halting.
 func (o GRPC) Halt() {
-	o.client.Halt(context.Background(), &empty.Empty{})
+	_, err := o.client.Halt(context.Background(), &empty.Empty{})
+	if err != nil {
+		log.Errorf("grpc halt: %s", err)
+	}
 }
 
 func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.ClientConn, gs.AuthServiceClient, error) {
