@@ -135,7 +135,7 @@ func HashCompare(password string, passwordHash string, saltEncoding string) bool
 	hashSplit := strings.Split(passwordHash, "$")
 	// Check array is of expected length
 	if len(hashSplit) != 5 {
-		log.Errorf("HashCompare, invalid PBKDF2 hash supplied!")
+		log.Errorf("HashCompare, invalid PBKDF2 hash supplied.")
 		return false
 	}
 	// Define empty error
@@ -143,7 +143,7 @@ func HashCompare(password string, passwordHash string, saltEncoding string) bool
 	// Get the iterations from PBKDF2 string
 	iterations, err := strconv.Atoi(hashSplit[2])
 	if err != nil {
-		log.Errorf("Error getting number of iterations from PBKDF2 hash!")
+		log.Errorf("Error getting number of iterations from PBKDF2 hash.")
 		return false
 	}
 	// Convert salt to bytes, using encoding supplied in saltEncoding param
@@ -153,14 +153,14 @@ func HashCompare(password string, passwordHash string, saltEncoding string) bool
 	} else {
 		salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
 		if err != nil {
-			log.Errorf("Error decoding supplied base64 salt!")
+			log.Errorf("Error decoding supplied base64 salt.")
 			return false
 		}
 	}
 	// Work out key length, assumes base64 encoding
 	hash, err := base64.StdEncoding.DecodeString(hashSplit[4])
 	if err != nil {
-		log.Errorf("Error decoding supplied base64 hash!")
+		log.Errorf("Error decoding supplied base64 hash.")
 		return false
 	}
 	keylen := len(hash)
