@@ -39,7 +39,6 @@ type Files struct {
 	CheckAcls    bool
 	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
 	AclRecords   []AclRecord
-	SaltEncoding string
 }
 
 //NewFiles initializes a files backend.
