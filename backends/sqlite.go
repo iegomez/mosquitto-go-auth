@@ -35,6 +35,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	var sqlite = Sqlite{
 		SuperuserQuery: "",
 		AclQuery:       "",
+		SaltEncoding:	"base64",
 	}
 
 	if source, ok := authOpts["sqlite_source"]; ok {
@@ -60,9 +61,15 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	}
 
 	if saltEncoding, ok := authOpts["sqlite_salt_encoding"]; ok {
-		sqlite.SaltEncoding = saltEncoding
-	} else {
-		sqlite.SaltEncoding = "base64"
+		if saltEncoding == "base64"  {
+			sqlite.SaltEncoding = saltEncoding
+			log.Infof("sqlite backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			sqlite.SaltEncoding = saltEncoding
+			log.Infof("sqlite backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("sqlite backend: invalid salt encoding specified %s", saltEncoding)
+		}
 	}
 
 	//Exit if any mandatory option is missing.

@@ -55,6 +55,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		AuthSource:	     "",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
+		SaltEncoding:	"base64",
 	}
 
 	if mongoHost, ok := authOpts["mongo_host"]; ok {
@@ -74,10 +75,15 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 	}
 
 	if saltEncoding, ok := authOpts["mongo_salt_encoding"]; ok {
-		m.SaltEncoding = saltEncoding
-		log.Infof("Mongo set salt encoding to: %s", saltEncoding)
-	} else {
-		m.SaltEncoding = "base64"
+		if saltEncoding == "base64" {
+			m.SaltEncoding = saltEncoding
+			log.Infof("mongo backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			m.SaltEncoding = saltEncoding
+			log.Infof("mongo backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("mongo backend: invalid salt encoding specified: %s", saltEncoding)
+		}
 	}
 
 	if mongoDBName, ok := authOpts["mongo_dbname"]; ok {
@@ -106,21 +112,16 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 	opts.ApplyURI(addr)
 
 	if m.Username != "" && m.Password != "" {
+		opts.Auth = &options.Credential{
+			AuthSource:  m.DBName,
+			Username:    m.Username,
+			Password:    m.Password,
+			PasswordSet: true,
+		}
+		// Set custom AuthSource DB if supplied in config
 		if m.AuthSource != "" {
-			log.Infof("Mongo set AuthSource to: %s", m.AuthSource)
-			opts.Auth = &options.Credential{
-				AuthSource:  m.AuthSource,
-				Username:    m.Username,
-				Password:    m.Password,
-				PasswordSet: true,
-			}
-		} else {
-			opts.Auth = &options.Credential{
-				AuthSource:  m.DBName,
-				Username:    m.Username,
-				Password:    m.Password,
-				PasswordSet: true,
-			}
+			opts.Auth.AuthSource = m.AuthSource
+			log.Infof("mongo backend: set authentication db to: %s", m.AuthSource)
 		}
 	}
 

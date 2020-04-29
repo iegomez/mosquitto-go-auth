@@ -55,6 +55,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		SuperuserQuery: "",
 		AclQuery:       "",
 		Protocol:       "tcp",
+		SaltEncoding:	"base64",
 	}
 
 	if protocol, ok := authOpts["mysql_protocol"]; ok {
@@ -95,9 +96,15 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	}
 
 	if saltEncoding, ok := authOpts["mysql_salt_encoding"]; ok {
-		mysql.SaltEncoding = saltEncoding
-	} else {
-		mysql.SaltEncoding = "base64"
+		if saltEncoding == "base64"  {
+			mysql.SaltEncoding = saltEncoding
+			log.Infof("mysql backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			mysql.SaltEncoding = saltEncoding
+			log.Infof("mysql backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("mysql backend: invalid salt encoding specified %s", saltEncoding)
+		}
 	}
 
 	if userQuery, ok := authOpts["mysql_userquery"]; ok {

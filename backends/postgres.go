@@ -47,6 +47,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		SSLMode:        "disable",
 		SuperuserQuery: "",
 		AclQuery:       "",
+		SaltEncoding:	"base64",
 	}
 
 	if host, ok := authOpts["pg_host"]; ok {
@@ -79,9 +80,15 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	}
 
 	if saltEncoding, ok := authOpts["pg_salt_encoding"]; ok {
-		postgres.SaltEncoding = saltEncoding
-	} else {
-		postgres.SaltEncoding = "base64"
+		if saltEncoding == "base64"  {
+			postgres.SaltEncoding = saltEncoding
+			log.Infof("postgres backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			postgres.SaltEncoding = saltEncoding
+			log.Infof("postgres backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("postgres backend: invalid salt encoding specified: %s", saltEncoding)
+		}
 	}
 
 	if userQuery, ok := authOpts["pg_userquery"]; ok {

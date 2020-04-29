@@ -30,6 +30,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		Host: "localhost",
 		Port: "6379",
 		DB:   1,
+		SaltEncoding:	"base64",
 	}
 
 	if redisHost, ok := authOpts["redis_host"]; ok {
@@ -45,9 +46,15 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 	}
 
 	if saltEncoding, ok := authOpts["redis_salt_encoding"]; ok {
-		redis.SaltEncoding = saltEncoding
-	} else {
-		redis.SaltEncoding = "base64"
+		if saltEncoding == "base64"  {
+			redis.SaltEncoding = saltEncoding
+			log.Infof("redis backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			redis.SaltEncoding = saltEncoding
+			log.Infof("redis backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("redis backend: invalid salt encoding specified: %s", saltEncoding)
+		}
 	}
 
 	if redisDB, ok := authOpts["redis_db"]; ok {

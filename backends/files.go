@@ -39,6 +39,7 @@ type Files struct {
 	CheckAcls    bool
 	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
 	AclRecords   []AclRecord
+	SaltEncoding string
 }
 
 //NewFiles initializes a files backend.
@@ -52,6 +53,7 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
 		AclRecords:   make([]AclRecord, 0),
+		SaltEncoding: "base64",
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
@@ -61,9 +63,15 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 	}
 
 	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
-		files.SaltEncoding = saltEncoding
-	} else {
-		files.SaltEncoding = "base64"
+		if saltEncoding == "base64"  {
+			files.SaltEncoding = saltEncoding
+			log.Infof("files backend: set salt encoding to: %s", saltEncoding)
+		} else if saltEncoding == "utf-8" {
+			files.SaltEncoding = saltEncoding
+			log.Infof("files backend: set salt encoding to: %s", saltEncoding)
+		} else {
+			log.Errorf("files backend: invalid salt encoding specified: %s", saltEncoding)
+		}
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {

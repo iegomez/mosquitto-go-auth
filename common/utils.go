@@ -19,6 +19,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Declare the valid encodings for validation.
+const (
+    UTF8 = "utf-8"
+    Base64 = "base64"
+)
+
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
@@ -114,12 +120,15 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 	buffer.WriteString(strconv.Itoa(iterations))
 	buffer.WriteString("$")
 	// Re-encode salt, using encoding supplied in saltEncoding param
-	if saltEncoding == "utf-8" {
-		buffer.WriteString(string(salt))
-
-	} else {
-		buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
-	}
+	switch saltEncoding{
+		case UTF8:
+			buffer.WriteString(string(salt))
+		case Base64:
+			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+		default:
+			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
+			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+  	}
 	buffer.WriteString("$")
 	buffer.WriteString(base64.StdEncoding.EncodeToString(hash))
 	//log.Debugf("Generated: ", buffer.String())
@@ -148,15 +157,23 @@ func HashCompare(password string, passwordHash string, saltEncoding string) bool
 	}
 	// Convert salt to bytes, using encoding supplied in saltEncoding param
 	salt := []byte{}
-	if saltEncoding == "utf-8" {
-		salt = []byte(hashSplit[3])
-	} else {
-		salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
-		if err != nil {
-			log.Errorf("Error decoding supplied base64 salt.")
-			return false
-		}
-	}
+	switch saltEncoding {
+		case UTF8:
+			salt = []byte(hashSplit[3])
+		case Base64:
+			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
+			if err != nil {
+				log.Errorf("Error decoding supplied base64 salt.")
+				return false
+			}
+		default:
+			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
+			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
+			if err != nil {
+				log.Errorf("Error decoding supplied base64 salt.")
+				return false
+			}
+  	}
 	// Work out key length, assumes base64 encoding
 	hash, err := base64.StdEncoding.DecodeString(hashSplit[4])
 	if err != nil {
