@@ -147,8 +147,6 @@ func HashCompare(password string, passwordHash string, saltEncoding string) bool
 		log.Errorf("HashCompare, invalid PBKDF2 hash supplied.")
 		return false
 	}
-	// Define empty error
-	var err error
 	// Get the iterations from PBKDF2 string
 	iterations, err := strconv.Atoi(hashSplit[2])
 	if err != nil {
