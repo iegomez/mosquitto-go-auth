@@ -96,14 +96,12 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	}
 
 	if saltEncoding, ok := authOpts["mysql_salt_encoding"]; ok {
-		if saltEncoding == "base64"  {
-			mysql.SaltEncoding = saltEncoding
-			log.Infof("mysql backend: set salt encoding to: %s", saltEncoding)
-		} else if saltEncoding == "utf-8" {
-			mysql.SaltEncoding = saltEncoding
-			log.Infof("mysql backend: set salt encoding to: %s", saltEncoding)
-		} else {
-			log.Errorf("mysql backend: invalid salt encoding specified %s", saltEncoding)
+		switch saltEncoding {
+			case common.Base64, common.UTF8:
+				mysql.SaltEncoding = saltEncoding
+				log.Debugf("mysql backend: set salt encoding to: %s", saltEncoding)
+			default:
+				log.Errorf("mysql backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 

@@ -120,7 +120,7 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 	buffer.WriteString(strconv.Itoa(iterations))
 	buffer.WriteString("$")
 	// Re-encode salt, using encoding supplied in saltEncoding param
-	switch saltEncoding{
+	switch saltEncoding {
 		case UTF8:
 			buffer.WriteString(string(salt))
 		case Base64:

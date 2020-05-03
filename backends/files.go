@@ -62,14 +62,12 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 	}
 
 	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
-		if saltEncoding == "base64"  {
-			files.SaltEncoding = saltEncoding
-			log.Infof("files backend: set salt encoding to: %s", saltEncoding)
-		} else if saltEncoding == "utf-8" {
-			files.SaltEncoding = saltEncoding
-			log.Infof("files backend: set salt encoding to: %s", saltEncoding)
-		} else {
-			log.Errorf("files backend: invalid salt encoding specified: %s", saltEncoding)
+		switch saltEncoding {
+			case common.Base64, common.UTF8:
+				files.SaltEncoding = saltEncoding
+				log.Debugf("files backend: set salt encoding to: %s", saltEncoding)
+			default:
+				log.Errorf("files backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 

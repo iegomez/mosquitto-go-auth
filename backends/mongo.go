@@ -75,14 +75,12 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 	}
 
 	if saltEncoding, ok := authOpts["mongo_salt_encoding"]; ok {
-		if saltEncoding == "base64" {
-			m.SaltEncoding = saltEncoding
-			log.Infof("mongo backend: set salt encoding to: %s", saltEncoding)
-		} else if saltEncoding == "utf-8" {
-			m.SaltEncoding = saltEncoding
-			log.Infof("mongo backend: set salt encoding to: %s", saltEncoding)
-		} else {
-			log.Errorf("mongo backend: invalid salt encoding specified: %s", saltEncoding)
+		switch saltEncoding {
+			case common.Base64, common.UTF8:
+				m.SaltEncoding = saltEncoding
+				log.Debugf("mongo backend: set salt encoding to: %s", saltEncoding)
+			default:
+				log.Errorf("mongo backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
