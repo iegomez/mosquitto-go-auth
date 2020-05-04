@@ -139,7 +139,6 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 // passed passwordHash.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func HashCompare(password string, passwordHash string, saltEncoding string) bool {
-	//log.Debugf("Supplied:  ", passwordHash)
 	// Split the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
 	// Check array is of expected length
