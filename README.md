@@ -621,16 +621,16 @@ URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example,
 
 ##### Response mode
 
-When response mode is set to `json`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+When response mode is set to `json`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a json response, consisting of two fields:
 
 Ok: 		bool
 Error:	string
 
-If either the status is different from 200 or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
+If either the status is different from 2XX or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
-When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
+When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 2XX, unauthorized).
 
-When response mode is set to `text`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+When response mode is set to `text`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
 
 
 ##### Params mode
@@ -800,16 +800,16 @@ The `http` backend is very similar to the JWT one, but instead of a jwt token it
 
 #### Response mode
 
-When response mode is set to `json`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a json response, consisting of two fields:
+When response mode is set to `json`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a json response, consisting of two fields:
 
 Ok: 		bool
 Error:	string
 
-If either the status is different from 200 or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
+If either the status is different from 2XX or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
-When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 200, unauthorized).
+When response mode is set to `status`, the backend expects the URIs to return a simple status code (if not 2XX, unauthorized).
 
-When response mode is set to `text`, the backend expects the URIs to return a status code (if not 200, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
+When response mode is set to `text`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
 
 
 #### Params mode

@@ -385,7 +385,7 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		return false
 	}
 
-	if resp.Status != "200 OK" {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Infof("error code: %d", resp.StatusCode)
 		return false
 	}

@@ -228,8 +228,8 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 		return false
 	}
 
-	if resp.StatusCode != 200 {
-		log.Infof("Wrong http status: %d", resp.StatusCode)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Infof("error code: %d", resp.StatusCode)
 		return false
 	}
 
