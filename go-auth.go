@@ -45,6 +45,7 @@ type CommonData struct {
 	LogLevel         log.Level
 	LogDest          string
 	LogFile          string
+	disableSuperuser bool
 }
 
 //Cache stores necessary values for Redis cache
@@ -123,6 +124,11 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	//Log and end program if backends are wrong
 	if !backendsOk {
 		log.Fatal("backends error")
+	}
+
+	//Disable superusers for all backends if option is set.
+	if authOpts["disable_superuser"] == "true" {
+		commonData.disableSuperuser = true
 	}
 
 	//Check if log level is given. Set level if any valid option is given.
@@ -518,7 +524,7 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		}
 	}
 
-	//If prefixes are enabled, checkt if username has a valid prefix and use the correct backend if so.
+	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
 	//Else, check all backends.
 	if commonData.CheckPrefix {
 		validPrefix, bename := CheckPrefix(username)
@@ -533,7 +539,8 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 				var backend = commonData.Backends[bename]
 
 				log.Debugf("Superuser check with backend %s", backend.GetName())
-				if backend.GetSuperuser(username) {
+				// Short circuit checks when superusers are disabled.
+				if !commonData.disableSuperuser && backend.GetSuperuser(username) {
 					log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
 					aclCheck = true
 				}
@@ -691,7 +698,8 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 		var backend = commonData.Backends[bename]
 
 		log.Debugf("Superuser check with backend %s", backend.GetName())
-		if backend.GetSuperuser(username) {
+		// Short circuit checks when superusers are disabled.
+		if !commonData.disableSuperuser && backend.GetSuperuser(username) {
 			log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
 			aclCheck = true
 			break

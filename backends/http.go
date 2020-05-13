@@ -17,16 +17,17 @@ import (
 )
 
 type HTTP struct {
-	UserUri      string
-	SuperuserUri string
-	AclUri       string
-	Host         string
-	Port         string
-	WithTLS      bool
-	VerifyPeer   bool
-	ParamsMode   string
-	ResponseMode string
-	Client       *h.Client
+	UserUri          string
+	SuperuserUri     string
+	AclUri           string
+	Host             string
+	Port             string
+	WithTLS          bool
+	VerifyPeer       bool
+	ParamsMode       string
+	ResponseMode     string
+	Client           *h.Client
+	disableSuperuser bool
 }
 
 type HTTPResponse struct {
@@ -50,6 +51,10 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 
 	missingOpts := ""
 	httpOk := true
+
+	if authOpts["http_disable_superuser"] == "true" {
+		http.disableSuperuser = true
+	}
 
 	if responseMode, ok := authOpts["http_response_mode"]; ok {
 		if responseMode == "text" || responseMode == "json" {
@@ -144,6 +149,10 @@ func (o HTTP) GetUser(username, password, clientid string) bool {
 
 func (o HTTP) GetSuperuser(username string) bool {
 
+	if o.disableSuperuser {
+		return false
+	}
+
 	var dataMap = map[string]interface{}{
 		"username": username,
 	}
@@ -195,7 +204,8 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	if o.ParamsMode == "form" {
 		resp, err = o.Client.PostForm(fullUri, urlValues)
 	} else {
-		dataJson, err := json.Marshal(dataMap)
+		var dataJson []byte
+		dataJson, err = json.Marshal(dataMap)
 
 		if err != nil {
 			log.Errorf("marshal error: %s", err)
@@ -203,7 +213,8 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 		}
 
 		contentReader := bytes.NewReader(dataJson)
-		req, err := h.NewRequest("POST", fullUri, contentReader)
+		var req *h.Request
+		req, err = h.NewRequest("POST", fullUri, contentReader)
 
 		if err != nil {
 			log.Errorf("req error: %s", err)

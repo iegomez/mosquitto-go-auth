@@ -19,8 +19,9 @@ import (
 
 // GRPC holds a client for the service and implements the Backend interface.
 type GRPC struct {
-	client gs.AuthServiceClient
-	conn   *grpc.ClientConn
+	client           gs.AuthServiceClient
+	conn             *grpc.ClientConn
+	disableSuperuser bool
 }
 
 // NewGRPC tries to connect to the gRPC service at the given host.
@@ -29,6 +30,10 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
 
 	if authOpts["grpc_host"] == "" || authOpts["grpc_port"] == "" {
 		return g, errors.New("grpc must have a host and port")
+	}
+
+	if authOpts["grpc_disable_superuser"] == "true" {
+		g.disableSuperuser = true
 	}
 
 	caCert := []byte(authOpts["grpc_ca_cert"])
@@ -69,6 +74,10 @@ func (o GRPC) GetUser(username, password, clientid string) bool {
 
 // GetSuperuser checks that the user is a superuser.
 func (o GRPC) GetSuperuser(username string) bool {
+
+	if o.disableSuperuser {
+		return false
+	}
 
 	req := gs.GetSuperuserRequest{
 		Username: username,

@@ -14,11 +14,12 @@ import (
 )
 
 type Redis struct {
-	Host     string
-	Port     string
-	Password string
-	DB       int32
-	Conn     *goredis.Client
+	Host             string
+	Port             string
+	Password         string
+	DB               int32
+	Conn             *goredis.Client
+	disableSuperuser bool
 }
 
 func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
@@ -29,6 +30,10 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		Host: "localhost",
 		Port: "6379",
 		DB:   1,
+	}
+
+	if authOpts["redis_disable_superuser"] == "true" {
+		redis.disableSuperuser = true
 	}
 
 	if redisHost, ok := authOpts["redis_host"]; ok {
@@ -94,6 +99,10 @@ func (o Redis) GetUser(username, password, clientid string) bool {
 
 //GetSuperuser checks that the key username:su exists and has value "true".
 func (o Redis) GetSuperuser(username string) bool {
+
+	if o.disableSuperuser {
+		return false
+	}
 
 	isSuper, err := o.Conn.Get(fmt.Sprintf("%s:su", username)).Result()
 

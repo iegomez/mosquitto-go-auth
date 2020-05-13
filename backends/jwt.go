@@ -42,7 +42,8 @@ type JWT struct {
 	ParamsMode   string
 	ResponseMode string
 
-	UserField string
+	UserField        string
+	disableSuperuser bool
 }
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
@@ -70,6 +71,10 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		ParamsMode:   "json",
 		LocalDB:      "postgres",
 		UserField:    "Subject",
+	}
+
+	if authOpts["jwt_disable_superuser"] == "true" {
+		jwt.disableSuperuser = true
 	}
 
 	if userField, ok := authOpts["jwt_userfield"]; ok && userField == "Username" {
@@ -236,7 +241,9 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 
 //GetSuperuser checks if the given user is a superuser.
 func (o JWT) GetSuperuser(token string) bool {
-
+	if o.disableSuperuser {
+		return false
+	}
 	if o.Remote {
 		var dataMap map[string]interface{}
 		var urlValues = url.Values{}

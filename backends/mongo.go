@@ -18,14 +18,15 @@ import (
 )
 
 type Mongo struct {
-	Host            string
-	Port            string
-	Username        string
-	Password        string
-	DBName          string
-	UsersCollection string
-	AclsCollection  string
-	Conn            *mongo.Client
+	Host             string
+	Port             string
+	Username         string
+	Password         string
+	DBName           string
+	UsersCollection  string
+	AclsCollection   string
+	Conn             *mongo.Client
+	disableSuperuser bool
 }
 
 type MongoAcl struct {
@@ -52,6 +53,10 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		DBName:          "mosquitto",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
+	}
+
+	if authOpts["mongo_disable_superuser"] == "true" {
+		m.disableSuperuser = true
 	}
 
 	if mongoHost, ok := authOpts["mongo_host"]; ok {
@@ -134,6 +139,10 @@ func (o Mongo) GetUser(username, password, clientid string) bool {
 
 //GetSuperuser checks that the key username:su exists and has value "true".
 func (o Mongo) GetSuperuser(username string) bool {
+
+	if o.disableSuperuser {
+		return false
+	}
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 

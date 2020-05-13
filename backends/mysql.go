@@ -182,10 +182,13 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		}
 		clientCert = append(clientCert, certs)
 
-		mq.RegisterTLSConfig("custom", &tls.Config{
+		err = mq.RegisterTLSConfig("custom", &tls.Config{
 			RootCAs:      rootCertPool,
 			Certificates: clientCert,
 		})
+		if err != nil {
+			return mysql, errors.Errorf("Mysql register TLS config error: %s", err)
+		}
 	}
 
 	var err error
