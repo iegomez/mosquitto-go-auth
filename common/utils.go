@@ -19,6 +19,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Declare the valid encodings for validation.
+const (
+    UTF8 = "utf-8"
+    Base64 = "base64"
+)
+
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
@@ -80,7 +86,7 @@ func match(route []string, topic []string) bool {
 // making it easy to recreate the hash for password checking, even if we change
 // the default criteria here.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func Hash(password string, saltSize int, iterations int, algorithm string) (string, error) {
+func Hash(password string, saltSize int, iterations int, algorithm string, saltEncoding string, keylen int) (string, error) {
 	// Generate a random salt value, 128 bits.
 	salt := make([]byte, saltSize)
 	_, err := rand.Read(salt)
@@ -88,22 +94,20 @@ func Hash(password string, saltSize int, iterations int, algorithm string) (stri
 		return "", errors.Wrap(err, "read random bytes error")
 	}
 
-	return hashWithSalt(password, salt, iterations, algorithm), nil
+	return hashWithSalt(password, salt, iterations, algorithm, saltEncoding, keylen), nil
 }
 
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func hashWithSalt(password string, salt []byte, iterations int, algorithm string) string {
+func hashWithSalt(password string, salt []byte, iterations int, algorithm string, saltEncoding string, keylen int) string {
 	// Generate the hash.  This should be a little painful, adjust ITERATIONS
 	// if it needs performance tweeking.  Greatly depends on the hardware.
 	// NOTE: We store these details with the returned hash, so changes will not
 	// affect our ability to do password compares.
-	shaSize := sha512.Size
 	shaHash := sha512.New
 	if algorithm == "sha256" {
-		shaSize = sha256.Size
 		shaHash = sha256.New
 	}
-	hash := pbkdf2.Key([]byte(password), salt, iterations, shaSize, shaHash)
+	hash := pbkdf2.Key([]byte(password), salt, iterations, keylen, shaHash)
 
 	// Build up the parameters and hash into a single string so we can compare
 	// other string to the same hash.  Note that the hash algorithm is hard-
@@ -115,29 +119,68 @@ func hashWithSalt(password string, salt []byte, iterations int, algorithm string
 	buffer.WriteString(fmt.Sprintf("%s$", algorithm))
 	buffer.WriteString(strconv.Itoa(iterations))
 	buffer.WriteString("$")
-	buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+	// Re-encode salt, using encoding supplied in saltEncoding param
+	switch saltEncoding {
+		case UTF8:
+			buffer.WriteString(string(salt))
+		case Base64:
+			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+		default:
+			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
+			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
+  	}
 	buffer.WriteString("$")
 	buffer.WriteString(base64.StdEncoding.EncodeToString(hash))
-
+	//log.Debugf("Generated: ", buffer.String())
 	return buffer.String()
 }
 
 // HashCompare verifies that passed password hashes to the same value as the
 // passed passwordHash.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func HashCompare(password string, passwordHash string) bool {
-	// SPlit the hash string into its parts.
+func HashCompare(password string, passwordHash string, saltEncoding string) bool {
+	// Split the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
+	// Check array is of expected length
 	if len(hashSplit) != 5 {
-		log.Error("invalid PBKDF2 hash supplied")
+		log.Errorf("HashCompare, invalid PBKDF2 hash supplied.")
 		return false
 	}
-
-	// Get the iterations and the salt and use them to encode the password
-	// being compared.cre
-	iterations, _ := strconv.Atoi(hashSplit[2])
-	salt, _ := base64.StdEncoding.DecodeString(hashSplit[3])
+	// Get the iterations from PBKDF2 string
+	iterations, err := strconv.Atoi(hashSplit[2])
+	if err != nil {
+		log.Errorf("Error getting number of iterations from PBKDF2 hash.")
+		return false
+	}
+	// Convert salt to bytes, using encoding supplied in saltEncoding param
+	salt := []byte{}
+	switch saltEncoding {
+		case UTF8:
+			salt = []byte(hashSplit[3])
+		case Base64:
+			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
+			if err != nil {
+				log.Errorf("Error decoding supplied base64 salt.")
+				return false
+			}
+		default:
+			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
+			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
+			if err != nil {
+				log.Errorf("Error decoding supplied base64 salt.")
+				return false
+			}
+  	}
+	// Work out key length, assumes base64 encoding
+	hash, err := base64.StdEncoding.DecodeString(hashSplit[4])
+	if err != nil {
+		log.Errorf("Error decoding supplied base64 hash.")
+		return false
+	}
+	keylen := len(hash)
+	// Get the algorithm from PBKDF2 string
 	algorithm := hashSplit[1]
-	newHash := hashWithSalt(password, salt, iterations, algorithm)
+	// Generate new PBKDF2 hash to compare against supplied PBKDF2 string
+	newHash := hashWithSalt(password, salt, iterations, algorithm, saltEncoding, keylen)
 	return newHash == passwordHash
 }

@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y libwebsockets8 libwebsockets-dev libc-a
 RUN mkdir -p mosquitto/auth mosquitto/conf.d
 
 RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
-RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz 
+RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
 #Build mosquitto.
 RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install && cd ..
@@ -24,15 +24,14 @@ RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make instal
 RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 RUN export PATH=$PATH:/usr/local/go/bin && go version && rm go${GO_VERSION}.linux-amd64.tar.gz
 
-#Get the plugin.
-RUN wget https://github.com/iegomez/mosquitto-go-auth/archive/${PLUGIN_VERSION}.tar.gz \
-    && ls -l \
-    && tar xvf *.tar.gz --strip-components=1 \
-    && rm -Rf go*.tar.gz \
-    && ls -l
-
-#Build the plugin.
-RUN export PATH=$PATH:/usr/local/go/bin && export CGO_CFLAGS="-I/usr/local/include -fPIC" && export CGO_LDFLAGS="-shared" &&  make
+#Get / build the plugin.
+RUN mkdir mosquitto-go-auth && \
+    cd mosquitto-go-auth && \
+    git clone https://github.com/iegomez/mosquitto-go-auth.git . && \
+    export PATH=$PATH:/usr/local/go/bin && \
+    export CGO_CFLAGS="-I/usr/local/include -fPIC" && \
+    export CGO_LDFLAGS="-shared" && \
+    make
 
 #Start from a new image.
 FROM debian:stable-slim
@@ -41,7 +40,7 @@ FROM debian:stable-slim
 RUN apt-get update && apt-get install -y libwebsockets8 libc-ares2 openssl uuid
 
 #Setup mosquitto env.
-RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto 
+RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
 RUN groupadd mosquitto \
     && useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto \
     && chown -R mosquitto:mosquitto /var/log/mosquitto/ \
@@ -49,7 +48,8 @@ RUN groupadd mosquitto \
 
 #Copy confs, plugin so and mosquitto binary.
 COPY --from=builder /app/mosquitto/ /mosquitto/
-COPY --from=builder /app/go-auth.so /mosquitto/go-auth.so
+COPY --from=builder /app/mosquitto-go-auth/pw /mosquitto/pw
+COPY --from=builder /app/mosquitto-go-auth/go-auth.so /mosquitto/go-auth.so
 COPY --from=builder /usr/local/sbin/mosquitto /usr/sbin/mosquitto
 
 #Uncomment to copy your custom confs (change accordingly) directly when building the image.
