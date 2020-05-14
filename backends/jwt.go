@@ -43,6 +43,8 @@ type JWT struct {
 	ResponseMode string
 
 	UserField string
+
+	usingPrefixes bool
 }
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.

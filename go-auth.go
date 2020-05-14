@@ -116,9 +116,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				}
 				backendsOk = backendsCheck
 			}
-		} else {
-			authOpts[keys[i]] = values[i]
 		}
+		// Always set backends option so backends may know if they are running solo or not.
+		authOpts[keys[i]] = values[i]
 	}
 
 	//Log and end program if backends are wrong
@@ -460,7 +460,7 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 		}
 	}
 
-	//If prefixes are enabled, checkt if username has a valid prefix and use the correct backend if so.
+	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
 	if commonData.CheckPrefix {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
@@ -469,6 +469,11 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 				authenticated = CheckPluginAuth(username, password, clientid)
 			} else {
 
+				// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then it will be handled in the common case.
+				if bename == "jwt" {
+					prefix := getPrefixForBackend(bename)
+					username = strings.TrimPrefix(username, prefix+"_")
+				}
 				var backend = commonData.Backends[bename]
 
 				if backend.GetUser(username, password, clientid) {
@@ -531,10 +536,14 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		if validPrefix {
 
 			if bename == "plugin" {
-
 				aclCheck = CheckPluginAcl(username, topic, clientid, acc)
-
 			} else {
+
+				// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then it be handled in the common case.
+				if bename == "jwt" {
+					prefix := getPrefixForBackend(bename)
+					username = strings.TrimPrefix(username, prefix+"_")
+				}
 
 				var backend = commonData.Backends[bename]
 
@@ -655,6 +664,16 @@ func CheckPrefix(username string) (bool, string) {
 		}
 	}
 	return false, ""
+}
+
+//getPrefixForBackend retrieves the user provided prefix for a given backend.
+func getPrefixForBackend(backend string) string {
+	for k, v := range commonData.Prefixes {
+		if v == backend {
+			return k
+		}
+	}
+	return ""
 }
 
 //CheckBackendsAuth checks for all backends if a username is authenticated and sets the authenticated param.
