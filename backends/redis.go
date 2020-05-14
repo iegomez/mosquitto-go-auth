@@ -17,6 +17,7 @@ type Redis struct {
 	Host             string
 	Port             string
 	Password         string
+	SaltEncoding     string
 	DB               int32
 	Conn             *goredis.Client
 	disableSuperuser bool
@@ -27,9 +28,10 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 	log.SetLevel(logLevel)
 
 	var redis = Redis{
-		Host: "localhost",
-		Port: "6379",
-		DB:   1,
+		Host:         "localhost",
+		Port:         "6379",
+		DB:           1,
+		SaltEncoding: "base64",
 	}
 
 	if authOpts["redis_disable_superuser"] == "true" {
@@ -46,6 +48,16 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 
 	if redisPassword, ok := authOpts["redis_password"]; ok {
 		redis.Password = redisPassword
+	}
+
+	if saltEncoding, ok := authOpts["redis_salt_encoding"]; ok {
+		switch saltEncoding {
+		case common.Base64, common.UTF8:
+			redis.SaltEncoding = saltEncoding
+			log.Debugf("redis backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("redis backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		}
 	}
 
 	if redisDB, ok := authOpts["redis_db"]; ok {
@@ -89,7 +101,7 @@ func (o Redis) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash) {
+	if common.HashCompare(password, pwHash, o.SaltEncoding) {
 		return true
 	}
 

@@ -230,7 +230,7 @@ and it is loaded into Mosquitto auth with the ```auth_plugin``` option.
 Set path to plugin and include conf.d dir for further configuration:
 
 ```
-auth_plugin /path/to/auth-plug.so
+auth_plugin /path/to/go-auth.so
 include_dir /etc/mosquitto/conf.d
 ```
 

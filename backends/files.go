@@ -35,6 +35,7 @@ type AclRecord struct {
 type Files struct {
 	PasswordPath string
 	AclPath      string
+	SaltEncoding string
 	CheckAcls    bool
 	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
 	AclRecords   []AclRecord
@@ -51,12 +52,23 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
 		AclRecords:   make([]AclRecord, 0),
+		SaltEncoding: "base64",
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
 		files.PasswordPath = passwordPath
 	} else {
 		return files, errors.New("Files backend error: no password path given")
+	}
+
+	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
+		switch saltEncoding {
+			case common.Base64, common.UTF8:
+				files.SaltEncoding = saltEncoding
+				log.Debugf("files backend: set salt encoding to: %s", saltEncoding)
+			default:
+				log.Errorf("files backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		}
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {
@@ -293,7 +305,7 @@ func (o Files) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, fileUser.Password) {
+	if common.HashCompare(password, fileUser.Password, o.SaltEncoding) {
 		return true
 	}
 

@@ -26,6 +26,7 @@ type Mysql struct {
 	DBName               string
 	User                 string
 	Password             string
+	SaltEncoding         string
 	UserQuery            string
 	SuperuserQuery       string
 	AclQuery             string
@@ -54,6 +55,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		SuperuserQuery: "",
 		AclQuery:       "",
 		Protocol:       "tcp",
+		SaltEncoding:	"base64",
 	}
 
 	if protocol, ok := authOpts["mysql_protocol"]; ok {
@@ -91,6 +93,16 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 	} else {
 		mysqlOk = false
 		missingOptions += " mysql_password"
+	}
+
+	if saltEncoding, ok := authOpts["mysql_salt_encoding"]; ok {
+		switch saltEncoding {
+			case common.Base64, common.UTF8:
+				mysql.SaltEncoding = saltEncoding
+				log.Debugf("mysql backend: set salt encoding to: %s", saltEncoding)
+			default:
+				log.Errorf("mysql backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		}
 	}
 
 	if userQuery, ok := authOpts["mysql_userquery"]; ok {
@@ -218,7 +230,7 @@ func (o Mysql) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String) {
+	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
 		return true
 	}
 
