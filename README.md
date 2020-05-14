@@ -293,6 +293,16 @@ Prefixes must meet the declared backends order and number. If amounts don't matc
 Underscores (\_) are not allowed in the prefixes, as a username's prefix will be checked against the first underscore's index. Of course, if a username has no underscore or valid prefix, it'll be checked against all backends.
 
 
+#### Superuser checks
+
+By default `superuser` checks are supported and enabled in all backends but `Files` (see details below). They may be turned off per backend by either setting individual disable options or not providing necessary options such as queries for DB backends, or for all of them by setting this global option to `true`:
+
+```
+auth_opt_disable_superuser true
+```
+
+Any other value or missing option will have `superuser` enabled.
+
 #### Backend options
 
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
@@ -355,6 +365,7 @@ pattern read test/%c
 
 The acl file follows mosquitto's regular syntax: [mosquitto(5)](https://mosquitto.org/man/mosquitto-conf-5.html).
 
+There's no special `superuser` check for this backend since granting a user all permissions on `#` works in the same way.
 
 #### Testing Files
 
@@ -557,6 +568,7 @@ ON UPDATE CASCADE
 ### SQLite3
 
 The `sqlite` backend works in the same way as `postgres` and `mysql` do, except that being a light weight db, it has fewer configuration options.
+The following `auth_opt_` options are supported:
 
 | Option                | default           |  Mandatory  | Meaning                  |
 | --------------------- | ----------------- | :---------: | ------------------------ |
@@ -608,16 +620,19 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 | jwt_host          |                   |      Y      | API server host name or ip      |
 | jwt_port          |                   |      Y      | TCP port number                 |
 | jwt_getuser_uri   |                   |      Y      | URI for check username/password |
-| jwt_superuser_uri |                   |      Y      | URI for check superuser         |
+| jwt_superuser_uri |                   |      N      | URI for check superuser         |
 | jwt_aclcheck_uri  |                   |      Y      | URI for check acl               |
 | jwt_with_tls      | false             |      N      | Use TLS on connect              |
-| jwt_verify_peer   | false             |      N      | Wether to verify peer for tls   |
+| jwt_verify_peer   | false             |      N      | Whether to verify peer for tls   |
 | jwt_response_mode | status            |      N      | Response type (status, json, text)|
 | jwt_params_mode   | json              |      N      | Data type (json, form)            |
 
 
-URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
+URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.  
 
+If the option `jwt_superuser_uri` is not set then `superuser` checks are disabled for this mode.
+
+For all URIs, the backend will send a request with the `Authorization` header set to `Bearer token`, where token should be a correct JWT token and corresponds to the `username` received from Mosquitto.
 
 ##### Response mode
 
@@ -705,13 +720,16 @@ initMqttClient(applicationID, mode, devEUI) {
 
 #### Local mode
 
-*Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with loraserver) is to set it to Username.*
+*Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with `loraserver/chirpstack`) is to set it to Username.*
 
 ```
 auth_opt_jwt_userfield Username
 ```
 
 When set as remote false, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the jwt_db option. Options for the DB connection are the same as the ones given in the Postgres and Mysql backends, but include one new option and 3 options that will override Postgres' or Mysql's ones only for JWT cases (in case both backends are needed). Note that these options will be mandatory (except for jwt_db) only if remote is false.
+
+The following `auth_opt_` options are supported:
+
 
 | Option           | default           |  Mandatory  | Meaning     |
 | -----------------| ----------------- | :---------: | ----------  |
@@ -785,15 +803,18 @@ This backend expects the same test DBs from the Postgres and Mysql test suites.
 
 The `http` backend is very similar to the JWT one, but instead of a jwt token it uses simple username/password to check for user auth, and username for superuser and acls.
 
+The following `auth_opt_` options are supported:
+
+
 | Option             | default           |  Mandatory  | Meaning     |
 | ------------------ | ----------------- | :---------: | ----------  |
 | http_host          |                   |      Y      | IP address,will skip dns lookup   |
 | http_port          |                   |      Y      | TCP port number                   |
 | http_getuser_uri   |                   |      Y      | URI for check username/password   |
-| http_superuser_uri |                   |      Y      | URI for check superuser           |
+| http_superuser_uri |                   |      N      | URI for check superuser           |
 | http_aclcheck_uri  |                   |      Y      | URI for check acl                 |
 | http_with_tls      | false             |      N      | Use TLS on connect                |
-| http_verify_peer   | false             |      N      | Wether to verify peer for tls     |
+| http_verify_peer   | false             |      N      | Whether to verify peer for tls    |
 | http_response_mode | status            |      N      | Response type (status, json, text)|
 | http_params_mode   | json              |      N      | Data type (json, form)            |
 
@@ -852,6 +873,7 @@ auth_opt_redis_host localhost
 auth_opt_redis_port 6379
 auth_opt_redis_db dbname
 auth_opt_redis_password pwd
+auth_opt_redis_disable_superuser true
 ```
 
 When not present, host defaults to "localhost", port to 6379, db to 2 and no password is set.
@@ -914,6 +936,7 @@ auth_opt_mongo_username user
 auth_opt_mongo_password pwd
 auth_opt_mongo_users users_collection_name
 auth_opt_mongo_acls acls_collection_name
+auth_opt_mongo_disable_superuser true
 ```
 
 The last two set names for the collections to be used for the given database.
@@ -1008,13 +1031,17 @@ As this option is custom written by yourself, there are no tests included in the
 
 The `grpc` allows to check for user auth, superuser and acls against a gRPC service.
 
-| Option             | default           |  Mandatory  | Meaning     					|
-| ------------------ | ----------------- | :---------: | ------------------------------ |
-| grpc_host          |                   |      Y      | gRPC server hostname   		|
-| grpc_port          |                   |      Y      | gRPC server port number        |
-| grpc_ca_cert   	 |                   |      N      | gRPC server CA cert path	  	|
-| grpc_tls_cert 	 |                   |      N      | gRPC server TLS cert path      |
-| grpc_tls_key  	 |                   |      N      | gRPC server TLS key path       |
+The following `auth_opt_` options are supported:
+
+
+| Option                    | default           |  Mandatory  | Meaning     				   |
+| ------------------------- | ----------------- | :---------: | ------------------------------ |
+| grpc_host                 |                   |      Y      | gRPC server hostname   		   |
+| grpc_port                 |                   |      Y      | gRPC server port number        |
+| grpc_ca_cert   	        |                   |      N      | gRPC server CA cert path	   |
+| grpc_tls_cert 	        |                   |      N      | gRPC server TLS cert path      |
+| grpc_tls_key  	        |                   |      N      | gRPC server TLS key path       |
+| grpc_disable_superuser    |       false       |      N      | disable superuser checks       |
 
 #### Service
 

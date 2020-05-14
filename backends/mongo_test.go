@@ -79,6 +79,11 @@ func TestMongo(t *testing.T) {
 		Convey("Given a username that is superuser, super user check should pass", func() {
 			superuser := mongo.GetSuperuser(username)
 			So(superuser, ShouldBeTrue)
+			Convey("But disabling superusers should now return false", func() {
+				mongo.disableSuperuser = true
+				superuser := mongo.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 		})
 
 		clientID := "test_client"

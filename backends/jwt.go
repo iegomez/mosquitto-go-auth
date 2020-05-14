@@ -42,8 +42,7 @@ type JWT struct {
 	ParamsMode   string
 	ResponseMode string
 
-	UserField        string
-	disableSuperuser bool
+	UserField string
 }
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
@@ -71,10 +70,6 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		ParamsMode:   "json",
 		LocalDB:      "postgres",
 		UserField:    "Subject",
-	}
-
-	if authOpts["jwt_disable_superuser"] == "true" {
-		jwt.disableSuperuser = true
 	}
 
 	if userField, ok := authOpts["jwt_userfield"]; ok && userField == "Username" {
@@ -114,9 +109,6 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 
 		if superuserUri, ok := authOpts["jwt_superuser_uri"]; ok {
 			jwt.SuperuserUri = superuserUri
-		} else {
-			remoteOk = false
-			missingOpts += " jwt_superuser_uri"
 		}
 
 		if aclUri, ok := authOpts["jwt_aclcheck_uri"]; ok {
@@ -241,10 +233,10 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 
 //GetSuperuser checks if the given user is a superuser.
 func (o JWT) GetSuperuser(token string) bool {
-	if o.disableSuperuser {
-		return false
-	}
 	if o.Remote {
+		if o.SuperuserUri == "" {
+			return false
+		}
 		var dataMap map[string]interface{}
 		var urlValues = url.Values{}
 		return jwtRequest(o.Host, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
@@ -375,7 +367,7 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		}
 	}
 
-	req.Header.Set("authorization", token)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	resp, err = client.Do(req)
 
@@ -448,12 +440,12 @@ func (o JWT) getLocalUser(username string) bool {
 	}
 
 	if err != nil {
-		log.Debugf("Local JWT get user error: %s", err)
+		log.Debugf("local JWT get user error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("Local JWT get user error: user %s not found", username)
+		log.Debugf("local JWT get user error: user %s not found", username)
 		return false
 	}
 

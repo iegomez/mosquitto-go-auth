@@ -17,17 +17,16 @@ import (
 )
 
 type HTTP struct {
-	UserUri          string
-	SuperuserUri     string
-	AclUri           string
-	Host             string
-	Port             string
-	WithTLS          bool
-	VerifyPeer       bool
-	ParamsMode       string
-	ResponseMode     string
-	Client           *h.Client
-	disableSuperuser bool
+	UserUri      string
+	SuperuserUri string
+	AclUri       string
+	Host         string
+	Port         string
+	WithTLS      bool
+	VerifyPeer   bool
+	ParamsMode   string
+	ResponseMode string
+	Client       *h.Client
 }
 
 type HTTPResponse struct {
@@ -51,10 +50,6 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 
 	missingOpts := ""
 	httpOk := true
-
-	if authOpts["http_disable_superuser"] == "true" {
-		http.disableSuperuser = true
-	}
 
 	if responseMode, ok := authOpts["http_response_mode"]; ok {
 		if responseMode == "text" || responseMode == "json" {
@@ -149,7 +144,7 @@ func (o HTTP) GetUser(username, password, clientid string) bool {
 
 func (o HTTP) GetSuperuser(username string) bool {
 
-	if o.disableSuperuser {
+	if o.SuperuserUri == "" {
 		return false
 	}
 

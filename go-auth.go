@@ -741,8 +741,8 @@ func CheckPluginAcl(username, topic, clientid string, acc int) bool {
 	if commonData.Plugin == nil {
 		return false
 	}
-	//If superuser, authorize it.
-	if commonData.PGetSuperuser(username) {
+	//If superuser, authorize it unless superusers are disabled.
+	if !commonData.disableSuperuser && commonData.PGetSuperuser(username) {
 		return true
 	}
 	//Check against the plugin's check acl function.

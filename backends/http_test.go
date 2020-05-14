@@ -119,6 +119,12 @@ func TestHTTPAllJsonServer(t *testing.T) {
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
 
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
+
 		})
 
 		Convey("Given incorrect username, get superuser should return false", func() {
@@ -246,6 +252,12 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -378,6 +390,12 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -520,6 +538,12 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
 
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
+
 		})
 
 		Convey("Given incorrect username, get superuser should return false", func() {
@@ -638,6 +662,12 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -762,6 +792,12 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(username)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 

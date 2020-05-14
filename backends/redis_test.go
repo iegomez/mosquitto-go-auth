@@ -49,6 +49,11 @@ func TestRedis(t *testing.T) {
 		Convey("Given a username that is superuser, super user check should pass", func() {
 			superuser := redis.GetSuperuser(username)
 			So(superuser, ShouldBeTrue)
+			Convey("But disabling superusers should now return false", func() {
+				redis.disableSuperuser = true
+				superuser := redis.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 		})
 
 		//Now create some acls and test topics
@@ -185,5 +190,4 @@ func TestRedis(t *testing.T) {
 		redis.Halt()
 
 	})
-
 }

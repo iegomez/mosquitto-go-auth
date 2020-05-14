@@ -109,6 +109,15 @@ func TestGRPC(t *testing.T) {
 							auth = g.GetSuperuser(grpcSuperuser)
 							So(auth, ShouldBeTrue)
 
+							Convey("but if we disable superuser checks it should return false", func(c C) {
+								authOpts["grpc_disable_superuser"] = "true"
+								g, err = NewGRPC(authOpts, log.DebugLevel)
+								c.So(err, ShouldBeNil)
+
+								auth = g.GetSuperuser(grpcSuperuser)
+								So(auth, ShouldBeFalse)
+							})
+
 							Convey("authorizing a wrong topic should fail", func(c C) {
 								auth = g.CheckAcl(grpcUsername, "wrong/topic", grpcClientId, grpcAcc)
 								So(auth, ShouldBeFalse)
