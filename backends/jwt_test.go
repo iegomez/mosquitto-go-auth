@@ -440,8 +440,6 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("trying host: %s", mockServer.URL)
-
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
 	authOpts["jwt_params_mode"] = "json"
@@ -570,8 +568,6 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -704,8 +700,6 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("trying host: %s", mockServer.URL)
-
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
 	authOpts["jwt_params_mode"] = "json"
@@ -810,8 +804,6 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 		}
 
 		var params = r.Form
-		log.Debugf("got params: %s", params)
-
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
@@ -848,8 +840,6 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -974,8 +964,6 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	defer mockServer.Close()
 
-	log.Debugf("trying host: %s", mockServer.URL)
-
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
 	authOpts["jwt_params_mode"] = "form"
@@ -1081,8 +1069,6 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 		gToken := r.Header.Get("Authorization")
 		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		log.Debugf("token: %s\ngToken: %s\n", token, gToken)
-
 		if token != gToken {
 			w.Write([]byte("Wrong credentials."))
 			return
@@ -1103,8 +1089,6 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
