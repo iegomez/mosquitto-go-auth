@@ -689,20 +689,21 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 	aclCheck := false
 
-	for _, bename := range backends {
+	if !commonData.disableSuperuser {
+		for _, bename := range backends {
 
-		if bename == "plugin" {
-			continue
-		}
+			if bename == "plugin" {
+				continue
+			}
 
-		var backend = commonData.Backends[bename]
+			var backend = commonData.Backends[bename]
 
-		log.Debugf("Superuser check with backend %s", backend.GetName())
-		// Short circuit checks when superusers are disabled.
-		if !commonData.disableSuperuser && backend.GetSuperuser(username) {
-			log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
-			aclCheck = true
-			break
+			log.Debugf("Superuser check with backend %s", backend.GetName())
+			if backend.GetSuperuser(username) {
+				log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
+				aclCheck = true
+				break
+			}
 		}
 	}
 
