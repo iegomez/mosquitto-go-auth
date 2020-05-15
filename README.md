@@ -363,9 +363,9 @@ pattern read test/%c
 
 ```
 
-The acl file follows mosquitto's regular syntax: [mosquitto(5)](https://mosquitto.org/man/mosquitto-conf-5.html).
+The `ACLs` file follows mosquitto's regular syntax: [mosquitto(5)](https://mosquitto.org/man/mosquitto-conf-5.html).
 
-There's no special `superuser` check for this backend since granting a user all permissions on `#` works in the same way.
+There's no special `superuser` check for this backend since granting a user all permissions on `#` works in the same way. Furthermore, if this is **the only backend registered**, then providing no `ACLs` file path will default to grant all permissions for authenticated users when doing `ACL` checks (but then, why use a plugin if you can just use Mosquitto's static file checks, right?): if, instead, no `ACLs` file path is provided but **there are more backends registered**, this backend will default to deny any permissions for any user (again, back to basics).
 
 #### Testing Files
 
@@ -792,6 +792,10 @@ When option jwt_superquery is not present, Superuser check will always return fa
 
 When option jwt_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
 
+
+#### Prefixes
+
+If `prefixes` are enabled the client should prefix their JWT tokens with the `prefix` defined in the `auth options`: the plugin will strip the prefix from the value forwarded by `Mosquitto` so that the token is a valid JWT one. If the client fails to do so, this backend will still work, but since no prefix is recognized, this might incur in the overhead of potentially checking against some or all of the other backends before checking against the expected JWT one.
 
 #### Testing JWT
 
