@@ -43,8 +43,6 @@ type JWT struct {
 	ResponseMode string
 
 	UserField string
-
-	usingPrefixes bool
 }
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
@@ -225,7 +223,7 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 		log.Printf("jwt get user error: %s", err)
 		return false
 	}
-	//Now check against the DB.
+	//Now check against the db.
 	if o.UserField == "Username" {
 		return o.getLocalUser(claims.Username)
 	}
@@ -255,7 +253,7 @@ func (o JWT) GetSuperuser(token string) bool {
 		log.Debugf("jwt get superuser error: %s", err)
 		return false
 	}
-	//Now check against DB
+	//Now check against db
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.GetSuperuser(claims.Username)
@@ -300,7 +298,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		log.Debugf("jwt check acl error: %s", err)
 		return false
 	}
-	//Now check against the DB.
+	//Now check against the db.
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
@@ -483,7 +481,7 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 	return claims, nil
 }
 
-//Halt closes any DB connection.
+//Halt closes any db connection.
 func (o JWT) Halt() {
 	if o.Postgres != (Postgres{}) && o.Postgres.DB != nil {
 		err := o.Postgres.DB.Close()

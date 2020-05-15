@@ -123,7 +123,7 @@ func TestFileSqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(aclID, ShouldBeGreaterThan, 0)
 
-		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+		Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
@@ -198,7 +198,7 @@ func TestFileSqlite(t *testing.T) {
 
 		sqlite.DB.Close()
 
-		//Delete the DB
+		//Delete the db
 		os.Remove("../test-files/sqlite_test.db")
 
 		sqlite.Halt()
@@ -292,7 +292,7 @@ func TestMemorySqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(aclID, ShouldBeGreaterThan, 0)
 
-		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+		Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`

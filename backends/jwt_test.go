@@ -76,7 +76,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
-			//Empty DB
+			//Empty db
 			jwt.Postgres.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
 
@@ -131,7 +131,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
-			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+			Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`
@@ -225,7 +225,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
-			//Empty DB
+			//Empty db
 			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
 
@@ -286,7 +286,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(aclID, ShouldBeGreaterThan, 0)
 
-			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+			Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`

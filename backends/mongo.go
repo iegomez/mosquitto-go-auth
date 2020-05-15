@@ -121,7 +121,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 			Password:    m.Password,
 			PasswordSet: true,
 		}
-		// Set custom AuthSource DB if supplied in config
+		// Set custom AuthSource db if supplied in config
 		if m.AuthSource != "" {
 			opts.Auth.AuthSource = m.AuthSource
 			log.Infof("mongo backend: set authentication db to: %s", m.AuthSource)

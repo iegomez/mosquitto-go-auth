@@ -13,11 +13,8 @@ import (
 	"github.com/iegomez/mosquitto-go-auth/common"
 )
 
-// saltSize defines the salt size
-const saltSize = 16
-
-// HashIterations defines the number of hash iterations.
-var HashIterations = 100000
+// hashIterations defines the number of hash iterations.
+var hashIterations = 100000
 
 //FileUer keeps a user password and acl records.
 type FileUser struct {
@@ -331,10 +328,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If there are no acls and Files is the only backend, all access is allowed.
 	//If there are other backends, then we can't blindly grant access.
 	if !o.CheckAcls {
-		if o.filesOnly {
-			return true
-		}
-		return false
+		return o.filesOnly
 	}
 
 	fileUser, ok := o.Users[username]

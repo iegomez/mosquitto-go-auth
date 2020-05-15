@@ -104,7 +104,7 @@ func TestMongoRaw(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 		})
 		clientID := "test_client"
-		Convey("Given acls in DB, an exact match should work and and inexact one not matching wildcards not", func() {
+		Convey("Given acls in db, an exact match should work and and inexact one not matching wildcards not", func() {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `not/matching/topic`
 			tt1 := mongo.CheckAcl(username1, testTopic1, clientID, MOSQ_ACL_READ)

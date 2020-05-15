@@ -94,7 +94,7 @@ func TestMysql(t *testing.T) {
 		So(err, ShouldBeNil)
 		So(aclID, ShouldBeGreaterThan, 0)
 
-		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+		Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`

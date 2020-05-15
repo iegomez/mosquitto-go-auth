@@ -85,7 +85,7 @@ func TestPostgres(t *testing.T) {
 		err = postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 		So(err, ShouldBeNil)
 
-		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+		Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
