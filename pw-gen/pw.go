@@ -9,7 +9,7 @@ import (
 
 func main() {
 
-	const(
+	const (
 		sha256Size = 32
 		sha512Size = 64
 	)
@@ -27,11 +27,13 @@ func main() {
 	shaSize := *keylen
 	if shaSize == 0 {
 		switch *algorithm {
-			case "sha265": shaSize = sha256Size
-			case "sha512": shaSize = sha512Size
-			default:
-				fmt.Printf("Invalid password hash algorithm", *algorithm)
-				return
+		case "sha265":
+			shaSize = sha256Size
+		case "sha512":
+			shaSize = sha512Size
+		default:
+			fmt.Println("Invalid password hash algorithm:", *algorithm)
+			return
 		}
 	}
 
