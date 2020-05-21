@@ -76,7 +76,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
-			//Empty DB
+			//Empty db
 			jwt.Postgres.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
 
@@ -111,6 +111,11 @@ func TestLocalPostgresJWT(t *testing.T) {
 			Convey("Given a token that is admin, super user should pass", func() {
 				superuser := jwt.GetSuperuser(token)
 				So(superuser, ShouldBeTrue)
+				Convey("But disabling superusers by removing superuri should now return false", func() {
+					jwt.SuperuserUri = ""
+					superuser := jwt.GetSuperuser(username)
+					So(superuser, ShouldBeFalse)
+				})
 			})
 
 			//Now create some acls and test topics
@@ -126,7 +131,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
-			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+			Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`
@@ -220,7 +225,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 			jwt, err := NewJWT(authOpts, log.DebugLevel)
 			So(err, ShouldBeNil)
 
-			//Empty DB
+			//Empty db
 			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
 			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
 
@@ -258,6 +263,11 @@ func TestLocalMysqlJWT(t *testing.T) {
 			Convey("Given a token that is admin, super user should pass", func() {
 				superuser := jwt.GetSuperuser(token)
 				So(superuser, ShouldBeTrue)
+				Convey("But disabling superusers by removing superuri should now return false", func() {
+					jwt.SuperuserUri = ""
+					superuser := jwt.GetSuperuser(username)
+					So(superuser, ShouldBeFalse)
+				})
 			})
 
 			//Now create some acls and test topics
@@ -276,7 +286,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(aclID, ShouldBeGreaterThan, 0)
 
-			Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+			Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 				testTopic1 := `test/topic/1`
 				testTopic2 := `test/topic/2`
@@ -380,43 +390,42 @@ func TestJWTAllJsonServer(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
+		if token != gToken {
+			httpResponse.Ok = false
+			httpResponse.Error = "Wrong token."
+		} else {
+			switch r.URL.Path {
+			case "/user", "/superuser":
 				httpResponse.Ok = true
 				httpResponse.Error = ""
-			} else {
-				httpResponse.Ok = false
-				httpResponse.Error = "Wrong token."
-			}
-		} else if r.URL.Path == "/acl" {
+			case "/acl":
+				var data interface{}
+				var params map[string]interface{}
 
-			var data interface{}
-			var params map[string]interface{}
+				body, _ := ioutil.ReadAll(r.Body)
+				defer r.Body.Close()
 
-			body, _ := ioutil.ReadAll(r.Body)
-			defer r.Body.Close()
+				err := json.Unmarshal(body, &data)
 
-			err := json.Unmarshal(body, &data)
-
-			if err != nil {
-				httpResponse.Ok = false
-				httpResponse.Error = "Json unmarshal error"
-
-			} else {
+				if err != nil {
+					httpResponse.Ok = false
+					httpResponse.Error = "Json unmarshal error"
+					break
+				}
 
 				params = data.(map[string]interface{})
 				paramsAcc := int64(params["acc"].(float64))
 
-				if token == gToken && params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+				if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
 					httpResponse.Ok = true
 					httpResponse.Error = ""
-				} else {
-					httpResponse.Ok = false
-					httpResponse.Error = "Acl check failed."
+					break
 				}
-
+				httpResponse.Ok = false
+				httpResponse.Error = "Acl check failed."
 			}
 		}
 
@@ -430,8 +439,6 @@ func TestJWTAllJsonServer(t *testing.T) {
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -465,6 +472,12 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -531,29 +544,30 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 		}
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
-			}
-		} else if r.URL.Path == "/acl" {
+		if token != gToken {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.WriteHeader(http.StatusOK)
+		case "/acl":
 			params = data.(map[string]interface{})
 			paramsAcc := int64(params["acc"].(float64))
-			if token == gToken && params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+			if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
 				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
+				break
 			}
+			w.WriteHeader(http.StatusNotFound)
 		}
 
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -587,6 +601,12 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -655,31 +675,30 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 			w.Write([]byte(err.Error()))
 		}
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
-				w.Write([]byte("ok"))
-			} else {
-				w.Write([]byte("Wrong credentials."))
-			}
-		} else if r.URL.Path == "/acl" {
+		if token != gToken {
+			w.Write([]byte("Wrong credentials."))
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.Write([]byte("ok"))
+		case "/acl":
 			params = data.(map[string]interface{})
 			paramsAcc := int64(params["acc"].(float64))
-			if token == gToken && params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+			if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
 				w.Write([]byte("ok"))
-			} else {
-				w.Write([]byte("Acl check failed."))
+				break
 			}
-		} else {
-			w.Write([]byte("Path not found."))
+			w.Write([]byte("Acl check failed."))
 		}
 
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -713,6 +732,12 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -779,27 +804,27 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 		}
 
 		var params = r.Form
-		log.Debugf("got params: %s", params)
-
 		w.WriteHeader(http.StatusOK)
 		w.Header().Set("Content-Type", "application/json")
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
+		if token != gToken {
+			httpResponse.Ok = false
+			httpResponse.Error = "Wrong credentials."
+		} else {
+			switch r.URL.Path {
+			case "/user", "/superuser":
 				httpResponse.Ok = true
 				httpResponse.Error = ""
-			} else {
-				httpResponse.Ok = false
-				httpResponse.Error = "Wrong credentials."
-			}
-		} else if r.URL.Path == "/acl" {
-			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-			if token == gToken && params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
-				httpResponse.Ok = true
-				httpResponse.Error = ""
-			} else {
+			case "/acl":
+				paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
+				if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+					httpResponse.Ok = true
+					httpResponse.Error = ""
+					break
+				}
 				httpResponse.Ok = false
 				httpResponse.Error = "Acl check failed."
 			}
@@ -815,8 +840,6 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -850,6 +873,12 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -911,28 +940,29 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 		}
 		var params = r.Form
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
-				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
-			}
-		} else if r.URL.Path == "/acl" {
+		if token != gToken {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.WriteHeader(http.StatusOK)
+		case "/acl":
 			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-			if token == gToken && params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+			if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
 				w.WriteHeader(http.StatusOK)
-			} else {
-				w.WriteHeader(http.StatusNotFound)
+				break
 			}
+			w.WriteHeader(http.StatusNotFound)
 		}
 
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -966,6 +996,12 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 
@@ -1030,30 +1066,29 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 		var params = r.Form
 
-		gToken := r.Header.Get("authorization")
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if r.URL.Path == "/user" || r.URL.Path == "/superuser" {
-			if token == gToken {
-				w.Write([]byte("ok"))
-			} else {
-				w.Write([]byte("Wrong credentials."))
-			}
-		} else if r.URL.Path == "/acl" {
+		if token != gToken {
+			w.Write([]byte("Wrong credentials."))
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.Write([]byte("ok"))
+		case "/acl":
 			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-			if token == gToken && params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+			if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
 				w.Write([]byte("ok"))
-			} else {
-				w.Write([]byte("Acl check failed."))
+				break
 			}
-		} else {
-			w.Write([]byte("Path not found."))
+			w.Write([]byte("Acl check failed."))
 		}
 
 	}))
 
 	defer mockServer.Close()
-
-	log.Debugf("trying host: %s", mockServer.URL)
 
 	authOpts := make(map[string]string)
 	authOpts["jwt_remote"] = "true"
@@ -1087,6 +1122,12 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 			authenticated := hb.GetSuperuser(token)
 			So(authenticated, ShouldBeTrue)
+
+			Convey("But disabling superusers by removing superuri should now return false", func() {
+				hb.SuperuserUri = ""
+				superuser := hb.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 
 		})
 

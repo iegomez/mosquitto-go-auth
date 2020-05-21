@@ -35,7 +35,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	var sqlite = Sqlite{
 		SuperuserQuery: "",
 		AclQuery:       "",
-		SaltEncoding:	"base64",
+		SaltEncoding:   "base64",
 	}
 
 	if source, ok := authOpts["sqlite_source"]; ok {
@@ -62,11 +62,11 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 
 	if saltEncoding, ok := authOpts["sqlite_salt_encoding"]; ok {
 		switch saltEncoding {
-			case common.Base64, common.UTF8:
-				sqlite.SaltEncoding = saltEncoding
-				log.Debugf("sqlite backend: set salt encoding to: %s", saltEncoding)
-			default:
-				log.Errorf("sqlite backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		case common.Base64, common.UTF8:
+			sqlite.SaltEncoding = saltEncoding
+			log.Debugf("sqlite backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("sqlite backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
@@ -75,7 +75,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 		return sqlite, errors.Errorf("sqlite backend error: missing options: %s", missingOptions)
 	}
 
-	//Build the dsn string and try to connect to the DB.
+	//Build the dsn string and try to connect to the db.
 	connStr := ":memory:"
 	if sqlite.Source != "memory" {
 		connStr = sqlite.Source
@@ -85,7 +85,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	sqlite.DB, err = common.OpenDatabase(connStr, "sqlite3")
 
 	if err != nil {
-		return sqlite, errors.Errorf("sqlite backend error: couldn't open DB %s: %s", connStr, err)
+		return sqlite, errors.Errorf("sqlite backend error: couldn't open db %s: %s", connStr, err)
 	}
 
 	return sqlite, nil

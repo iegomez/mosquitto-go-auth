@@ -13,11 +13,8 @@ import (
 	"github.com/iegomez/mosquitto-go-auth/common"
 )
 
-// saltSize defines the salt size
-const saltSize = 16
-
-// HashIterations defines the number of hash iterations.
-var HashIterations = 100000
+// hashIterations defines the number of hash iterations.
+var hashIterations = 100000
 
 //FileUer keeps a user password and acl records.
 type FileUser struct {
@@ -39,6 +36,7 @@ type Files struct {
 	CheckAcls    bool
 	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
 	AclRecords   []AclRecord
+	filesOnly    bool
 }
 
 //NewFiles initializes a files backend.
@@ -53,6 +51,11 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		Users:        make(map[string]*FileUser),
 		AclRecords:   make([]AclRecord, 0),
 		SaltEncoding: "base64",
+		filesOnly:    true,
+	}
+
+	if len(strings.Split(strings.Replace(authOpts["backends"], " ", "", -1), ",")) > 1 {
+		files.filesOnly = false
 	}
 
 	if passwordPath, ok := authOpts["password_path"]; ok {
@@ -63,11 +66,11 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 
 	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
 		switch saltEncoding {
-			case common.Base64, common.UTF8:
-				files.SaltEncoding = saltEncoding
-				log.Debugf("files backend: set salt encoding to: %s", saltEncoding)
-			default:
-				log.Errorf("files backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		case common.Base64, common.UTF8:
+			files.SaltEncoding = saltEncoding
+			log.Debugf("files backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("files backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
@@ -322,9 +325,10 @@ func (o Files) GetSuperuser(username string) bool {
 
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
 func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
-	//If there are no acls, all access is allowed.
+	//If there are no acls and Files is the only backend, all access is allowed.
+	//If there are other backends, then we can't blindly grant access.
 	if !o.CheckAcls {
-		return true
+		return o.filesOnly
 	}
 
 	fileUser, ok := o.Users[username]

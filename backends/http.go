@@ -144,6 +144,10 @@ func (o HTTP) GetUser(username, password, clientid string) bool {
 
 func (o HTTP) GetSuperuser(username string) bool {
 
+	if o.SuperuserUri == "" {
+		return false
+	}
+
 	var dataMap = map[string]interface{}{
 		"username": username,
 	}
@@ -195,7 +199,8 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	if o.ParamsMode == "form" {
 		resp, err = o.Client.PostForm(fullUri, urlValues)
 	} else {
-		dataJson, err := json.Marshal(dataMap)
+		var dataJson []byte
+		dataJson, err = json.Marshal(dataMap)
 
 		if err != nil {
 			log.Errorf("marshal error: %s", err)
@@ -203,7 +208,8 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 		}
 
 		contentReader := bytes.NewReader(dataJson)
-		req, err := h.NewRequest("POST", fullUri, contentReader)
+		var req *h.Request
+		req, err = h.NewRequest("POST", fullUri, contentReader)
 
 		if err != nil {
 			log.Errorf("req error: %s", err)

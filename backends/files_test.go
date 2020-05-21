@@ -46,7 +46,7 @@ func TestFiles(t *testing.T) {
 			pattern read test/%c
 		*/
 
-		//Password are the same as users
+		//password are the same as users
 		user1 := "test1"
 		user2 := "test2"
 		user3 := "test3"

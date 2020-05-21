@@ -109,9 +109,6 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 
 		if superuserUri, ok := authOpts["jwt_superuser_uri"]; ok {
 			jwt.SuperuserUri = superuserUri
-		} else {
-			remoteOk = false
-			missingOpts += " jwt_superuser_uri"
 		}
 
 		if aclUri, ok := authOpts["jwt_aclcheck_uri"]; ok {
@@ -226,7 +223,7 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 		log.Printf("jwt get user error: %s", err)
 		return false
 	}
-	//Now check against the DB.
+	//Now check against the db.
 	if o.UserField == "Username" {
 		return o.getLocalUser(claims.Username)
 	}
@@ -236,8 +233,10 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 
 //GetSuperuser checks if the given user is a superuser.
 func (o JWT) GetSuperuser(token string) bool {
-
 	if o.Remote {
+		if o.SuperuserUri == "" {
+			return false
+		}
 		var dataMap map[string]interface{}
 		var urlValues = url.Values{}
 		return jwtRequest(o.Host, o.SuperuserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
@@ -254,7 +253,7 @@ func (o JWT) GetSuperuser(token string) bool {
 		log.Debugf("jwt get superuser error: %s", err)
 		return false
 	}
-	//Now check against DB
+	//Now check against db
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.GetSuperuser(claims.Username)
@@ -299,7 +298,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		log.Debugf("jwt check acl error: %s", err)
 		return false
 	}
-	//Now check against the DB.
+	//Now check against the db.
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
@@ -368,7 +367,7 @@ func jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[s
 		}
 	}
 
-	req.Header.Set("authorization", token)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 
 	resp, err = client.Do(req)
 
@@ -441,12 +440,12 @@ func (o JWT) getLocalUser(username string) bool {
 	}
 
 	if err != nil {
-		log.Debugf("Local JWT get user error: %s", err)
+		log.Debugf("local JWT get user error: %s", err)
 		return false
 	}
 
 	if !count.Valid {
-		log.Debugf("Local JWT get user error: user %s not found", username)
+		log.Debugf("local JWT get user error: user %s not found", username)
 		return false
 	}
 
@@ -482,7 +481,7 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 	return claims, nil
 }
 
-//Halt closes any DB connection.
+//Halt closes any db connection.
 func (o JWT) Halt() {
 	if o.Postgres != (Postgres{}) && o.Postgres.DB != nil {
 		err := o.Postgres.DB.Close()

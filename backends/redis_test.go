@@ -49,6 +49,11 @@ func TestRedis(t *testing.T) {
 		Convey("Given a username that is superuser, super user check should pass", func() {
 			superuser := redis.GetSuperuser(username)
 			So(superuser, ShouldBeTrue)
+			Convey("But disabling superusers should now return false", func() {
+				redis.disableSuperuser = true
+				superuser := redis.GetSuperuser(username)
+				So(superuser, ShouldBeFalse)
+			})
 		})
 
 		//Now create some acls and test topics
@@ -70,7 +75,7 @@ func TestRedis(t *testing.T) {
 
 		redis.Conn.SAdd(username+":racls", strictAcl)
 
-		Convey("Given only strict acl in DB, an exact match should work and and inexact one not", func() {
+		Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
 
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
@@ -185,5 +190,4 @@ func TestRedis(t *testing.T) {
 		redis.Halt()
 
 	})
-
 }

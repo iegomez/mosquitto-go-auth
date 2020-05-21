@@ -47,7 +47,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		SSLMode:        "disable",
 		SuperuserQuery: "",
 		AclQuery:       "",
-		SaltEncoding:	"base64",
+		SaltEncoding:   "base64",
 	}
 
 	if host, ok := authOpts["pg_host"]; ok {
@@ -81,11 +81,11 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 
 	if saltEncoding, ok := authOpts["pg_salt_encoding"]; ok {
 		switch saltEncoding {
-			case common.Base64, common.UTF8:
-				postgres.SaltEncoding = saltEncoding
-				log.Debugf("postgres backend: set salt encoding to: %s", saltEncoding)
-			default:
-				log.Errorf("postgres backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		case common.Base64, common.UTF8:
+			postgres.SaltEncoding = saltEncoding
+			log.Debugf("postgres backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("postgres backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
@@ -135,7 +135,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		return postgres, errors.Errorf("PG backend error: missing options: %s", missingOptions)
 	}
 
-	//Build the dsn string and try to connect to the DB.
+	//Build the dsn string and try to connect to the db.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
 	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
@@ -150,7 +150,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	postgres.DB, err = common.OpenDatabase(connStr, "postgres")
 
 	if err != nil {
-		return postgres, errors.Errorf("PG backend error: couldn't open DB: %s", err)
+		return postgres, errors.Errorf("PG backend error: couldn't open db: %s", err)
 	}
 
 	return postgres, nil

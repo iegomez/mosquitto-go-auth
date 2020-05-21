@@ -18,16 +18,17 @@ import (
 )
 
 type Mongo struct {
-	Host            string
-	Port            string
-	Username        string
-	Password        string
-	SaltEncoding    string
-	DBName          string
-	AuthSource      string
-	UsersCollection string
-	AclsCollection  string
-	Conn            *mongo.Client
+	Host             string
+	Port             string
+	Username         string
+	Password         string
+	SaltEncoding     string
+	DBName           string
+	AuthSource       string
+	UsersCollection  string
+	AclsCollection   string
+	Conn             *mongo.Client
+	disableSuperuser bool
 }
 
 type MongoAcl struct {
@@ -52,10 +53,14 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		Username:        "",
 		Password:        "",
 		DBName:          "mosquitto",
-		AuthSource:	     "",
+		AuthSource:      "",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
-		SaltEncoding:	"base64",
+		SaltEncoding:    "base64",
+	}
+
+	if authOpts["mongo_disable_superuser"] == "true" {
+		m.disableSuperuser = true
 	}
 
 	if mongoHost, ok := authOpts["mongo_host"]; ok {
@@ -76,11 +81,11 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	if saltEncoding, ok := authOpts["mongo_salt_encoding"]; ok {
 		switch saltEncoding {
-			case common.Base64, common.UTF8:
-				m.SaltEncoding = saltEncoding
-				log.Debugf("mongo backend: set salt encoding to: %s", saltEncoding)
-			default:
-				log.Errorf("mongo backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		case common.Base64, common.UTF8:
+			m.SaltEncoding = saltEncoding
+			log.Debugf("mongo backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("mongo backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
@@ -116,7 +121,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 			Password:    m.Password,
 			PasswordSet: true,
 		}
-		// Set custom AuthSource DB if supplied in config
+		// Set custom AuthSource db if supplied in config
 		if m.AuthSource != "" {
 			opts.Auth.AuthSource = m.AuthSource
 			log.Infof("mongo backend: set authentication db to: %s", m.AuthSource)
@@ -157,6 +162,10 @@ func (o Mongo) GetUser(username, password, clientid string) bool {
 
 //GetSuperuser checks that the key username:su exists and has value "true".
 func (o Mongo) GetSuperuser(username string) bool {
+
+	if o.disableSuperuser {
+		return false
+	}
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 

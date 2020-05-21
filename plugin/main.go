@@ -6,23 +6,23 @@ import (
 
 func Init(authOpts map[string]string, logLevel log.Level) error {
 	//Initialize your plugin with the necessary options
-	log.Infof("Plugin initialized!")
-	log.Infof("Received %d options.", len(authOpts))
+	log.Infof("customPlugin initialized!")
+	log.Debugf("Received %d options.", len(authOpts))
 	return nil
 }
 
 func GetUser(username, password, clientid string) bool {
-	log.Infof("Checking get user with custom plugin.")
+	log.Debugf("Checking get user with custom plugin.")
 	return false
 }
 
 func GetSuperuser(username string) bool {
-	log.Infof("Checking get superuser with custom plugin.")
+	log.Debugf("Checking get superuser with custom plugin.")
 	return false
 }
 
 func CheckAcl(username, topic, clientid string, acc int) bool {
-	log.Infof("Checking acl with custom plugin.")
+	log.Debugf("Checking acl with custom plugin.")
 	return false
 }
 

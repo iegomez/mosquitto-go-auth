@@ -55,7 +55,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		SuperuserQuery: "",
 		AclQuery:       "",
 		Protocol:       "tcp",
-		SaltEncoding:	"base64",
+		SaltEncoding:   "base64",
 	}
 
 	if protocol, ok := authOpts["mysql_protocol"]; ok {
@@ -97,11 +97,11 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 
 	if saltEncoding, ok := authOpts["mysql_salt_encoding"]; ok {
 		switch saltEncoding {
-			case common.Base64, common.UTF8:
-				mysql.SaltEncoding = saltEncoding
-				log.Debugf("mysql backend: set salt encoding to: %s", saltEncoding)
-			default:
-				log.Errorf("mysql backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
+		case common.Base64, common.UTF8:
+			mysql.SaltEncoding = saltEncoding
+			log.Debugf("mysql backend: set salt encoding to: %s", saltEncoding)
+		default:
+			log.Errorf("mysql backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
 		}
 	}
 
@@ -194,17 +194,20 @@ func NewMysql(authOpts map[string]string, logLevel log.Level) (Mysql, error) {
 		}
 		clientCert = append(clientCert, certs)
 
-		mq.RegisterTLSConfig("custom", &tls.Config{
+		err = mq.RegisterTLSConfig("custom", &tls.Config{
 			RootCAs:      rootCertPool,
 			Certificates: clientCert,
 		})
+		if err != nil {
+			return mysql, errors.Errorf("Mysql register TLS config error: %s", err)
+		}
 	}
 
 	var err error
 	mysql.DB, err = common.OpenDatabase(msConfig.FormatDSN(), "mysql")
 
 	if err != nil {
-		return mysql, errors.Errorf("MySql backend error: couldn't open DB: %s", err)
+		return mysql, errors.Errorf("MySql backend error: couldn't open db: %s", err)
 	}
 
 	return mysql, nil
