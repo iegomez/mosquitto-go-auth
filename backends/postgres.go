@@ -5,13 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
+	"github.com/iegomez/mosquitto-go-auth/common"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
-
-	"github.com/iegomez/mosquitto-go-auth/common"
+	log "github.com/sirupsen/logrus"
 )
 
 //Postgres holds all fields of the postgres db connection.

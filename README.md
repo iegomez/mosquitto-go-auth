@@ -242,7 +242,7 @@ auth_opt_backends files, postgres, jwt
 
 #### Cache
 
-Set cache option to true to use redis cache (defaults to false when missing). Also, set cache_reset to flush the redis DB on mosquitto startup:
+Set cache option to true to use redis cache (defaults to false when missing). Also, set `cache_reset` to flush the redis DB on mosquitto startup:
 
 ```
 auth_opt_cache true
@@ -261,6 +261,15 @@ auth_opt_cache_db 3
 auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
+
+If you want to use a Redis cluster as your cache, you need to set `auth_opt_cache_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_cache_addresses` options:
+
+```
+auth_opt_cache_mode cluster
+auth_opt_cache_addresses host1:port1,host2:port2,host3:port3
+```
+
+Notice that if `cache_mode` is not provided or isn't equal to `cluster`, cache will default to use a single instance with the common options. If instead the mode is correctly set to `cluster` but no addresses are given, the plugin will default to not use a cache.
 
 #### Logging
 
@@ -308,6 +317,11 @@ Any other value or missing option will have `superuser` enabled.
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
 
+
+#### Testing
+
+As of now every backend has proper but really ugly tests in place: they expect services running for each backend, and are also pretty outdated and cumbersome to work with in general.
+This issue captures these concerns and a basic plan to refactor tests: https://github.com/iegomez/mosquitto-go-auth/issues/67.
 
 
 ### Files
@@ -866,7 +880,7 @@ For superuser check, a user will be a superuser if there exists a KEY `username:
 
 Acls may be defined as user specific or for any user, and as subscribe only (MOSQ_ACL_SUBSCRIBE), read only (MOSQ_ACL_READ), write only (MOSQ_ACL_WRITE) or readwrite (MOSQ_ACL_READ | MOSQ_ACL_WRITE, **not** MOSQ_ACL_SUBSCRIBE) rules.
 
-For user specific rules, SETS with KEYS "username:sacls", "username:racls", "username:wacls" and "username:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for subscribe, read, write and readwrite topics. "username" must be replaced with the specific username for each user containing acls.
+For user specific rules, SETS with KEYS "username:sacls", "username:racls", "username:wacls" and "username:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for subscribe, read, write and readwrite topics. `username` must be replaced with the specific username for each user containing acls.
 
 For common rules, SETS with KEYS "common:sacls", "common:racls", "common:wacls" and "common:rwacls", and topics (supports single level or whole hierarchy wildcards, + and #) as MEMBERS of the SETS are expected for read, write and readwrite topics.
 
@@ -878,16 +892,22 @@ auth_opt_redis_port 6379
 auth_opt_redis_db dbname
 auth_opt_redis_password pwd
 auth_opt_redis_disable_superuser true
+auth_opt_redis_mode cluster
+auth_opt_redis_addresses host1:port1,host2:port2,host3:port3
 ```
 
 When not present, host defaults to "localhost", port to 6379, db to 2 and no password is set.
 
+#### Cluster
+
+If you want to use a Redis Cluster as your backend, you need to set `auth_opt_redis_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_redis_addresses` options.
+If `auth_opt_redis_mode` is set to another value or not set, Redis defaults to single instance behaviour. If it is correctly set but no addresses are given, the backend will fail to initialize.
 
 #### Testing Redis
 
 In order to test the Redis backend, the plugin needs to be able to connect to a redis server located at localhost, on port 6379, without using password and that a database named 2  exists (to avoid messing with the commonly used 0 and 1). 
 
-All this requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
+All these requirements are met with a fresh installation of Redis without any custom configurations (at least when building or installing from the distro's repos in Debian based systems, and probably in other distros too).
 
 After testing, db 2 will be flushed.
 
@@ -896,6 +916,11 @@ If you wish to test Redis auth, you may set the `requirepass` option at your `re
 ```
 requirepass go_auth_test
 ```
+
+#### Testing Redis Cluster
+
+To test a Redis Cluster the plugin expects that there's a cluster with 3 masters at `localhost:7000`, `localhost:7001` and `localhost:7002`. The easiest way to achieve this is just running some dockerized cluster such as https://github.com/Grokzen/docker-redis-cluster, which I used to test that the cluster mode is working, but building a local cluster should work just fine. I know that this test is pretty bad, and so are the general testing expectations. I'm looking to replace the whole suite with a proper dockerized environment that can also run automatic tests on pushes to ensure any changes are safe, but that will take some time.
+
 
 ### MongoDB
 

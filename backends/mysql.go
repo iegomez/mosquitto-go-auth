@@ -8,14 +8,11 @@ import (
 	"io/ioutil"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
+	mq "github.com/go-sql-driver/mysql"
+	"github.com/iegomez/mosquitto-go-auth/common"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-
-	mq "github.com/go-sql-driver/mysql"
-
-	"github.com/iegomez/mosquitto-go-auth/common"
+	log "github.com/sirupsen/logrus"
 )
 
 //Mysql holds all fields of the Mysql db connection.
