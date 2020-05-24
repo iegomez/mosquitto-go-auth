@@ -6,12 +6,9 @@ import (
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/pkg/errors"
-
 	"github.com/iegomez/mosquitto-go-auth/common"
-
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"

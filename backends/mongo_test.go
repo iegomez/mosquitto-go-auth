@@ -37,9 +37,6 @@ func TestMongoRaw(t *testing.T) {
 	authOpts["mongo_host"] = mongoHost
 	authOpts["mongo_port"] = mongoPort
 	authOpts["mongo_dbname"] = mongoDbName
-	//authOpts["mongo_username"] = "go_auth_test"
-	//authOpts["mongo_password"] = "go_auth_test"
-	//authOpts["mongo_authsource"] = "admin"
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {
 
@@ -182,8 +179,6 @@ func TestMongoUtf8(t *testing.T) {
 	const strictAcl = "test/topic/1"
 	const singleLevelAcl = "single/topic/+"
 	const hierarchyAcl = "hierarchy/#"
-	const userPattern = "pattern/%u"
-	const clientPattern = "pattern/%c"
 	const writeAcl = "write/test"
 	const readWriteAcl = "test/readwrite/1"
 
@@ -200,9 +195,6 @@ func TestMongoUtf8(t *testing.T) {
 	authOpts["mongo_host"] = mongoHost
 	authOpts["mongo_port"] = mongoPort
 	authOpts["mongo_dbname"] = mongoDbName
-	//authOpts["mongo_username"] = "go_auth_test"
-	//authOpts["mongo_password"] = "go_auth_test"
-	//authOpts["mongo_authsource"] = "admin"
 	authOpts["mongo_salt_encoding"] = "utf-8"
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {

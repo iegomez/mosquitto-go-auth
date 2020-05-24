@@ -262,6 +262,15 @@ auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
 ```
 
+There are 2 more options to use a Redis Cluster instead of a single instance for the cache:
+
+```
+auth_opt_cache_mode cluster
+auth_opt_cache_addresses host1:port1,host2:port2,host3:port3
+```
+
+Notice that if `cache_mode` is not given or isn't equal to `cluster`, single instance will be the default. If instead the mode is correctly set to `cluster` but no addresses are given, no cache will be used.
+
 #### Logging
 
 You can set the log level with the `log_level` option. Valid values are: debug, info, warn, error, fatal and panic. If not set, default value is `info`.
@@ -878,10 +887,15 @@ auth_opt_redis_port 6379
 auth_opt_redis_db dbname
 auth_opt_redis_password pwd
 auth_opt_redis_disable_superuser true
+auth_opt_redis_mode cluster
+auth_opt_redis_addresses host1:port1,host2:port2,host3:port3
 ```
 
 When not present, host defaults to "localhost", port to 6379, db to 2 and no password is set.
 
+#### Cluster
+
+If you want to use a Redis Cluster as your backend, you need to set `auth_opt_redis_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_redis_addresses` options.
 
 #### Testing Redis
 

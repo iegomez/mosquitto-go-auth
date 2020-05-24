@@ -6,11 +6,9 @@ import (
 	"os"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
-	"github.com/pkg/errors"
-
 	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // hashIterations defines the number of hash iterations.

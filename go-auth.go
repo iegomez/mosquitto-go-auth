@@ -3,20 +3,18 @@ package main
 import "C"
 
 import (
+	"context"
+	b64 "encoding/base64"
 	"fmt"
 	"os"
+	"plugin"
 	"strconv"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
-	b64 "encoding/base64"
-
-	"plugin"
-
-	goredis "github.com/go-redis/redis"
+	goredis "github.com/go-redis/redis/v8"
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
+	log "github.com/sirupsen/logrus"
 )
 
 type Backend interface {
@@ -39,13 +37,14 @@ type AuthPlugin struct {
 	aclCacheSeconds          int64
 	authCacheSeconds         int64
 	useCache                 bool
-	redisCache               *goredis.Client
+	redisCache               bes.RedisClient
 	checkPrefix              bool
 	prefixes                 map[string]string
 	logLevel                 log.Level
 	logDest                  string
 	logFile                  string
 	disableSuperuser         bool
+	ctx                      context.Context
 }
 
 //Cache stores necessary values for Redis cache
@@ -54,6 +53,7 @@ type Cache struct {
 	port     string
 	password string
 	db       int32
+	cluster  bool
 }
 
 const (
@@ -94,10 +94,9 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	//Initialize Cache with default values
 	cache = Cache{
-		host:     "localhost",
-		port:     "6379",
-		password: "",
-		db:       3,
+		host: "localhost",
+		port: "6379",
+		db:   3,
 	}
 
 	log.SetFormatter(&log.TextFormatter{
@@ -113,6 +112,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		checkPrefix:      false,
 		prefixes:         make(map[string]string),
 		logLevel:         log.InfoLevel,
+		ctx:              context.Background(),
 	}
 
 	//First, get backends
@@ -361,67 +361,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	}
 
 	if commonData.useCache {
-		if cacheHost, ok := authOpts["cache_host"]; ok {
-			cache.host = cacheHost
-		}
-
-		if cachePort, ok := authOpts["cache_port"]; ok {
-			cache.port = cachePort
-		}
-
-		if cachePassword, ok := authOpts["cache_password"]; ok {
-			cache.password = cachePassword
-		}
-
-		if cacheDB, ok := authOpts["cache_db"]; ok {
-			db, err := strconv.ParseInt(cacheDB, 10, 32)
-			if err == nil {
-				cache.db = int32(db)
-			} else {
-				log.Warningf("couldn't parse cache db (err: %s), defaulting to %d", err, cache.db)
-			}
-		}
-
-		if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
-			authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
-			if err == nil {
-				commonData.authCacheSeconds = authSec
-			} else {
-				log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, commonData.authCacheSeconds)
-			}
-		}
-
-		if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
-			aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
-			if err == nil {
-				commonData.aclCacheSeconds = aclSec
-			} else {
-				log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, commonData.aclCacheSeconds)
-			}
-		}
-
-		addr := fmt.Sprintf("%s:%s", cache.host, cache.port)
-		//If cache is on, try to start redis.
-		goredisClient := goredis.NewClient(&goredis.Options{
-			Addr:     addr,
-			Password: cache.password, // no password set
-			DB:       int(cache.db),  // use default db
-		})
-
-		_, err := goredisClient.Ping().Result()
-		if err != nil {
-			log.Errorf("couldn't start Redis, defaulting to no cache. error: %s", err)
-			commonData.useCache = false
-		} else {
-			commonData.redisCache = goredisClient
-			log.Infof("started cache redis client on db %d", cache.db)
-			//Check if cache must be reset
-			if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
-				commonData.redisCache.FlushDB()
-				log.Infof("flushed cache")
-			}
-		}
-
+		setCache(authOpts)
 	}
 
 	if checkPrefix, ok := authOpts["check_prefix"]; ok && strings.Replace(checkPrefix, " ", "", -1) == "true" {
@@ -448,6 +388,97 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		commonData.checkPrefix = false
 	}
 	commonData.backends = cmBackends
+}
+
+func setCache(authOpts map[string]string) {
+	if cacheHost, ok := authOpts["cache_host"]; ok {
+		cache.host = cacheHost
+	}
+
+	if cachePort, ok := authOpts["cache_port"]; ok {
+		cache.port = cachePort
+	}
+
+	if cachePassword, ok := authOpts["cache_password"]; ok {
+		cache.password = cachePassword
+	}
+
+	if authOpts["cache_mode"] == "true" {
+		cache.cluster = true
+	}
+
+	if cacheDB, ok := authOpts["cache_db"]; ok {
+		db, err := strconv.ParseInt(cacheDB, 10, 32)
+		if err == nil {
+			cache.db = int32(db)
+		} else {
+			log.Warningf("couldn't parse cache db (err: %s), defaulting to %d", err, cache.db)
+		}
+	}
+
+	if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
+		authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
+		if err == nil {
+			commonData.authCacheSeconds = authSec
+		} else {
+			log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, commonData.authCacheSeconds)
+		}
+	}
+
+	if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
+		aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
+		if err == nil {
+			commonData.aclCacheSeconds = aclSec
+		} else {
+			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, commonData.aclCacheSeconds)
+		}
+	}
+
+	if cache.cluster {
+		addressesOpt := authOpts["redis_cluster_addresses"]
+		if addressesOpt == "" {
+			log.Errorln("cache Redis cluster addresses missing, defaulting to no cache.")
+			commonData.useCache = false
+			return
+		}
+
+		// Take the given addresses and trim spaces from them.
+		addresses := strings.Split(addressesOpt, ",")
+		for i := 0; i < len(addresses); i++ {
+			addresses[i] = strings.TrimSpace(addresses[i])
+		}
+
+		clusterClient := goredis.NewClusterClient(
+			&goredis.ClusterOptions{
+				Addrs:    addresses,
+				Password: cache.password,
+			})
+
+		commonData.redisCache = clusterClient
+	} else {
+		addr := fmt.Sprintf("%s:%s", cache.host, cache.port)
+		//If cache is on, try to start redis.
+		redisClient := goredis.NewClient(&goredis.Options{
+			Addr:     addr,
+			Password: cache.password, // no password set
+			DB:       int(cache.db),  // use default db
+		})
+
+		commonData.redisCache = redisClient
+	}
+
+	_, err := commonData.redisCache.Ping(commonData.ctx).Result()
+	if err != nil {
+		log.Errorf("couldn't start Redis, defaulting to no cache. error: %s", err)
+		commonData.useCache = false
+	} else {
+		log.Infoln("started cache redis client")
+		//Check if cache must be reset
+		if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
+			commonData.redisCache.FlushDB(commonData.ctx)
+			log.Infoln("flushed cache")
+		}
+	}
 }
 
 //export AuthUnpwdCheck
@@ -595,12 +626,12 @@ func AuthPskKeyGet() bool {
 //CheckAuthCache checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func CheckAuthCache(username, password string) (bool, bool) {
 	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-	val, err := commonData.redisCache.Get(pair).Result()
+	val, err := commonData.redisCache.Get(commonData.ctx, pair).Result()
 	if err != nil {
 		return false, false
 	}
 	//refresh expiration
-	commonData.redisCache.Expire(pair, time.Duration(commonData.authCacheSeconds)*time.Second)
+	commonData.redisCache.Expire(commonData.ctx, pair, time.Duration(commonData.authCacheSeconds)*time.Second)
 	if val == "true" {
 		return true, true
 	}
@@ -610,7 +641,7 @@ func CheckAuthCache(username, password string) (bool, bool) {
 //SetAuthCache sets a pair, granted option and expiration time.
 func SetAuthCache(username, password string, granted string) error {
 	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-	err := commonData.redisCache.Set(pair, granted, time.Duration(commonData.authCacheSeconds)*time.Second).Err()
+	err := commonData.redisCache.Set(commonData.ctx, pair, granted, time.Duration(commonData.authCacheSeconds)*time.Second).Err()
 	if err != nil {
 		return err
 	}
@@ -621,12 +652,12 @@ func SetAuthCache(username, password string, granted string) error {
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func CheckAclCache(username, topic, clientid string, acc int) (bool, bool) {
 	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-	val, err := commonData.redisCache.Get(pair).Result()
+	val, err := commonData.redisCache.Get(commonData.ctx, pair).Result()
 	if err != nil {
 		return false, false
 	}
 	//refresh expiration
-	commonData.redisCache.Expire(pair, time.Duration(commonData.aclCacheSeconds)*time.Second)
+	commonData.redisCache.Expire(commonData.ctx, pair, time.Duration(commonData.aclCacheSeconds)*time.Second)
 	if val == "true" {
 		return true, true
 	}
@@ -636,7 +667,7 @@ func CheckAclCache(username, topic, clientid string, acc int) (bool, bool) {
 //SetAclCache sets a mix, granted option and expiration time.
 func SetAclCache(username, topic, clientid string, acc int, granted string) error {
 	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-	err := commonData.redisCache.Set(pair, granted, time.Duration(commonData.aclCacheSeconds)*time.Second).Err()
+	err := commonData.redisCache.Set(commonData.ctx, pair, granted, time.Duration(commonData.aclCacheSeconds)*time.Second).Err()
 	if err != nil {
 		return err
 	}

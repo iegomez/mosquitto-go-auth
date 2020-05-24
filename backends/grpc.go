@@ -9,12 +9,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
+	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
-	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 )
 
 // GRPC holds a client for the service and implements the Backend interface.

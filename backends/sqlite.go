@@ -4,13 +4,11 @@ import (
 	"database/sql"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
-
+	"github.com/iegomez/mosquitto-go-auth/common"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
-
-	"github.com/iegomez/mosquitto-go-auth/common"
+	log "github.com/sirupsen/logrus"
 )
 
 //Sqlite holds all fields of the sqlite db connection.

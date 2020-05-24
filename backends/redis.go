@@ -1,17 +1,27 @@
 package backends
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
-	log "github.com/sirupsen/logrus"
-
+	goredis "github.com/go-redis/redis/v8"
 	"github.com/iegomez/mosquitto-go-auth/common"
-
-	goredis "github.com/go-redis/redis"
+	log "github.com/sirupsen/logrus"
 )
+
+type RedisClient interface {
+	Get(ctx context.Context, key string) *goredis.StringCmd
+	SMembers(ctx context.Context, key string) *goredis.StringSliceCmd
+	Ping(ctx context.Context) *goredis.StatusCmd
+	Close() error
+	FlushDB(ctx context.Context) *goredis.StatusCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
+	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
+	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
+}
 
 type Redis struct {
 	Host             string
@@ -19,8 +29,9 @@ type Redis struct {
 	Password         string
 	SaltEncoding     string
 	DB               int32
-	Conn             *goredis.Client
+	conn             RedisClient
 	disableSuperuser bool
+	ctx              context.Context
 }
 
 func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
@@ -32,6 +43,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		Port:         "6379",
 		DB:           1,
 		SaltEncoding: "base64",
+		ctx:          context.Background(),
 	}
 
 	if authOpts["redis_disable_superuser"] == "true" {
@@ -67,25 +79,44 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		}
 	}
 
-	addr := fmt.Sprintf("%s:%s", redis.Host, redis.Port)
+	if authOpts["redis_mode"] == "cluster" {
 
-	//Try to start redis.
-	goredisClient := goredis.NewClient(&goredis.Options{
-		Addr:     addr,
-		Password: redis.Password,
-		DB:       int(redis.DB),
-	})
+		addressesOpt := authOpts["redis_cluster_addresses"]
+		if addressesOpt == "" {
+			return redis, fmt.Errorf("redis backend: missing Redis Cluster addresses")
+		}
+
+		// Take the given addresses and trim spaces from them.
+		addresses := strings.Split(addressesOpt, ",")
+		for i := 0; i < len(addresses); i++ {
+			addresses[i] = strings.TrimSpace(addresses[i])
+		}
+
+		clusterClient := goredis.NewClusterClient(
+			&goredis.ClusterOptions{
+				Addrs:    addresses,
+				Password: redis.Password,
+			})
+		redis.conn = clusterClient
+	} else {
+		addr := fmt.Sprintf("%s:%s", redis.Host, redis.Port)
+
+		redisClient := goredis.NewClient(&goredis.Options{
+			Addr:     addr,
+			Password: redis.Password,
+			DB:       int(redis.DB),
+		})
+		redis.conn = redisClient
+	}
 
 	for {
-		if _, err := goredisClient.Ping().Result(); err != nil {
+		if _, err := redis.conn.Ping(redis.ctx).Result(); err != nil {
 			log.Errorf("ping redis error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)
 		} else {
 			break
 		}
 	}
-
-	redis.Conn = goredisClient
 
 	return redis, nil
 
@@ -94,7 +125,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 //GetUser checks that the username exists and the given password hashes to the same password.
 func (o Redis) GetUser(username, password, clientid string) bool {
 
-	pwHash, err := o.Conn.Get(username).Result()
+	pwHash, err := o.conn.Get(o.ctx, username).Result()
 
 	if err != nil {
 		log.Debugf("Redis get user error: %s", err)
@@ -116,7 +147,7 @@ func (o Redis) GetSuperuser(username string) bool {
 		return false
 	}
 
-	isSuper, err := o.Conn.Get(fmt.Sprintf("%s:su", username)).Result()
+	isSuper, err := o.conn.Get(o.ctx, fmt.Sprintf("%s:su", username)).Result()
 
 	if err != nil {
 		log.Debugf("Redis get superuser error: %s", err)
@@ -142,14 +173,14 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 	case MOSQ_ACL_SUBSCRIBE:
 		//Get all user subscribe acls.
 		var err error
-		acls, err = o.Conn.SMembers(fmt.Sprintf("%s:sacls", username)).Result()
+		acls, err = o.conn.SMembers(o.ctx, fmt.Sprintf("%s:sacls", username)).Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common subscribe acls.
-		commonAcls, err = o.Conn.SMembers("common:sacls").Result()
+		commonAcls, err = o.conn.SMembers(o.ctx, "common:sacls").Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
@@ -157,24 +188,24 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	case MOSQ_ACL_READ:
 		//Get all user read and readwrite acls.
-		urAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:racls", username)).Result()
+		urAcls, err := o.conn.SMembers(o.ctx, fmt.Sprintf("%s:racls", username)).Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
-		urwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:rwacls", username)).Result()
+		urwAcls, err := o.conn.SMembers(o.ctx, fmt.Sprintf("%s:rwacls", username)).Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common read and readwrite acls
-		rAcls, err := o.Conn.SMembers("common:racls").Result()
+		rAcls, err := o.conn.SMembers(o.ctx, "common:racls").Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
-		rwAcls, err := o.Conn.SMembers("common:rwacls").Result()
+		rwAcls, err := o.conn.SMembers(o.ctx, "common:rwacls").Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
@@ -189,24 +220,24 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 		commonAcls = append(commonAcls, rwAcls...)
 	case MOSQ_ACL_WRITE:
 		//Get all user write and readwrite acls.
-		uwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:wacls", username)).Result()
+		uwAcls, err := o.conn.SMembers(o.ctx, fmt.Sprintf("%s:wacls", username)).Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
-		urwAcls, err := o.Conn.SMembers(fmt.Sprintf("%s:rwacls", username)).Result()
+		urwAcls, err := o.conn.SMembers(o.ctx, fmt.Sprintf("%s:rwacls", username)).Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
 
 		//Get common write and readwrite acls
-		wAcls, err := o.Conn.SMembers("common:wacls").Result()
+		wAcls, err := o.conn.SMembers(o.ctx, "common:wacls").Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
 		}
-		rwAcls, err := o.Conn.SMembers("common:rwacls").Result()
+		rwAcls, err := o.conn.SMembers(o.ctx, "common:rwacls").Result()
 		if err != nil {
 			log.Debugf("Redis check acl error: %s", err)
 			return false
@@ -247,8 +278,8 @@ func (o Redis) GetName() string {
 
 //Halt terminates the connection.
 func (o Redis) Halt() {
-	if o.Conn != nil {
-		err := o.Conn.Close()
+	if o.conn != nil {
+		err := o.conn.Close()
 		if err != nil {
 			log.Errorf("Redis cleanup error: %s", err)
 		}
