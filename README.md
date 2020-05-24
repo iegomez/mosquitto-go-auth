@@ -318,6 +318,11 @@ Any other options with a leading ```auth_opt_``` are handed to the plugin and us
 Individual backends have their options described in the sections below.
 
 
+#### Testing
+
+As of now every backend has proper but really ugly tests in place: they expect services running for each backend, and are also pretty outdated and cumbersome to work with in general.
+This issue captures these concerns and a basic plan to refactor tests: https://github.com/iegomez/mosquitto-go-auth/issues/67.
+
 
 ### Files
 
