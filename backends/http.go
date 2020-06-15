@@ -108,7 +108,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 
 	http.Timeout = 5
 	if timeoutString, ok := authOpts["http_timeout"]; ok {
-		if timeout, err := strconv.Atoi(timeoutString); err != nil {
+		if timeout, err := strconv.Atoi(timeoutString); err == nil {
 			http.Timeout = timeout
 		} else {
 			log.Errorf("unable to parse timeout: %s", err)
