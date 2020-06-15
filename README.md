@@ -465,7 +465,7 @@ auth_opt_pg_user appserver
 auth_opt_pg_password appserver
 auth_opt_pg_userquery select password_hash from "user" where username = $1 and is_active = true limit 1
 auth_opt_pg_superquery select count(*) from "user" where username = $1 and is_admin = true
-auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" u inner join organization_user ou on ou.user_id = u.id inner join organization o on o.id = ou.organization_id inner join application a on a.organization_id =$
+auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" u inner join organization_user ou on ou.user_id = u.id inner join organization o on o.id = ou.organization_id inner join application a on a.organization_id = o.id where u.username = $1 and $2 = $2
 
 ```
 
