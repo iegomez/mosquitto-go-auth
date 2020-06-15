@@ -835,6 +835,7 @@ The following `auth_opt_` options are supported:
 | http_verify_peer   | false             |      N      | Whether to verify peer for tls    |
 | http_response_mode | status            |      N      | Response type (status, json, text)|
 | http_params_mode   | json              |      N      | Data type (json, form)            |
+| http_timeout       | 5                 |      N      | Timeout in seconds                |
 
 
 #### Response mode
