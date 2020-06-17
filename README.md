@@ -1157,6 +1157,8 @@ This project provides example Dockerfiles for building a Docker container that c
 
 Please read the [documentation](./docker/README.md) in the [docker](/docker) directory for more information.
 
+Images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
+
 ### License
 
 mosquitto-go-auth is distributed under the MIT license. See also [LICENSE](LICENSE).
