@@ -1,28 +1,25 @@
 package common
 
 import (
-	"bytes"
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/argon2"
 
 	"github.com/jmoiron/sqlx"
 )
 
 // Declare the valid encodings for validation.
 const (
-    UTF8 = "utf-8"
-    Base64 = "base64"
+	UTF8   = "utf-8"
+	Base64 = "base64"
 )
 
 // OpenDatabase opens the database and performs a ping to make sure the
@@ -77,110 +74,89 @@ func match(route []string, topic []string) bool {
 	return false
 }
 
-/*
-* PBKDF2 passwords usage taken from github.com/brocaar/lora-app-server, comments included.
- */
-
-// Generate the hash of a password for storage in the database.
-// NOTE: We store the details of the hashing algorithm with the hash itself,
-// making it easy to recreate the hash for password checking, even if we change
-// the default criteria here.
-// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
+// adapted from https://www.alexedwards.net/blog/how-to-hash-and-verify-passwords-with-argon2-in-go
 func Hash(password string, saltSize int, iterations int, algorithm string, saltEncoding string, keylen int) (string, error) {
-	// Generate a random salt value, 128 bits.
+	// Here commence the hackery - to prove the concept of generating and validating argon2id hashes with hard-coded params
+	saltSize = 16
+	var memory uint32 = 4096
+	iterations = 3
+	var parallelism uint8 = 2
+	keylen = 32
+	// These hard-coded params above may need to be tuned - should they be passed in, configured as auth_opts or ...?
+	// see https://tools.ietf.org/html/draft-irtf-cfrg-argon2-04#section-4 for tuning considerations
+
 	salt := make([]byte, saltSize)
 	_, err := rand.Read(salt)
 	if err != nil {
 		return "", errors.Wrap(err, "read random bytes error")
 	}
 
-	return hashWithSalt(password, salt, iterations, algorithm, saltEncoding, keylen), nil
+	return hashWithSalt(password, salt, memory, iterations, parallelism, keylen), nil
 }
 
-// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func hashWithSalt(password string, salt []byte, iterations int, algorithm string, saltEncoding string, keylen int) string {
-	// Generate the hash.  This should be a little painful, adjust ITERATIONS
-	// if it needs performance tweeking.  Greatly depends on the hardware.
-	// NOTE: We store these details with the returned hash, so changes will not
-	// affect our ability to do password compares.
-	shaHash := sha512.New
-	if algorithm == "sha256" {
-		shaHash = sha256.New
-	}
-	hash := pbkdf2.Key([]byte(password), salt, iterations, keylen, shaHash)
+// I hope hashWithSalt is only called by the above Hash function because I've changed its signature! compiler seems happy...
+func hashWithSalt(password string, salt []byte, memory uint32, iterations int, parallelism uint8, keylen int) string {
+	// We want a hash of type argon2id so use the IDKey function- see https://godoc.org/golang.org/x/crypto/argon2
+	hash := argon2.IDKey([]byte(password), salt, uint32(iterations), memory, parallelism, uint32(keylen))
 
-	// Build up the parameters and hash into a single string so we can compare
-	// other string to the same hash.  Note that the hash algorithm is hard-
-	// coded here, as it is above.  Introducing alternate encodings must support
-	// old encodings as well, and build this string appropriately.
-	var buffer bytes.Buffer
+	// Base64 encode the salt and hashed password
+	b64Salt := base64.RawStdEncoding.EncodeToString(salt)
+	b64Hash := base64.RawStdEncoding.EncodeToString(hash)
 
-	buffer.WriteString("PBKDF2$")
-	buffer.WriteString(fmt.Sprintf("%s$", algorithm))
-	buffer.WriteString(strconv.Itoa(iterations))
-	buffer.WriteString("$")
-	// Re-encode salt, using encoding supplied in saltEncoding param
-	switch saltEncoding {
-		case UTF8:
-			buffer.WriteString(string(salt))
-		case Base64:
-			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
-		default:
-			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
-			buffer.WriteString(base64.StdEncoding.EncodeToString(salt))
-  	}
-	buffer.WriteString("$")
-	buffer.WriteString(base64.StdEncoding.EncodeToString(hash))
-	//log.Debugf("Generated: ", buffer.String())
-	return buffer.String()
+	// Return a string using the standard encoded hash representation
+	encodedHash := fmt.Sprintf("$argon2id$v=%d$m=%d,t=%d,p=%d$%s$%s", argon2.Version, memory, iterations, parallelism, b64Salt, b64Hash)
+
+	//log.Debugf("Generated: ", encodedHash())
+	return encodedHash
 }
 
-// HashCompare verifies that passed password hashes to the same value as the
-// passed passwordHash.
-// Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
 func HashCompare(password string, passwordHash string, saltEncoding string) bool {
-	// Split the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
+
 	// Check array is of expected length
-	if len(hashSplit) != 5 {
-		log.Errorf("HashCompare, invalid PBKDF2 hash supplied.")
+	if len(hashSplit) != 6 {
+		log.Errorf("Invalid hash supplied, not 6 elements.")
 		return false
 	}
-	// Get the iterations from PBKDF2 string
-	iterations, err := strconv.Atoi(hashSplit[2])
+
+	// now we go over hashSplit array bit by bit validating it and loading up our params
+	var version int
+	_, err := fmt.Sscanf(hashSplit[2], "v=%d", &version)
+
 	if err != nil {
-		log.Errorf("Error getting number of iterations from PBKDF2 hash.")
+		log.Errorf("something went wrong with the version")
 		return false
 	}
-	// Convert salt to bytes, using encoding supplied in saltEncoding param
-	salt := []byte{}
-	switch saltEncoding {
-		case UTF8:
-			salt = []byte(hashSplit[3])
-		case Base64:
-			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
-			if err != nil {
-				log.Errorf("Error decoding supplied base64 salt.")
-				return false
-			}
-		default:
-			log.Errorf("Supplied saltEncoding not supported: %s, defaulting to base64", saltEncoding)
-			salt, err = base64.StdEncoding.DecodeString(hashSplit[3])
-			if err != nil {
-				log.Errorf("Error decoding supplied base64 salt.")
-				return false
-			}
-  	}
-	// Work out key length, assumes base64 encoding
-	hash, err := base64.StdEncoding.DecodeString(hashSplit[4])
+
+	if version != argon2.Version {
+		log.Errorf("wrong argon2 version")
+		return false
+	}
+
+	var memory, iterations uint32
+	var parallelism uint8
+	_, err = fmt.Sscanf(hashSplit[3], "m=%d,t=%d,p=%d", &memory, &iterations, &parallelism)
+
+	salt, err := base64.RawStdEncoding.DecodeString(hashSplit[4])
 	if err != nil {
-		log.Errorf("Error decoding supplied base64 hash.")
+		log.Errorf("something went wrong with the salt extraction")
 		return false
 	}
-	keylen := len(hash)
-	// Get the algorithm from PBKDF2 string
-	algorithm := hashSplit[1]
-	// Generate new PBKDF2 hash to compare against supplied PBKDF2 string
-	newHash := hashWithSalt(password, salt, iterations, algorithm, saltEncoding, keylen)
-	return newHash == passwordHash
+
+	extractedHash, err := base64.RawStdEncoding.DecodeString(hashSplit[5])
+	if err != nil {
+		log.Errorf("something went wrong with the hash extraction")
+		return false
+	}
+
+	keylen := uint32(len(extractedHash))
+
+	//so now we use all the parameters extracted from the supplied hash to compute a similar hash for password under test
+	newHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, uint32(keylen))
+
+	// subtle compare method used rather than a simple comparison to mitigate against timing attacks
+	if subtle.ConstantTimeCompare(newHash, extractedHash) == 1 {
+		return true
+	}
+	return false
 }
