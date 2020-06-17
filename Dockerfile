@@ -45,6 +45,7 @@ RUN groupadd mosquitto \
 
 #Copy confs, plugin so and mosquitto binary.
 COPY --from=builder /app/mosquitto/ /mosquitto/
+COPY --from=builder /app/pw /mosquitto/pw
 COPY --from=builder /app/go-auth.so /mosquitto/go-auth.so
 COPY --from=builder /usr/local/sbin/mosquitto /usr/sbin/mosquitto
 
