@@ -112,6 +112,7 @@ func hashWithSalt(password string, salt []byte, memory uint32, iterations int, p
 // HashCompare verifies that passed password hashes to the same value as the
 // passed passwordHash.
 func HashCompare(password string, passwordHash string, saltEncoding string) bool {
+	// Split the hash string into its parts.
 	hashSplit := strings.Split(passwordHash, "$")
 
 	// Check array is of expected length
