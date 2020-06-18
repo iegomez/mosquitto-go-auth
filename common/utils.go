@@ -109,7 +109,7 @@ func hashWithSalt(password string, salt []byte, memory uint32, iterations int, p
 	//log.Debugf("Generated: ", encodedHash())
 	return encodedHash
 }
-// HashCompare verifies that passed password hashes to the same value as the	
+// HashCompare verifies that passed password hashes to the same value as the
 // passed passwordHash.
 func HashCompare(password string, passwordHash string, saltEncoding string) bool {
 	hashSplit := strings.Split(passwordHash, "$")
