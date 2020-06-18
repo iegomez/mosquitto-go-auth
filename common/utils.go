@@ -18,7 +18,7 @@ import (
 
 // Declare the valid encodings for validation.
 const (
-    UTF8   = "utf-8"
+    UTF8 = "utf-8"
     Base64 = "base64"
 )
 
