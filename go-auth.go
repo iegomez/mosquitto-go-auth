@@ -464,7 +464,7 @@ func setCache(authOpts map[string]string) {
 			DB:       int(cache.db),  // use default db
 		})
 
-		commonData.redisCache = redisClient
+		commonData.redisCache = bes.SingleRedisClient{redisClient}
 	}
 
 	_, err := commonData.redisCache.Ping(commonData.ctx).Result()
@@ -625,54 +625,125 @@ func AuthPskKeyGet() bool {
 
 //CheckAuthCache checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func CheckAuthCache(username, password string) (bool, bool) {
-	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-	val, err := commonData.redisCache.Get(commonData.ctx, pair).Result()
-	if err != nil {
-		return false, false
-	}
-	//refresh expiration
-	commonData.redisCache.Expire(commonData.ctx, pair, time.Duration(commonData.authCacheSeconds)*time.Second)
-	if val == "true" {
-		return true, true
-	}
-	return true, false
-}
+	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
 
-//SetAuthCache sets a pair, granted option and expiration time.
-func SetAuthCache(username, password string, granted string) error {
-	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-	err := commonData.redisCache.Set(commonData.ctx, pair, granted, time.Duration(commonData.authCacheSeconds)*time.Second).Err()
-	if err != nil {
-		return err
+	present, granted, err := checkCacheRecord(record, commonData.authCacheSeconds)
+	if err == nil {
+		return present, granted
 	}
 
-	return nil
+	if bes.IsMovedError(err) {
+		err = commonData.redisCache.ReloadState(commonData.ctx)
+		// This should not happen, ever!
+		if err == bes.SingleClientError {
+			return false, false
+		}
+
+		//Retry once.
+		present, granted, err = checkCacheRecord(record, commonData.authCacheSeconds)
+	}
+
+	if err != nil {
+		log.Debugf("set cache error: %s", err)
+	}
+
+	return present, granted
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func CheckAclCache(username, topic, clientid string, acc int) (bool, bool) {
-	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-	val, err := commonData.redisCache.Get(commonData.ctx, pair).Result()
+	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
+
+	present, granted, err := checkCacheRecord(record, commonData.aclCacheSeconds)
+	if err == nil {
+		return present, granted
+	}
+
+	if bes.IsMovedError(err) {
+		err = commonData.redisCache.ReloadState(commonData.ctx)
+		// This should not happen, ever!
+		if err == bes.SingleClientError {
+			return false, false
+		}
+
+		//Retry once.
+		present, granted, err = checkCacheRecord(record, commonData.aclCacheSeconds)
+	}
+
 	if err != nil {
-		return false, false
+		log.Debugf("set cache error: %s", err)
 	}
+
+	return present, granted
+}
+
+func checkCacheRecord(record string, expirationTime int64) (bool, bool, error) {
+	val, err := commonData.redisCache.Get(commonData.ctx, record).Result()
+	if err != nil {
+		return false, false, err
+	}
+
 	//refresh expiration
-	commonData.redisCache.Expire(commonData.ctx, pair, time.Duration(commonData.aclCacheSeconds)*time.Second)
-	if val == "true" {
-		return true, true
+	_, err = commonData.redisCache.Expire(commonData.ctx, record, time.Duration(expirationTime)*time.Second).Result()
+	if err != nil {
+		return false, false, err
 	}
-	return true, false
+
+	if val == "true" {
+		return true, true, nil
+	}
+
+	return true, false, nil
+}
+
+//SetAuthCache sets a pair, granted option and expiration time.
+func SetAuthCache(username, password string, granted string) error {
+	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
+	err := setCacheRecord(record, granted, commonData.authCacheSeconds)
+
+	if err == nil {
+		return nil
+	}
+
+	// If record was moved, reload and retry.
+	if bes.IsMovedError(err) {
+		err = commonData.redisCache.ReloadState(commonData.ctx)
+		if err != nil {
+			return err
+		}
+
+		//Retry once.
+		err = setCacheRecord(record, granted, commonData.authCacheSeconds)
+	}
+
+	return err
 }
 
 //SetAclCache sets a mix, granted option and expiration time.
 func SetAclCache(username, topic, clientid string, acc int, granted string) error {
-	pair := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-	err := commonData.redisCache.Set(commonData.ctx, pair, granted, time.Duration(commonData.aclCacheSeconds)*time.Second).Err()
-	if err != nil {
-		return err
+	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
+	err := setCacheRecord(record, granted, commonData.aclCacheSeconds)
+
+	if err == nil {
+		return nil
 	}
 
-	return nil
+	// If record was moved, reload and retry.
+	if bes.IsMovedError(err) {
+		err = commonData.redisCache.ReloadState(commonData.ctx)
+		if err != nil {
+			return err
+		}
+
+		//Retry once.
+		err = setCacheRecord(record, granted, commonData.aclCacheSeconds)
+	}
+
+	return err
+}
+
+func setCacheRecord(record string, granted string, expirationTime int64) error {
+	return commonData.redisCache.Set(commonData.ctx, record, granted, time.Duration(expirationTime)*time.Second).Err()
 }
 
 //checkPrefix checks if a username contains a valid prefix. If so, returns ok and the suitable backend name; else, !ok and empty string.
