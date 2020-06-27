@@ -242,34 +242,40 @@ auth_opt_backends files, postgres, jwt
 
 #### Cache
 
-Set cache option to true to use redis cache (defaults to false when missing). Also, set `cache_reset` to flush the redis DB on mosquitto startup:
+There are 2 types of cache supported: an in memory one using [go-cache](https://github.com/patrickmn/go-cache), or a Redis backed one.
+Set `cache` option to true to use a cache (defaults to false when missing) and `cache_type` to set the type of the cache. By default the plugin will use `go-cache` unless explicitly told to use Redis.
+Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache` on startup is not yet supported**).
+
+Finally, set expiration times in seconds for authentication (`auth`) and authorization (`acl`) caches:
 
 ```
 auth_opt_cache true
+auth_opt_cache_type redis
 auth_opt_cache_reset true
+
+auth_opt_auth_cache_seconds 30
+auth_opt_acl_cache_seconds 30
 ```
 
 If `cache_reset` is set to false or omitted, cache won't be flushed upon service start.
 
-Redis will use the following defaults if no values are given. Also, these are the available options for cache:
+When using Redis, the following defaults will be used if no values are given. Also, these are the available options for cache:
 
 ```
 auth_opt_cache_host localhost
 auth_opt_cache_port 6379
 auth_opt_cache_password pwd
 auth_opt_cache_db 3
-auth_opt_auth_cache_seconds 30
-auth_opt_acl_cache_seconds 30
 ```
 
-If you want to use a Redis cluster as your cache, you need to set `auth_opt_cache_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_cache_addresses` options:
+If you want to use a Redis cluster as your cache, you may omit previous Redis options and instead need to set `auth_opt_cache_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_cache_addresses` options:
 
 ```
 auth_opt_cache_mode cluster
 auth_opt_cache_addresses host1:port1,host2:port2,host3:port3
 ```
 
-Notice that if `cache_mode` is not provided or isn't equal to `cluster`, cache will default to use a single instance with the common options. If instead the mode is correctly set to `cluster` but no addresses are given, the plugin will default to not use a cache.
+Notice that if `cache_mode` is not provided or isn't equal to `cluster`, cache will default to use a single instance with the common options. If instead the mode is set to `cluster` but no addresses are given, the plugin will default to not use a cache.
 
 #### Logging
 

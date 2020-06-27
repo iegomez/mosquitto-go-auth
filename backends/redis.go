@@ -118,7 +118,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 			Password: redis.Password,
 			DB:       int(redis.DB),
 		})
-		redis.conn = SingleRedisClient{redisClient}
+		redis.conn = &SingleRedisClient{redisClient}
 	}
 
 	for {
@@ -135,7 +135,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 }
 
 // Checks if an error was caused by a moved record in a cluster.
-func IsMovedError(err error) bool {
+func isMovedError(err error) bool {
 	s := err.Error()
 	if strings.HasPrefix(s, "MOVED ") || strings.HasPrefix(s, "ASK ") {
 		return true
@@ -152,7 +152,7 @@ func (o Redis) GetUser(username, password, _ string) bool {
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
-	if IsMovedError(err) {
+	if isMovedError(err) {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)
@@ -194,7 +194,7 @@ func (o Redis) GetSuperuser(username string) bool {
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
-	if IsMovedError(err) {
+	if isMovedError(err) {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)
@@ -231,7 +231,7 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
-	if IsMovedError(err) {
+	if isMovedError(err) {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)

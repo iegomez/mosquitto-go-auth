@@ -4,16 +4,14 @@ import "C"
 
 import (
 	"context"
-	b64 "encoding/base64"
-	"fmt"
 	"os"
 	"plugin"
 	"strconv"
 	"strings"
 	"time"
 
-	goredis "github.com/go-redis/redis/v8"
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
+	"github.com/iegomez/mosquitto-go-auth/cache"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -37,7 +35,6 @@ type AuthPlugin struct {
 	aclCacheSeconds          int64
 	authCacheSeconds         int64
 	useCache                 bool
-	redisCache               bes.RedisClient
 	checkPrefix              bool
 	prefixes                 map[string]string
 	logLevel                 log.Level
@@ -45,15 +42,15 @@ type AuthPlugin struct {
 	logFile                  string
 	disableSuperuser         bool
 	ctx                      context.Context
+	cache                    cache.Store
 }
 
-//Cache stores necessary values for Redis cache
-type Cache struct {
-	host     string
-	port     string
-	password string
-	db       int32
-	cluster  bool
+type goCache struct {
+}
+
+type CacheStore interface {
+	Set(record string, expiration time.Duration) error
+	Get(record string) (present, granted bool, err error)
 }
 
 const (
@@ -86,19 +83,10 @@ var allowedBackends = map[string]bool{
 
 var backends []string          //List of selected backends.
 var authOpts map[string]string //Options passed by mosquitto.
-var cache Cache                //Cache conf.
-var commonData AuthPlugin      //General struct with options and conf.
+var authPlugin AuthPlugin      //General struct with options and conf.
 
 //export AuthPluginInit
 func AuthPluginInit(keys []string, values []string, authOptsNum int) {
-
-	//Initialize Cache with default values
-	cache = Cache{
-		host: "localhost",
-		port: "6379",
-		db:   3,
-	}
-
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -106,7 +94,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	cmBackends := make(map[string]Backend)
 
 	//Initialize common struct with default and given values
-	commonData = AuthPlugin{
+	authPlugin = AuthPlugin{
 		aclCacheSeconds:  30,
 		authCacheSeconds: 30,
 		checkPrefix:      false,
@@ -143,7 +131,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	//Disable superusers for all backends if option is set.
 	if authOpts["disable_superuser"] == "true" {
-		commonData.disableSuperuser = true
+		authPlugin.disableSuperuser = true
 	}
 
 	//Check if log level is given. Set level if any valid option is given.
@@ -151,17 +139,17 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		logLevel = strings.Replace(logLevel, " ", "", -1)
 		switch logLevel {
 		case "debug":
-			commonData.logLevel = log.DebugLevel
+			authPlugin.logLevel = log.DebugLevel
 		case "info":
-			commonData.logLevel = log.InfoLevel
+			authPlugin.logLevel = log.InfoLevel
 		case "warn":
-			commonData.logLevel = log.WarnLevel
+			authPlugin.logLevel = log.WarnLevel
 		case "error":
-			commonData.logLevel = log.ErrorLevel
+			authPlugin.logLevel = log.ErrorLevel
 		case "fatal":
-			commonData.logLevel = log.FatalLevel
+			authPlugin.logLevel = log.FatalLevel
 		case "panic":
-			commonData.logLevel = log.PanicLevel
+			authPlugin.logLevel = log.PanicLevel
 		default:
 			log.Info("log_level unkwown, using default info level")
 		}
@@ -193,91 +181,91 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			plug, err := plugin.Open(authOpts["plugin_path"])
 			if err != nil {
 				log.Errorf("Could not init custom plugin: %s", err)
-				commonData.customPlugin = nil
+				authPlugin.customPlugin = nil
 			} else {
-				commonData.customPlugin = plug
+				authPlugin.customPlugin = plug
 
-				plInit, err := commonData.customPlugin.Lookup("Init")
+				plInit, err := authPlugin.customPlugin.Lookup("Init")
 
 				if err != nil {
 					log.Errorf("Couldn't find func Init in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				initFunc := plInit.(func(authOpts map[string]string, logLevel log.Level) error)
 
-				err = initFunc(authOpts, commonData.logLevel)
+				err = initFunc(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Errorf("Couldn't init plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
-				commonData.PInit = initFunc
+				authPlugin.PInit = initFunc
 
-				plName, err := commonData.customPlugin.Lookup("GetName")
+				plName, err := authPlugin.customPlugin.Lookup("GetName")
 
 				if err != nil {
 					log.Errorf("Couldn't find func GetName in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				nameFunc := plName.(func() string)
-				commonData.customPluginGetName = nameFunc
+				authPlugin.customPluginGetName = nameFunc
 
-				plGetUser, err := commonData.customPlugin.Lookup("GetUser")
+				plGetUser, err := authPlugin.customPlugin.Lookup("GetUser")
 
 				if err != nil {
 					log.Errorf("couldn't find func GetUser in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				getUserFunc := plGetUser.(func(username, password string) bool)
-				commonData.customPluginGetUser = getUserFunc
+				authPlugin.customPluginGetUser = getUserFunc
 
-				plGetSuperuser, err := commonData.customPlugin.Lookup("GetSuperuser")
+				plGetSuperuser, err := authPlugin.customPlugin.Lookup("GetSuperuser")
 
 				if err != nil {
 					log.Errorf("couldn't find func GetSuperuser in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				getSuperuserFunc := plGetSuperuser.(func(username string) bool)
-				commonData.customPluginGetSuperuser = getSuperuserFunc
+				authPlugin.customPluginGetSuperuser = getSuperuserFunc
 
-				plCheckAcl, err := commonData.customPlugin.Lookup("CheckAcl")
+				plCheckAcl, err := authPlugin.customPlugin.Lookup("CheckAcl")
 
 				if err != nil {
 					log.Errorf("couldn't find func CheckAcl in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				checkAclFunc := plCheckAcl.(func(username, topic, clientid string, acc int) bool)
-				commonData.customPluginCheckAcl = checkAclFunc
+				authPlugin.customPluginCheckAcl = checkAclFunc
 
-				plHalt, err := commonData.customPlugin.Lookup("Halt")
+				plHalt, err := authPlugin.customPlugin.Lookup("Halt")
 
 				if err != nil {
 					log.Errorf("Couldn't find func Halt in plugin: %s", err)
-					commonData.customPlugin = nil
+					authPlugin.customPlugin = nil
 					continue
 				}
 
 				haltFunc := plHalt.(func())
-				commonData.customPluginHalt = haltFunc
+				authPlugin.customPluginHalt = haltFunc
 
-				log.Infof("Backend registered: %s", commonData.customPluginGetName())
+				log.Infof("Backend registered: %s", authPlugin.customPluginGetName())
 
 			}
 		} else {
 			switch bename {
 			case postgresBackend:
-				beIface, err = bes.NewPostgres(authOpts, commonData.logLevel)
+				beIface, err = bes.NewPostgres(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -285,7 +273,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[postgresBackend] = beIface.(bes.Postgres)
 				}
 			case jwtBackend:
-				beIface, err = bes.NewJWT(authOpts, commonData.logLevel)
+				beIface, err = bes.NewJWT(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -293,7 +281,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[jwtBackend] = beIface.(bes.JWT)
 				}
 			case filesBackend:
-				beIface, err = bes.NewFiles(authOpts, commonData.logLevel)
+				beIface, err = bes.NewFiles(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -301,7 +289,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[filesBackend] = beIface.(bes.Files)
 				}
 			case redisBackend:
-				beIface, err = bes.NewRedis(authOpts, commonData.logLevel)
+				beIface, err = bes.NewRedis(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -309,7 +297,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[redisBackend] = beIface.(bes.Redis)
 				}
 			case mysqlBackend:
-				beIface, err = bes.NewMysql(authOpts, commonData.logLevel)
+				beIface, err = bes.NewMysql(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -317,7 +305,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[mysqlBackend] = beIface.(bes.Mysql)
 				}
 			case httpBackend:
-				beIface, err = bes.NewHTTP(authOpts, commonData.logLevel)
+				beIface, err = bes.NewHTTP(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -325,7 +313,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[httpBackend] = beIface.(bes.HTTP)
 				}
 			case sqliteBackend:
-				beIface, err = bes.NewSqlite(authOpts, commonData.logLevel)
+				beIface, err = bes.NewSqlite(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -333,7 +321,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[sqliteBackend] = beIface.(bes.Sqlite)
 				}
 			case mongoBackend:
-				beIface, err = bes.NewMongo(authOpts, commonData.logLevel)
+				beIface, err = bes.NewMongo(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -341,7 +329,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[mongoBackend] = beIface.(bes.Mongo)
 				}
 			case grpcBackend:
-				beIface, err = bes.NewGRPC(authOpts, commonData.logLevel)
+				beIface, err = bes.NewGRPC(authOpts, authPlugin.logLevel)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -353,14 +341,14 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 	}
 
 	if cache, ok := authOpts["cache"]; ok && strings.Replace(cache, " ", "", -1) == "true" {
-		log.Info("Cache activated")
-		commonData.useCache = true
+		log.Info("redisCache activated")
+		authPlugin.useCache = true
 	} else {
 		log.Info("No cache set.")
-		commonData.useCache = false
+		authPlugin.useCache = false
 	}
 
-	if commonData.useCache {
+	if authPlugin.useCache {
 		setCache(authOpts)
 	}
 
@@ -371,114 +359,114 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			if len(prefixes) == len(backends) {
 				//Set prefixes
 				for i, backend := range backends {
-					commonData.prefixes[prefixes[i]] = backend
+					authPlugin.prefixes[prefixes[i]] = backend
 				}
 				log.Infof("prefixes enabled for backends %s with prefixes %s.", authOpts["backends"], authOpts["prefixes"])
-				commonData.checkPrefix = true
+				authPlugin.checkPrefix = true
 			} else {
 				log.Errorf("Error: got %d backends and %d prefixes, defaulting to prefixes disabled.", len(backends), len(prefixes))
-				commonData.checkPrefix = false
+				authPlugin.checkPrefix = false
 			}
 
 		} else {
 			log.Warn("Error: prefixes enabled but no options given, defaulting to prefixes disabled.")
-			commonData.checkPrefix = false
+			authPlugin.checkPrefix = false
 		}
 	} else {
-		commonData.checkPrefix = false
+		authPlugin.checkPrefix = false
 	}
-	commonData.backends = cmBackends
+	authPlugin.backends = cmBackends
 }
 
 func setCache(authOpts map[string]string) {
-	if cacheHost, ok := authOpts["cache_host"]; ok {
-		cache.host = cacheHost
-	}
-
-	if cachePort, ok := authOpts["cache_port"]; ok {
-		cache.port = cachePort
-	}
-
-	if cachePassword, ok := authOpts["cache_password"]; ok {
-		cache.password = cachePassword
-	}
-
-	if authOpts["cache_mode"] == "true" {
-		cache.cluster = true
-	}
-
-	if cacheDB, ok := authOpts["cache_db"]; ok {
-		db, err := strconv.ParseInt(cacheDB, 10, 32)
-		if err == nil {
-			cache.db = int32(db)
-		} else {
-			log.Warningf("couldn't parse cache db (err: %s), defaulting to %d", err, cache.db)
-		}
-	}
 
 	if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
 		authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
 		if err == nil {
-			commonData.authCacheSeconds = authSec
+			authPlugin.authCacheSeconds = authSec
 		} else {
-			log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, commonData.authCacheSeconds)
+			log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, authPlugin.authCacheSeconds)
 		}
 	}
 
 	if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
 		aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
 		if err == nil {
-			commonData.aclCacheSeconds = aclSec
+			authPlugin.aclCacheSeconds = aclSec
 		} else {
-			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, commonData.aclCacheSeconds)
+			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, authPlugin.aclCacheSeconds)
 		}
 	}
 
-	if cache.cluster {
-		addressesOpt := authOpts["redis_cluster_addresses"]
-		if addressesOpt == "" {
-			log.Errorln("cache Redis cluster addresses missing, defaulting to no cache.")
-			commonData.useCache = false
-			return
-		}
-
-		// Take the given addresses and trim spaces from them.
-		addresses := strings.Split(addressesOpt, ",")
-		for i := 0; i < len(addresses); i++ {
-			addresses[i] = strings.TrimSpace(addresses[i])
-		}
-
-		clusterClient := goredis.NewClusterClient(
-			&goredis.ClusterOptions{
-				Addrs:    addresses,
-				Password: cache.password,
-			})
-
-		commonData.redisCache = clusterClient
-	} else {
-		addr := fmt.Sprintf("%s:%s", cache.host, cache.port)
-		//If cache is on, try to start redis.
-		redisClient := goredis.NewClient(&goredis.Options{
-			Addr:     addr,
-			Password: cache.password, // no password set
-			DB:       int(cache.db),  // use default db
-		})
-
-		commonData.redisCache = bes.SingleRedisClient{redisClient}
+	reset := false
+	if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
+		reset = true
 	}
 
-	_, err := commonData.redisCache.Ping(commonData.ctx).Result()
-	if err != nil {
-		log.Errorf("couldn't start Redis, defaulting to no cache. error: %s", err)
-		commonData.useCache = false
-	} else {
-		log.Infoln("started cache redis client")
-		//Check if cache must be reset
-		if cacheReset, ok := authOpts["cache_reset"]; ok && cacheReset == "true" {
-			commonData.redisCache.FlushDB(commonData.ctx)
-			log.Infoln("flushed cache")
+	switch authOpts["cache_type"] {
+	case "redis":
+		host := "localhost"
+		port := "6379"
+		db := 3
+		password := ""
+		cluster := false
+
+		if authOpts["cache_mode"] == "true" {
+			cluster = true
 		}
+
+		if cachePassword, ok := authOpts["cache_password"]; ok {
+			password = cachePassword
+		}
+
+		if cluster {
+
+			addressesOpt := authOpts["redis_cluster_addresses"]
+			if addressesOpt == "" {
+				log.Errorln("cache Redis cluster addresses missing, defaulting to no cache.")
+				authPlugin.useCache = false
+				return
+			}
+
+			// Take the given addresses and trim spaces from them.
+			addresses := strings.Split(addressesOpt, ",")
+			for i := 0; i < len(addresses); i++ {
+				addresses[i] = strings.TrimSpace(addresses[i])
+			}
+
+			authPlugin.cache = cache.NewRedisClusterStore(password, addresses, authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
+
+		} else {
+			if cacheHost, ok := authOpts["cache_host"]; ok {
+				host = cacheHost
+			}
+
+			if cachePort, ok := authOpts["cache_port"]; ok {
+				port = cachePort
+			}
+
+			if cacheDB, ok := authOpts["cache_db"]; ok {
+				parsedDB, err := strconv.ParseInt(cacheDB, 10, 32)
+				if err == nil {
+					db = int(parsedDB)
+				} else {
+					log.Warningf("couldn't parse cache db (err: %s), defaulting to %d", err, db)
+				}
+			}
+
+			authPlugin.cache = cache.NewSingleRedisStore(host, port, password, db, authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
+		}
+
+	default:
+		authPlugin.cache = cache.NewGoStore(authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
 	}
+
+	if !authPlugin.cache.Connect(authPlugin.ctx, reset) {
+		authPlugin.cache = nil
+		authPlugin.useCache = false
+		log.Infoln("couldn't start cache, defaulting to no cache")
+	}
+
 }
 
 //export AuthUnpwdCheck
@@ -486,9 +474,9 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 	var authenticated bool
 	var cached bool
 	var granted bool
-	if commonData.useCache {
+	if authPlugin.useCache {
 		log.Debugf("checking auth cache for %s", username)
-		cached, granted = CheckAuthCache(username, password)
+		cached, granted = authPlugin.cache.CheckAuthRecord(authPlugin.ctx, username, password)
 		if cached {
 			log.Debugf("found in cache: %s", username)
 			return granted
@@ -496,7 +484,7 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 	}
 
 	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
-	if commonData.checkPrefix {
+	if authPlugin.checkPrefix {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 			if bename == pluginBackend {
@@ -507,7 +495,7 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 					prefix := getPrefixForBackend(bename)
 					username = strings.TrimPrefix(username, prefix+"_")
 				}
-				var backend = commonData.backends[bename]
+				var backend = authPlugin.backends[bename]
 
 				if backend.GetUser(username, password, clientid) {
 					authenticated = true
@@ -530,13 +518,13 @@ func AuthUnpwdCheck(username, password, clientid string) bool {
 		}
 	}
 
-	if commonData.useCache {
+	if authPlugin.useCache {
 		authGranted := "false"
 		if authenticated {
 			authGranted = "true"
 		}
 		log.Debugf("setting auth cache for %s", username)
-		if err := SetAuthCache(username, password, authGranted); err != nil {
+		if err := authPlugin.cache.SetAuthRecord(authPlugin.ctx, username, password, authGranted); err != nil {
 			log.Errorf("set auth cache: %s", err)
 			return false
 		}
@@ -549,9 +537,9 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 	var aclCheck bool
 	var cached bool
 	var granted bool
-	if commonData.useCache {
+	if authPlugin.useCache {
 		log.Debugf("checking acl cache for %s", username)
-		cached, granted = CheckAclCache(username, topic, clientid, acc)
+		cached, granted = authPlugin.cache.CheckACLRecord(authPlugin.ctx, username, topic, clientid, acc)
 		if cached {
 			log.Debugf("found in cache: %s", username)
 			return granted
@@ -559,7 +547,7 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 	}
 	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
 	//Else, check all backends.
-	if commonData.checkPrefix {
+	if authPlugin.checkPrefix {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 			if bename == pluginBackend {
@@ -570,10 +558,10 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 					prefix := getPrefixForBackend(bename)
 					username = strings.TrimPrefix(username, prefix+"_")
 				}
-				var backend = commonData.backends[bename]
+				var backend = authPlugin.backends[bename]
 				log.Debugf("Superuser check with backend %s", backend.GetName())
 				// Short circuit checks when superusers are disabled.
-				if !commonData.disableSuperuser && backend.GetSuperuser(username) {
+				if !authPlugin.disableSuperuser && backend.GetSuperuser(username) {
 					log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
 					aclCheck = true
 				}
@@ -602,13 +590,13 @@ func AuthAclCheck(clientid, username, topic string, acc int) bool {
 		}
 	}
 
-	if commonData.useCache {
+	if authPlugin.useCache {
 		authGranted := "false"
 		if aclCheck {
 			authGranted = "true"
 		}
 		log.Debugf("setting acl cache (granted = %s) for %s", authGranted, username)
-		if err := SetAclCache(username, topic, clientid, acc, authGranted); err != nil {
+		if err := authPlugin.cache.SetACLRecord(authPlugin.ctx, username, topic, clientid, acc, authGranted); err != nil {
 			log.Errorf("set acl cache: %s", err)
 			return false
 		}
@@ -623,134 +611,11 @@ func AuthPskKeyGet() bool {
 	return true
 }
 
-//CheckAuthCache checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges.
-func CheckAuthCache(username, password string) (bool, bool) {
-	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-
-	present, granted, err := checkCacheRecord(record, commonData.authCacheSeconds)
-	if err == nil {
-		return present, granted
-	}
-
-	if bes.IsMovedError(err) {
-		err = commonData.redisCache.ReloadState(commonData.ctx)
-		// This should not happen, ever!
-		if err == bes.SingleClientError {
-			return false, false
-		}
-
-		//Retry once.
-		present, granted, err = checkCacheRecord(record, commonData.authCacheSeconds)
-	}
-
-	if err != nil {
-		log.Debugf("set cache error: %s", err)
-	}
-
-	return present, granted
-}
-
-//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
-func CheckAclCache(username, topic, clientid string, acc int) (bool, bool) {
-	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-
-	present, granted, err := checkCacheRecord(record, commonData.aclCacheSeconds)
-	if err == nil {
-		return present, granted
-	}
-
-	if bes.IsMovedError(err) {
-		err = commonData.redisCache.ReloadState(commonData.ctx)
-		// This should not happen, ever!
-		if err == bes.SingleClientError {
-			return false, false
-		}
-
-		//Retry once.
-		present, granted, err = checkCacheRecord(record, commonData.aclCacheSeconds)
-	}
-
-	if err != nil {
-		log.Debugf("set cache error: %s", err)
-	}
-
-	return present, granted
-}
-
-func checkCacheRecord(record string, expirationTime int64) (bool, bool, error) {
-	val, err := commonData.redisCache.Get(commonData.ctx, record).Result()
-	if err != nil {
-		return false, false, err
-	}
-
-	//refresh expiration
-	_, err = commonData.redisCache.Expire(commonData.ctx, record, time.Duration(expirationTime)*time.Second).Result()
-	if err != nil {
-		return false, false, err
-	}
-
-	if val == "true" {
-		return true, true, nil
-	}
-
-	return true, false, nil
-}
-
-//SetAuthCache sets a pair, granted option and expiration time.
-func SetAuthCache(username, password string, granted string) error {
-	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth%s%s", username, password)))
-	err := setCacheRecord(record, granted, commonData.authCacheSeconds)
-
-	if err == nil {
-		return nil
-	}
-
-	// If record was moved, reload and retry.
-	if bes.IsMovedError(err) {
-		err = commonData.redisCache.ReloadState(commonData.ctx)
-		if err != nil {
-			return err
-		}
-
-		//Retry once.
-		err = setCacheRecord(record, granted, commonData.authCacheSeconds)
-	}
-
-	return err
-}
-
-//SetAclCache sets a mix, granted option and expiration time.
-func SetAclCache(username, topic, clientid string, acc int, granted string) error {
-	record := b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl%s%s%s%d", username, topic, clientid, acc)))
-	err := setCacheRecord(record, granted, commonData.aclCacheSeconds)
-
-	if err == nil {
-		return nil
-	}
-
-	// If record was moved, reload and retry.
-	if bes.IsMovedError(err) {
-		err = commonData.redisCache.ReloadState(commonData.ctx)
-		if err != nil {
-			return err
-		}
-
-		//Retry once.
-		err = setCacheRecord(record, granted, commonData.aclCacheSeconds)
-	}
-
-	return err
-}
-
-func setCacheRecord(record string, granted string, expirationTime int64) error {
-	return commonData.redisCache.Set(commonData.ctx, record, granted, time.Duration(expirationTime)*time.Second).Err()
-}
-
 //checkPrefix checks if a username contains a valid prefix. If so, returns ok and the suitable backend name; else, !ok and empty string.
 func CheckPrefix(username string) (bool, string) {
 	if strings.Index(username, "_") > 0 {
 		userPrefix := username[0:strings.Index(username, "_")]
-		if prefix, ok := commonData.prefixes[userPrefix]; ok {
+		if prefix, ok := authPlugin.prefixes[userPrefix]; ok {
 			log.Debugf("Found prefix for user %s, using backend %s.", username, prefix)
 			return true, prefix
 		}
@@ -760,7 +625,7 @@ func CheckPrefix(username string) (bool, string) {
 
 //getPrefixForBackend retrieves the user provided prefix for a given backend.
 func getPrefixForBackend(backend string) string {
-	for k, v := range commonData.prefixes {
+	for k, v := range authPlugin.prefixes {
 		if v == backend {
 			return k
 		}
@@ -779,7 +644,7 @@ func CheckBackendsAuth(username, password, clientid string) bool {
 			continue
 		}
 
-		var backend = commonData.backends[bename]
+		var backend = authPlugin.backends[bename]
 
 		log.Debugf("checking user %s with backend %s", username, backend.GetName())
 
@@ -798,12 +663,12 @@ func CheckBackendsAuth(username, password, clientid string) bool {
 func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 	//Check superusers first
 	aclCheck := false
-	if !commonData.disableSuperuser {
+	if !authPlugin.disableSuperuser {
 		for _, bename := range backends {
 			if bename == pluginBackend {
 				continue
 			}
-			var backend = commonData.backends[bename]
+			var backend = authPlugin.backends[bename]
 			log.Debugf("Superuser check with backend %s", backend.GetName())
 			if backend.GetSuperuser(username) {
 				log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
@@ -818,7 +683,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 			if bename == pluginBackend {
 				continue
 			}
-			var backend = commonData.backends[bename]
+			var backend = authPlugin.backends[bename]
 			log.Debugf("Acl check with backend %s", backend.GetName())
 			if backend.CheckAcl(username, topic, clientid, int32(acc)) {
 				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
@@ -833,40 +698,40 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) bool {
 
 //CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
 func CheckPluginAuth(username, password, clientid string) bool {
-	if commonData.customPlugin == nil {
+	if authPlugin.customPlugin == nil {
 		return false
 	}
-	return commonData.customPluginGetUser(username, password)
+	return authPlugin.customPluginGetUser(username, password)
 }
 
 //CheckPluginAcl checks that the plugin is not nil and returns the superuser/acl response.
 func CheckPluginAcl(username, topic, clientid string, acc int) bool {
-	if commonData.customPlugin == nil {
+	if authPlugin.customPlugin == nil {
 		return false
 	}
 	//If superuser, authorize it unless superusers are disabled.
-	if !commonData.disableSuperuser && commonData.customPluginGetSuperuser(username) {
+	if !authPlugin.disableSuperuser && authPlugin.customPluginGetSuperuser(username) {
 		return true
 	}
 	//Check against the plugin's check acl function.
-	return commonData.customPluginCheckAcl(username, topic, clientid, acc)
+	return authPlugin.customPluginCheckAcl(username, topic, clientid, acc)
 }
 
 //export AuthPluginCleanup
 func AuthPluginCleanup() {
 	log.Info("Cleaning up plugin")
 	//If cache is set, close cache connection.
-	if commonData.redisCache != nil {
-		commonData.redisCache.Close()
+	if authPlugin.cache != nil {
+		authPlugin.cache.Close()
 	}
 
 	//Halt every registered backend.
-	for _, v := range commonData.backends {
+	for _, v := range authPlugin.backends {
 		v.Halt()
 	}
 
-	if commonData.customPlugin != nil {
-		commonData.customPluginHalt()
+	if authPlugin.customPlugin != nil {
+		authPlugin.customPluginHalt()
 	}
 }
 
