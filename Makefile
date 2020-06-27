@@ -9,6 +9,7 @@ dev-requirements:
 
 test:
 	go test ./backends -v -bench=none -count=1
+	go test ./cache -v -bench=none -count=1
 
 benchmark:
 	go test ./backends -v -bench=. -run=^a
