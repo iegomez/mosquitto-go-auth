@@ -8,7 +8,6 @@ import (
 	"plugin"
 	"strconv"
 	"strings"
-	"time"
 
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/iegomez/mosquitto-go-auth/cache"
@@ -32,8 +31,6 @@ type AuthPlugin struct {
 	customPluginGetSuperuser func(username string) bool
 	customPluginCheckAcl     func(username, topic, clientid string, acc int) bool
 	customPluginHalt         func()
-	aclCacheSeconds          int64
-	authCacheSeconds         int64
 	useCache                 bool
 	checkPrefix              bool
 	prefixes                 map[string]string
@@ -43,14 +40,6 @@ type AuthPlugin struct {
 	disableSuperuser         bool
 	ctx                      context.Context
 	cache                    cache.Store
-}
-
-type goCache struct {
-}
-
-type CacheStore interface {
-	Set(record string, expiration time.Duration) error
-	Get(record string) (present, granted bool, err error)
 }
 
 const (
@@ -95,12 +84,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	//Initialize common struct with default and given values
 	authPlugin = AuthPlugin{
-		aclCacheSeconds:  30,
-		authCacheSeconds: 30,
-		checkPrefix:      false,
-		prefixes:         make(map[string]string),
-		logLevel:         log.InfoLevel,
-		ctx:              context.Background(),
+		checkPrefix: false,
+		prefixes:    make(map[string]string),
+		logLevel:    log.InfoLevel,
+		ctx:         context.Background(),
 	}
 
 	//First, get backends
@@ -380,21 +367,24 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 func setCache(authOpts map[string]string) {
 
+	var aclCacheSeconds int64 = 30
+	var authCacheSeconds int64 = 30
+
 	if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
 		authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
 		if err == nil {
-			authPlugin.authCacheSeconds = authSec
+			authCacheSeconds = authSec
 		} else {
-			log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, authPlugin.authCacheSeconds)
+			log.Warningf("couldn't parse authCacheSeconds (err: %s), defaulting to %d", err, authCacheSeconds)
 		}
 	}
 
 	if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
 		aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
 		if err == nil {
-			authPlugin.aclCacheSeconds = aclSec
+			aclCacheSeconds = aclSec
 		} else {
-			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, authPlugin.aclCacheSeconds)
+			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, aclCacheSeconds)
 		}
 	}
 
@@ -434,7 +424,7 @@ func setCache(authOpts map[string]string) {
 				addresses[i] = strings.TrimSpace(addresses[i])
 			}
 
-			authPlugin.cache = cache.NewRedisClusterStore(password, addresses, authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
+			authPlugin.cache = cache.NewRedisClusterStore(password, addresses, authCacheSeconds, aclCacheSeconds)
 
 		} else {
 			if cacheHost, ok := authOpts["cache_host"]; ok {
@@ -454,11 +444,11 @@ func setCache(authOpts map[string]string) {
 				}
 			}
 
-			authPlugin.cache = cache.NewSingleRedisStore(host, port, password, db, authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
+			authPlugin.cache = cache.NewSingleRedisStore(host, port, password, db, authCacheSeconds, aclCacheSeconds)
 		}
 
 	default:
-		authPlugin.cache = cache.NewGoStore(authPlugin.authCacheSeconds, authPlugin.aclCacheSeconds)
+		authPlugin.cache = cache.NewGoStore(authCacheSeconds, aclCacheSeconds)
 	}
 
 	if !authPlugin.cache.Connect(authPlugin.ctx, reset) {

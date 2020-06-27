@@ -100,18 +100,18 @@ func isMovedError(err error) bool {
 }
 
 // Connect flushes the cache if reset is set.
-func (o *goStore) Connect(ctx context.Context, reset bool) bool {
+func (s *goStore) Connect(ctx context.Context, reset bool) bool {
 	log.Infoln("started go-cache")
 	if reset {
-		o.client.Flush()
+		s.client.Flush()
 		log.Infoln("flushed go-cache")
 	}
 	return true
 }
 
 // Connect pings Redis and flushes the cache if reset is set.
-func (o *redisStore) Connect(ctx context.Context, reset bool) bool {
-	_, err := o.client.Ping(ctx).Result()
+func (s *redisStore) Connect(ctx context.Context, reset bool) bool {
+	_, err := s.client.Ping(ctx).Result()
 	if err != nil {
 		log.Errorf("couldn't start redis. error: %s", err)
 		return false
@@ -119,36 +119,36 @@ func (o *redisStore) Connect(ctx context.Context, reset bool) bool {
 		log.Infoln("started redis cachet")
 		//Check if cache must be reset
 		if reset {
-			o.client.FlushDB(ctx)
+			s.client.FlushDB(ctx)
 			log.Infoln("flushed redis cache")
 		}
 	}
 	return true
 }
 
-func (o *goStore) Close() {
+func (s *goStore) Close() {
 	//TODO: support serializing cache for re hydration.
 }
 
-func (o *redisStore) Close() {
-	o.client.Close()
+func (s *redisStore) Close() {
+	s.client.Close()
 }
 
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
-func (o *goStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
+func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
 	record := toAuthRecord(username, password)
-	return o.checkRecord(ctx, record, o.authExpiration)
+	return s.checkRecord(ctx, record, s.authExpiration)
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
-func (o *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
+func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc)
-	return o.checkRecord(ctx, record, o.aclExpiration)
+	return s.checkRecord(ctx, record, s.aclExpiration)
 }
 
-func (o *goStore) checkRecord(ctx context.Context, record string, expirationTime int64) (bool, bool) {
+func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime int64) (bool, bool) {
 	granted := false
-	v, present := o.client.Get(record)
+	v, present := s.client.Get(record)
 
 	if present {
 		value, ok := v.(string)
@@ -156,39 +156,39 @@ func (o *goStore) checkRecord(ctx context.Context, record string, expirationTime
 			granted = true
 		}
 
-		o.client.Set(record, value, time.Duration(expirationTime))
+		s.client.Set(record, value, time.Duration(expirationTime))
 	}
 	return present, granted
 }
 
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
-func (o *redisStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
+func (s *redisStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
 	record := toAuthRecord(username, password)
-	return o.checkRecord(ctx, record, o.authExpiration)
+	return s.checkRecord(ctx, record, s.authExpiration)
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
-func (o *redisStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
+func (s *redisStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc)
-	return o.checkRecord(ctx, record, o.aclExpiration)
+	return s.checkRecord(ctx, record, s.aclExpiration)
 }
 
-func (o *redisStore) checkRecord(ctx context.Context, record string, expirationTime int64) (bool, bool) {
+func (s *redisStore) checkRecord(ctx context.Context, record string, expirationTime int64) (bool, bool) {
 
-	present, granted, err := o.getAndRefresh(ctx, record, expirationTime)
+	present, granted, err := s.getAndRefresh(ctx, record, expirationTime)
 	if err == nil {
 		return present, granted
 	}
 
 	if isMovedError(err) {
-		err = o.client.ReloadState(ctx)
+		err = s.client.ReloadState(ctx)
 		// This should not happen, ever!
 		if err == bes.SingleClientError {
 			return false, false
 		}
 
 		//Retry once.
-		present, granted, err = o.getAndRefresh(ctx, record, expirationTime)
+		present, granted, err = s.getAndRefresh(ctx, record, expirationTime)
 	}
 
 	if err != nil {
@@ -198,14 +198,14 @@ func (o *redisStore) checkRecord(ctx context.Context, record string, expirationT
 	return present, granted
 }
 
-func (o *redisStore) getAndRefresh(ctx context.Context, record string, expirationTime int64) (bool, bool, error) {
-	val, err := o.client.Get(ctx, record).Result()
+func (s *redisStore) getAndRefresh(ctx context.Context, record string, expirationTime int64) (bool, bool, error) {
+	val, err := s.client.Get(ctx, record).Result()
 	if err != nil {
 		return false, false, err
 	}
 
 	//refresh expiration
-	_, err = o.client.Expire(ctx, record, time.Duration(expirationTime)*time.Second).Result()
+	_, err = s.client.Expire(ctx, record, time.Duration(expirationTime)*time.Second).Result()
 	if err != nil {
 		return false, false, err
 	}
@@ -218,35 +218,35 @@ func (o *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 }
 
 // SetAuthRecord sets a pair, granted option and expiration time.
-func (o *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
+func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password)
-	o.client.Set(record, granted, time.Duration(o.authExpiration))
+	s.client.Set(record, granted, time.Duration(s.authExpiration))
 
 	return nil
 }
 
 //SetAclCache sets a mix, granted option and expiration time.
-func (o *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
+func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc)
-	o.client.Set(record, granted, time.Duration(o.authExpiration))
+	s.client.Set(record, granted, time.Duration(s.authExpiration))
 
 	return nil
 }
 
 // SetAuthRecord sets a pair, granted option and expiration time.
-func (o *redisStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
+func (s *redisStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password)
-	return o.setRecord(ctx, record, granted, o.authExpiration)
+	return s.setRecord(ctx, record, granted, s.authExpiration)
 }
 
 //SetAclCache sets a mix, granted option and expiration time.
-func (o *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
+func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc)
-	return o.setRecord(ctx, record, granted, o.authExpiration)
+	return s.setRecord(ctx, record, granted, s.authExpiration)
 }
 
-func (o *redisStore) setRecord(ctx context.Context, record, granted string, expirationTime int64) error {
-	err := o.set(ctx, record, granted, expirationTime)
+func (s *redisStore) setRecord(ctx context.Context, record, granted string, expirationTime int64) error {
+	err := s.set(ctx, record, granted, expirationTime)
 
 	if err == nil {
 		return nil
@@ -254,18 +254,18 @@ func (o *redisStore) setRecord(ctx context.Context, record, granted string, expi
 
 	// If record was moved, reload and retry.
 	if isMovedError(err) {
-		err = o.client.ReloadState(ctx)
+		err = s.client.ReloadState(ctx)
 		if err != nil {
 			return err
 		}
 
 		//Retry once.
-		err = o.set(ctx, record, granted, expirationTime)
+		err = s.set(ctx, record, granted, expirationTime)
 	}
 
 	return err
 }
 
-func (o *redisStore) set(ctx context.Context, record string, granted string, expirationTime int64) error {
-	return o.client.Set(ctx, record, granted, time.Duration(expirationTime)*time.Second).Err()
+func (s *redisStore) set(ctx context.Context, record string, granted string, expirationTime int64) error {
+	return s.client.Set(ctx, record, granted, time.Duration(expirationTime)*time.Second).Err()
 }

@@ -242,7 +242,8 @@ auth_opt_backends files, postgres, jwt
 
 #### Cache
 
-There are 2 types of cache supported: an in memory one using [go-cache](https://github.com/patrickmn/go-cache), or a Redis backed one.
+There are 2 types of caches supported: an in memory one using [go-cache](https://github.com/patrickmn/go-cache), or a Redis backed one.
+
 Set `cache` option to true to use a cache (defaults to false when missing) and `cache_type` to set the type of the cache. By default the plugin will use `go-cache` unless explicitly told to use Redis.
 Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache` on startup is not yet supported**).
 
