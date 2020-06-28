@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	log "github.com/sirupsen/logrus"
-
 	. "github.com/smartystreets/goconvey/convey"
 )
 

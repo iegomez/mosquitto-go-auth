@@ -14,7 +14,8 @@ import (
 	"strings"
 	"time"
 
-	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
@@ -44,6 +45,8 @@ type JWT struct {
 	UserField string
 
 	Client *h.Client
+
+	hasher hashing.HashComparer
 }
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
@@ -58,7 +61,7 @@ type Response struct {
 	Error string `json:"error"`
 }
 
-func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
+func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (JWT, error) {
 
 	log.SetLevel(logLevel)
 
@@ -71,6 +74,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 		ParamsMode:   "json",
 		LocalDB:      "postgres",
 		UserField:    "Subject",
+		hasher:       hasher,
 	}
 
 	if userField, ok := authOpts["jwt_userfield"]; ok && userField == "Username" {
@@ -190,7 +194,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 
 		if jwt.LocalDB == "mysql" {
 			//Try to create a mysql backend with these custom queries
-			mysql, err := NewMysql(authOpts, logLevel)
+			mysql, err := NewMysql(authOpts, logLevel, hasher)
 			if err != nil {
 				return jwt, errors.Errorf("JWT backend error: couldn't create mysql connector for local jwt: %s", err)
 			}
@@ -201,7 +205,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level) (JWT, error) {
 			jwt.Mysql = mysql
 		} else {
 			//Try to create a postgres backend with these custom queries.
-			postgres, err := NewPostgres(authOpts, logLevel)
+			postgres, err := NewPostgres(authOpts, logLevel, hasher)
 			if err != nil {
 				return jwt, errors.Errorf("JWT backend error: couldn't create postgres connector for local jwt: %s", err)
 			}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -40,7 +41,7 @@ func TestMongoRaw(t *testing.T) {
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {
 
-		mongo, err := NewMongo(authOpts, log.DebugLevel)
+		mongo, err := NewMongo(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mongo"))
 		So(err, ShouldBeNil)
 		mongo.Conn.Database(mongo.DBName).Drop(context.TODO())
 		mongoDb := mongo.Conn.Database(mongo.DBName)
@@ -195,11 +196,14 @@ func TestMongoUtf8(t *testing.T) {
 	authOpts["mongo_host"] = mongoHost
 	authOpts["mongo_port"] = mongoPort
 	authOpts["mongo_dbname"] = mongoDbName
-	authOpts["mongo_salt_encoding"] = "utf-8"
+
+	// Pass explicit hasher so utf-8 salt encoding is used.
+	authOpts["hasher"] = "pbkdf2"
+	authOpts["hasher_salt_encoding"] = "utf-8"
 
 	Convey("Given valid params NewMongo should return a Mongo backend instance", t, func() {
 
-		mongo, err := NewMongo(authOpts, log.DebugLevel)
+		mongo, err := NewMongo(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mongo"))
 		So(err, ShouldBeNil)
 		mongo.Conn.Database(mongo.DBName).Drop(context.TODO())
 		mongoDb := mongo.Conn.Database(mongo.DBName)

@@ -6,13 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 )
-
-// hashIterations defines the number of hash iterations.
-var hashIterations = 100000
 
 //FileUer keeps a user password and acl records.
 type FileUser struct {
@@ -30,15 +27,15 @@ type AclRecord struct {
 type Files struct {
 	PasswordPath string
 	AclPath      string
-	SaltEncoding string
 	CheckAcls    bool
 	Users        map[string]*FileUser //Users keeps a registry of username/FileUser pairs, holding a user's password and Acl records.
 	AclRecords   []AclRecord
 	filesOnly    bool
+	hasher       hashing.HashComparer
 }
 
 //NewFiles initializes a files backend.
-func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
+func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Files, error) {
 
 	log.SetLevel(logLevel)
 
@@ -48,8 +45,8 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		CheckAcls:    false,
 		Users:        make(map[string]*FileUser),
 		AclRecords:   make([]AclRecord, 0),
-		SaltEncoding: "base64",
 		filesOnly:    true,
+		hasher:       hasher,
 	}
 
 	if len(strings.Split(strings.Replace(authOpts["backends"], " ", "", -1), ",")) > 1 {
@@ -60,16 +57,6 @@ func NewFiles(authOpts map[string]string, logLevel log.Level) (Files, error) {
 		files.PasswordPath = passwordPath
 	} else {
 		return files, errors.New("Files backend error: no password path given")
-	}
-
-	if saltEncoding, ok := authOpts["salt_encoding"]; ok {
-		switch saltEncoding {
-		case common.Base64, common.UTF8:
-			files.SaltEncoding = saltEncoding
-			log.Debugf("files backend: set salt encoding to: %s", saltEncoding)
-		default:
-			log.Errorf("files backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
-		}
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {
@@ -306,7 +293,7 @@ func (o Files) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, fileUser.Password, o.SaltEncoding) {
+	if o.hasher.Compare(password, fileUser.Password) {
 		return true
 	}
 
@@ -334,7 +321,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	//If user exists, check against his acls and common ones. If not, check against common acls only.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			if common.TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
+			if TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 				return true
 			}
 		}
@@ -343,7 +330,7 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 		//Replace all occurrences of %c for clientid and %u for username
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
+		if TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
 			return true
 		}
 	}

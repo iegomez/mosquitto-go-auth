@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/iegomez/mosquitto-go-auth/hashing"
+
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/iegomez/mosquitto-go-auth/cache"
 	log "github.com/sirupsen/logrus"
@@ -41,6 +43,7 @@ type AuthPlugin struct {
 	disableSuperuser         bool
 	ctx                      context.Context
 	cache                    cache.Store
+	hasher                   hashing.HashComparer
 }
 
 const (
@@ -83,7 +86,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	cmBackends := make(map[string]Backend)
 
-	//Initialize common struct with default and given values
+	//Initialize auth plugin struct with default and given values.
 	authPlugin = AuthPlugin{
 		checkPrefix: false,
 		prefixes:    make(map[string]string),
@@ -251,9 +254,10 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 			}
 		} else {
+			hasher := hashing.NewHasher(authOpts, bename)
 			switch bename {
 			case postgresBackend:
-				beIface, err = bes.NewPostgres(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewPostgres(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -261,7 +265,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[postgresBackend] = beIface.(bes.Postgres)
 				}
 			case jwtBackend:
-				beIface, err = bes.NewJWT(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewJWT(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -269,7 +273,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[jwtBackend] = beIface.(bes.JWT)
 				}
 			case filesBackend:
-				beIface, err = bes.NewFiles(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewFiles(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -277,7 +281,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[filesBackend] = beIface.(bes.Files)
 				}
 			case redisBackend:
-				beIface, err = bes.NewRedis(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewRedis(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -285,7 +289,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[redisBackend] = beIface.(bes.Redis)
 				}
 			case mysqlBackend:
-				beIface, err = bes.NewMysql(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewMysql(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -301,7 +305,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[httpBackend] = beIface.(bes.HTTP)
 				}
 			case sqliteBackend:
-				beIface, err = bes.NewSqlite(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewSqlite(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
@@ -309,7 +313,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					cmBackends[sqliteBackend] = beIface.(bes.Sqlite)
 				}
 			case mongoBackend:
-				beIface, err = bes.NewMongo(authOpts, authPlugin.logLevel)
+				beIface, err = bes.NewMongo(authOpts, authPlugin.logLevel, hasher)
 				if err != nil {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {

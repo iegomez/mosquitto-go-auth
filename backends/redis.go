@@ -9,7 +9,7 @@ import (
 	"time"
 
 	goredis "github.com/go-redis/redis/v8"
-	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -44,9 +44,10 @@ type Redis struct {
 	conn             RedisClient
 	disableSuperuser bool
 	ctx              context.Context
+	hasher           hashing.HashComparer
 }
 
-func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
+func NewRedis(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Redis, error) {
 
 	log.SetLevel(logLevel)
 
@@ -56,6 +57,7 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 		DB:           1,
 		SaltEncoding: "base64",
 		ctx:          context.Background(),
+		hasher:       hasher,
 	}
 
 	if authOpts["redis_disable_superuser"] == "true" {
@@ -72,16 +74,6 @@ func NewRedis(authOpts map[string]string, logLevel log.Level) (Redis, error) {
 
 	if redisPassword, ok := authOpts["redis_password"]; ok {
 		redis.Password = redisPassword
-	}
-
-	if saltEncoding, ok := authOpts["redis_salt_encoding"]; ok {
-		switch saltEncoding {
-		case common.Base64, common.UTF8:
-			redis.SaltEncoding = saltEncoding
-			log.Debugf("redis backend: set salt encoding to: %s", saltEncoding)
-		default:
-			log.Errorf("redis backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
-		}
 	}
 
 	if redisDB, ok := authOpts["redis_db"]; ok {
@@ -175,7 +167,7 @@ func (o Redis) getUser(username, password string) (bool, error) {
 		return false, err
 	}
 
-	if common.HashCompare(password, pwHash, o.SaltEncoding) {
+	if o.hasher.Compare(password, pwHash) {
 		return true, nil
 	}
 
@@ -330,7 +322,7 @@ func (o Redis) checkAcl(username, topic, clientid string, acc int32) (bool, erro
 
 	//Now loop through acls looking for a match.
 	for _, acl := range acls {
-		if common.TopicsMatch(acl, topic) {
+		if TopicsMatch(acl, topic) {
 			return true, nil
 		}
 	}
@@ -338,7 +330,7 @@ func (o Redis) checkAcl(username, topic, clientid string, acc int32) (bool, erro
 	for _, acl := range commonAcls {
 		aclTopic := strings.Replace(acl, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) {
+		if TopicsMatch(aclTopic, topic) {
 			return true, nil
 		}
 	}

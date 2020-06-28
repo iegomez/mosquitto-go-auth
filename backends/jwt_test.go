@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dgrijalva/jwt-go"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
-
-	jwt "github.com/dgrijalva/jwt-go"
 	. "github.com/smartystreets/goconvey/convey"
 )
 
@@ -73,7 +73,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 		authOpts["pg_password"] = "go_auth_test"
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts, log.DebugLevel)
+			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 			So(err, ShouldBeNil)
 
 			//Empty db
@@ -222,7 +222,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 		authOpts["mysql_allow_native_passwords"] = "true"
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts, log.DebugLevel)
+			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 			So(err, ShouldBeNil)
 
 			//Empty db
@@ -451,7 +451,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -580,7 +580,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -711,7 +711,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -852,7 +852,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -975,7 +975,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {
@@ -1101,7 +1101,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	authOpts["jwt_aclcheck_uri"] = "/acl"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
-		hb, err := NewJWT(authOpts, log.DebugLevel)
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 		So(err, ShouldBeNil)
 
 		Convey("Given correct password/username, get user should return true", func() {

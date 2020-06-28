@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"google.golang.org/grpc"
-
-	log "github.com/sirupsen/logrus"
-
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
+	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
+	"google.golang.org/grpc"
 )
 
 const (
