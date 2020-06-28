@@ -8,6 +8,7 @@ import (
 	"plugin"
 	"strconv"
 	"strings"
+	"time"
 
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/iegomez/mosquitto-go-auth/cache"
@@ -424,7 +425,7 @@ func setCache(authOpts map[string]string) {
 				addresses[i] = strings.TrimSpace(addresses[i])
 			}
 
-			authPlugin.cache = cache.NewRedisClusterStore(password, addresses, authCacheSeconds, aclCacheSeconds)
+			authPlugin.cache = cache.NewRedisClusterStore(password, addresses, time.Duration(authCacheSeconds)*time.Second, time.Duration(aclCacheSeconds)*time.Second)
 
 		} else {
 			if cacheHost, ok := authOpts["cache_host"]; ok {
@@ -444,11 +445,11 @@ func setCache(authOpts map[string]string) {
 				}
 			}
 
-			authPlugin.cache = cache.NewSingleRedisStore(host, port, password, db, authCacheSeconds, aclCacheSeconds)
+			authPlugin.cache = cache.NewSingleRedisStore(host, port, password, db, time.Duration(authCacheSeconds)*time.Second, time.Duration(aclCacheSeconds)*time.Second)
 		}
 
 	default:
-		authPlugin.cache = cache.NewGoStore(authCacheSeconds, aclCacheSeconds)
+		authPlugin.cache = cache.NewGoStore(time.Duration(authCacheSeconds)*time.Second, time.Duration(aclCacheSeconds)*time.Second)
 	}
 
 	if !authPlugin.cache.Connect(authPlugin.ctx, reset) {
