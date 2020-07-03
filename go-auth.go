@@ -28,7 +28,7 @@ type AuthPlugin struct {
 	customPlugin             *plugin.Plugin
 	PInit                    func(map[string]string, log.Level) error
 	customPluginGetName      func() string
-	customPluginGetUser      func(username, password string) bool
+	customPluginGetUser      func(username, password, clientid string) bool
 	customPluginGetSuperuser func(username string) bool
 	customPluginCheckAcl     func(username, topic, clientid string, acc int) bool
 	customPluginHalt         func()
@@ -211,7 +211,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					continue
 				}
 
-				getUserFunc := plGetUser.(func(username, password string) bool)
+				getUserFunc := plGetUser.(func(username, password, clientid string) bool)
 				authPlugin.customPluginGetUser = getUserFunc
 
 				plGetSuperuser, err := authPlugin.customPlugin.Lookup("GetSuperuser")
@@ -692,7 +692,7 @@ func CheckPluginAuth(username, password, clientid string) bool {
 	if authPlugin.customPlugin == nil {
 		return false
 	}
-	return authPlugin.customPluginGetUser(username, password)
+	return authPlugin.customPluginGetUser(username, password, clientid)
 }
 
 //CheckPluginAcl checks that the plugin is not nil and returns the superuser/acl response.
