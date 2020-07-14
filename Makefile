@@ -8,7 +8,7 @@ dev-requirements:
 	go get -u github.com/smartystreets/goconvey
 
 test:
-	go test ./backends ./cache -v -bench=none -count=1
+	go test ./backends ./cache ./hashing -v -bench=none -count=1
 
 benchmark:
 	go test ./backends -v -bench=. -run=^a

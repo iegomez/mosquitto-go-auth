@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -18,10 +18,10 @@ type Sqlite struct {
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
-	SaltEncoding   string
+	hasher         hashing.HashComparer
 }
 
-func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
+func NewSqlite(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Sqlite, error) {
 
 	log.SetLevel(logLevel)
 
@@ -33,7 +33,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	var sqlite = Sqlite{
 		SuperuserQuery: "",
 		AclQuery:       "",
-		SaltEncoding:   "base64",
+		hasher:         hasher,
 	}
 
 	if source, ok := authOpts["sqlite_source"]; ok {
@@ -58,16 +58,6 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 		sqlite.AclQuery = aclQuery
 	}
 
-	if saltEncoding, ok := authOpts["sqlite_salt_encoding"]; ok {
-		switch saltEncoding {
-		case common.Base64, common.UTF8:
-			sqlite.SaltEncoding = saltEncoding
-			log.Debugf("sqlite backend: set salt encoding to: %s", saltEncoding)
-		default:
-			log.Errorf("sqlite backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
-		}
-	}
-
 	//Exit if any mandatory option is missing.
 	if !sqliteOk {
 		return sqlite, errors.Errorf("sqlite backend error: missing options: %s", missingOptions)
@@ -80,7 +70,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level) (Sqlite, error) {
 	}
 
 	var err error
-	sqlite.DB, err = common.OpenDatabase(connStr, "sqlite3")
+	sqlite.DB, err = OpenDatabase(connStr, "sqlite3")
 
 	if err != nil {
 		return sqlite, errors.Errorf("sqlite backend error: couldn't open db %s: %s", connStr, err)
@@ -106,7 +96,7 @@ func (o Sqlite) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
+	if o.hasher.Compare(password, pwHash.String) {
 		return true
 	}
 
@@ -162,7 +152,7 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) bool {
 	for _, acl := range acls {
 		aclTopic := strings.Replace(acl, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) {
+		if TopicsMatch(aclTopic, topic) {
 			return true
 		}
 	}

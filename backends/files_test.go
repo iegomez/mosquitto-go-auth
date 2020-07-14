@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
@@ -14,7 +15,7 @@ func TestFiles(t *testing.T) {
 	authOpts := make(map[string]string)
 
 	Convey("Given empty opts NewFiles should fail", t, func() {
-		_, err := NewFiles(authOpts, log.DebugLevel)
+		_, err := NewFiles(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "files"))
 		So(err, ShouldBeError)
 	})
 
@@ -25,7 +26,7 @@ func TestFiles(t *testing.T) {
 	clientID := "test_client"
 
 	Convey("Given valid params NewFiles should return a new files backend instance", t, func() {
-		files, err := NewFiles(authOpts, log.DebugLevel)
+		files, err := NewFiles(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "files"))
 		So(err, ShouldBeNil)
 
 		/*

@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
@@ -35,7 +36,7 @@ func TestRedisCluster(t *testing.T) {
 }
 
 func testRedis(ctx context.Context, t *testing.T, authOpts map[string]string) {
-	redis, err := NewRedis(authOpts, log.DebugLevel)
+	redis, err := NewRedis(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "redis"))
 	assert.Nil(t, err)
 
 	//Empty db

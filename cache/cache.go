@@ -2,8 +2,10 @@ package cache
 
 import (
 	"context"
+	"crypto/sha1"
 	b64 "encoding/base64"
 	"fmt"
+	"hash"
 	"strings"
 	"time"
 
@@ -18,12 +20,14 @@ type redisStore struct {
 	authExpiration time.Duration
 	aclExpiration  time.Duration
 	client         bes.RedisClient
+	h              hash.Hash
 }
 
 type goStore struct {
 	authExpiration time.Duration
 	aclExpiration  time.Duration
 	client         *goCache.Cache
+	h              hash.Hash
 }
 
 const (
@@ -47,6 +51,7 @@ func NewGoStore(authExpiration, aclExpiration time.Duration) *goStore {
 		authExpiration: authExpiration,
 		aclExpiration:  aclExpiration,
 		client:         goCache.New(time.Second*defaultExpiration, time.Second*(defaultExpiration*2)),
+		h:              sha1.New(),
 	}
 }
 
@@ -63,6 +68,7 @@ func NewSingleRedisStore(host, port, password string, db int, authExpiration, ac
 		authExpiration: authExpiration,
 		aclExpiration:  aclExpiration,
 		client:         bes.SingleRedisClient{redisClient},
+		h:              sha1.New(),
 	}
 }
 
@@ -78,15 +84,20 @@ func NewRedisClusterStore(password string, addresses []string, authExpiration, a
 		authExpiration: authExpiration,
 		aclExpiration:  aclExpiration,
 		client:         clusterClient,
+		h:              sha1.New(),
 	}
 }
 
-func toAuthRecord(username, password string) string {
-	return b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("auth-%s-%s", username, password)))
+func toAuthRecord(username, password string, h hash.Hash) string {
+	sum := h.Sum([]byte(fmt.Sprintf("auth-%s-%s", username, password)))
+	log.Debugf("to auth record: %v\n", sum)
+	return b64.StdEncoding.EncodeToString(sum)
 }
 
-func toACLRecord(username, topic, clientid string, acc int) string {
-	return b64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("acl-%s-%s-%s-%d", username, topic, clientid, acc)))
+func toACLRecord(username, topic, clientid string, acc int, h hash.Hash) string {
+	sum := h.Sum([]byte(fmt.Sprintf("acl-%s-%s-%s-%d", username, topic, clientid, acc)))
+	log.Debugf("to auth record: %v\n", sum)
+	return b64.StdEncoding.EncodeToString(sum)
 }
 
 // Checks if an error was caused by a moved record in a Redis Cluster.
@@ -136,13 +147,13 @@ func (s *redisStore) Close() {
 
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
 func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
-	record := toAuthRecord(username, password)
+	record := toAuthRecord(username, password, s.h)
 	return s.checkRecord(ctx, record, s.authExpiration)
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
-	record := toACLRecord(username, topic, clientid, acc)
+	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.checkRecord(ctx, record, s.aclExpiration)
 }
 
@@ -163,13 +174,13 @@ func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime
 
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
 func (s *redisStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
-	record := toAuthRecord(username, password)
+	record := toAuthRecord(username, password, s.h)
 	return s.checkRecord(ctx, record, s.authExpiration)
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *redisStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
-	record := toACLRecord(username, topic, clientid, acc)
+	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.checkRecord(ctx, record, s.aclExpiration)
 }
 
@@ -219,7 +230,7 @@ func (s *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
-	record := toAuthRecord(username, password)
+	record := toAuthRecord(username, password, s.h)
 	s.client.Set(record, granted, time.Second*time.Duration(s.authExpiration))
 
 	return nil
@@ -227,7 +238,7 @@ func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, 
 
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
-	record := toACLRecord(username, topic, clientid, acc)
+	record := toACLRecord(username, topic, clientid, acc, s.h)
 	s.client.Set(record, granted, time.Second*time.Duration(s.authExpiration))
 
 	return nil
@@ -235,13 +246,13 @@ func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid st
 
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *redisStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
-	record := toAuthRecord(username, password)
+	record := toAuthRecord(username, password, s.h)
 	return s.setRecord(ctx, record, granted, s.authExpiration)
 }
 
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
-	record := toACLRecord(username, topic, clientid, acc)
+	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.setRecord(ctx, record, granted, s.authExpiration)
 }
 

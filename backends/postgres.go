@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	"github.com/pkg/errors"
@@ -20,7 +20,6 @@ type Postgres struct {
 	DBName         string
 	User           string
 	Password       string
-	SaltEncoding   string
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
@@ -28,9 +27,10 @@ type Postgres struct {
 	SSLCert        string
 	SSLKey         string
 	SSLRootCert    string
+	hasher         hashing.HashComparer
 }
 
-func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, error) {
+func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Postgres, error) {
 
 	log.SetLevel(logLevel)
 
@@ -45,7 +45,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 		SSLMode:        "disable",
 		SuperuserQuery: "",
 		AclQuery:       "",
-		SaltEncoding:   "base64",
+		hasher:         hasher,
 	}
 
 	if host, ok := authOpts["pg_host"]; ok {
@@ -75,16 +75,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	} else {
 		pgOk = false
 		missingOptions += " pg_password"
-	}
-
-	if saltEncoding, ok := authOpts["pg_salt_encoding"]; ok {
-		switch saltEncoding {
-		case common.Base64, common.UTF8:
-			postgres.SaltEncoding = saltEncoding
-			log.Debugf("postgres backend: set salt encoding to: %s", saltEncoding)
-		default:
-			log.Errorf("postgres backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
-		}
 	}
 
 	if userQuery, ok := authOpts["pg_userquery"]; ok {
@@ -145,7 +135,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level) (Postgres, erro
 	}
 
 	var err error
-	postgres.DB, err = common.OpenDatabase(connStr, "postgres")
+	postgres.DB, err = OpenDatabase(connStr, "postgres")
 
 	if err != nil {
 		return postgres, errors.Errorf("PG backend error: couldn't open db: %s", err)
@@ -171,7 +161,7 @@ func (o Postgres) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, pwHash.String, o.SaltEncoding) {
+	if o.hasher.Compare(password, pwHash.String) {
 		return true
 	}
 
@@ -228,7 +218,7 @@ func (o Postgres) CheckAcl(username, topic, clientid string, acc int32) bool {
 	for _, acl := range acls {
 		aclTopic := strings.Replace(acl, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if common.TopicsMatch(aclTopic, topic) {
+		if TopicsMatch(aclTopic, topic) {
 			return true
 		}
 	}

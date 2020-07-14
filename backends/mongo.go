@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iegomez/mosquitto-go-auth/common"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"go.mongodb.org/mongo-driver/bson"
@@ -26,6 +26,7 @@ type Mongo struct {
 	AclsCollection   string
 	Conn             *mongo.Client
 	disableSuperuser bool
+	hasher           hashing.HashComparer
 }
 
 type MongoAcl struct {
@@ -40,7 +41,7 @@ type MongoUser struct {
 	Acls         []MongoAcl `bson:"acls"`
 }
 
-func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
+func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Mongo, error) {
 
 	log.SetLevel(logLevel)
 
@@ -53,7 +54,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 		AuthSource:      "",
 		UsersCollection: "users",
 		AclsCollection:  "acls",
-		SaltEncoding:    "base64",
+		hasher:          hasher,
 	}
 
 	if authOpts["mongo_disable_superuser"] == "true" {
@@ -74,16 +75,6 @@ func NewMongo(authOpts map[string]string, logLevel log.Level) (Mongo, error) {
 
 	if mongoPassword, ok := authOpts["mongo_password"]; ok {
 		m.Password = mongoPassword
-	}
-
-	if saltEncoding, ok := authOpts["mongo_salt_encoding"]; ok {
-		switch saltEncoding {
-		case common.Base64, common.UTF8:
-			m.SaltEncoding = saltEncoding
-			log.Debugf("mongo backend: set salt encoding to: %s", saltEncoding)
-		default:
-			log.Errorf("mongo backend: invalid salt encoding specified: %s, will default to base64 instead", saltEncoding)
-		}
 	}
 
 	if mongoDBName, ok := authOpts["mongo_dbname"]; ok {
@@ -149,7 +140,7 @@ func (o Mongo) GetUser(username, password, clientid string) bool {
 		return false
 	}
 
-	if common.HashCompare(password, user.PasswordHash, o.SaltEncoding) {
+	if o.hasher.Compare(password, user.PasswordHash) {
 		return true
 	}
 
@@ -193,7 +184,7 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 	}
 
 	for _, acl := range user.Acls {
-		if (acl.Acc == acc || acl.Acc == 3) && common.TopicsMatch(acl.Topic, topic) {
+		if (acl.Acc == acc || acl.Acc == 3) && TopicsMatch(acl.Topic, topic) {
 			return true
 		}
 	}
@@ -216,7 +207,7 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 		if err == nil {
 			aclTopic := strings.Replace(acl.Topic, "%c", clientid, -1)
 			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-			if common.TopicsMatch(aclTopic, topic) {
+			if TopicsMatch(aclTopic, topic) {
 				return true
 			}
 		} else {
