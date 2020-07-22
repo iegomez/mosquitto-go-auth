@@ -40,11 +40,11 @@ func main() {
 
 	switch *hasher {
 	case hashing.Argon2IDOpt:
-		hashComparer = hashing.NewArgon2IDHasher(*saltSize, *iterations, *keylen, uint32(*memory), uint8(*parallelism))
+		hashComparer = hashing.NewArgon2IDHasher(*saltSize, *iterations, shaSize, uint32(*memory), uint8(*parallelism))
 	case hashing.BcryptOpt:
 		hashComparer = hashing.NewBcryptHashComparer(*cost)
 	case hashing.Pbkdf2Opt:
-		hashComparer = hashing.NewPBKDF2Hasher(*saltSize, *iterations, *algorithm, *saltEncoding, *keylen)
+		hashComparer = hashing.NewPBKDF2Hasher(*saltSize, *iterations, *algorithm, *saltEncoding, shaSize)
 	default:
 		fmt.Println("invalid hasher option: ", *hasher)
 		return
