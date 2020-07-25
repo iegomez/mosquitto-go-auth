@@ -300,38 +300,38 @@ Each hasher has specific options. Notice that when using the `pw` utility, these
 ##### PBKDF2
 
 ```
-auth_opt_salt_size 16           # salt bytes length
-auth_opt_iterations 100000      # number of iterations
-auth_opt_keylen 64              # key length
-auth_opt_algorithm sha512       # hashing algorithm, either sha512 (default) or sha256
-auth_opt_salt_encoding          # salt encoding, either base64 (default) or utf-8
+auth_opt_hasher_salt_size 16           # salt bytes length
+auth_opt_hasher_iterations 100000      # number of iterations
+auth_opt_hasher_keylen 64              # key length
+auth_opt_hasher_algorithm sha512       # hashing algorithm, either sha512 (default) or sha256
+auth_opt_hasher_salt_encoding          # salt encoding, either base64 (default) or utf-8
 ```
 
 ##### Bcrypt
 
 ```
-auth_opt_cost 10                # key expansion iteration count
+auth_opt_hasher_cost 10                # key expansion iteration count
 ```
 
 ##### Argon2ID
 
 ```
-auth_opt_salt_size 16           # salt bytes length
-auth_opt_iterations 3           # number of iterations
-auth_opt_keylen 64              # key length
-auth_opt_memory 4096            # amount of memory (in kibibytes) to use
-auth_opt_parallelism 2          # degree of parallelism (i.e. number of threads)
+auth_opt_hasher_salt_size 16           # salt bytes length
+auth_opt_hasher_iterations 3           # number of iterations
+auth_opt_hasher_keylen 64              # key length
+auth_opt_hasher_memory 4096            # amount of memory (in kibibytes) to use
+auth_opt_hasher_parallelism 2          # degree of parallelism (i.e. number of threads)
 ```
 
 **These options may be defined for each backend that needs a hasher by prepending the backend's name to the option, e.g. for setting `argon2id` as `Postgres'` hasher**:
 
 ```
 auth_opt_pg_hasher argon2id
-auth_opt_pg_salt_size 16           # salt bytes length
-auth_opt_pg_iterations 3           # number of iterations
-auth_opt_pg_keylen 64              # key length
-auth_opt_pg_memory 4096            # amount of memory (in kibibytes) to use
-auth_opt_pg_parallelism            # degree of parallelism (i.e. number of threads)
+auth_opt_pg_hasher_salt_size 16           # salt bytes length
+auth_opt_pg_hasher_iterations 3           # number of iterations
+auth_opt_pg_hasher_keylen 64              # key length
+auth_opt_pg_hasher_memory 4096            # amount of memory (in kibibytes) to use
+auth_opt_pg_hasher_parallelism            # degree of parallelism (i.e. number of threads)
 ```
 
 #### Logging
