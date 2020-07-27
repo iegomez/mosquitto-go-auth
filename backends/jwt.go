@@ -12,9 +12,11 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"regexp"
+	"reflect"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	jwt_go "github.com/dgrijalva/jwt-go"
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -26,7 +28,7 @@ type JWT struct {
 
 	Postgres       Postgres
 	Mysql          Mysql
-	Secret         string
+	Secret         interface{}
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
@@ -51,7 +53,7 @@ type JWT struct {
 
 // Claims defines the struct containing the token claims. StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
 type Claims struct {
-	jwt.StandardClaims
+	jwt_go.StandardClaims
 	// If set, Username defines the identity of the user.
 	Username string `json:"username"`
 }
@@ -164,28 +166,42 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 		localOk := true
 
 		if secret, ok := authOpts["jwt_secret"]; ok {
-			jwt.Secret = secret
+			jwt.Secret = []byte(secret)
+		} else if pub_key_file, ok := authOpts["jwt_public_key_file"]; ok {
+        	verifyBytes, err := ioutil.ReadFile(pub_key_file)
+        	if err != nil {
+				return jwt, errors.Errorf("JWT backend error: couldn't read public key file for local jwt: %s", err)
+        	}
+        	// @todo auto-select PEM-type?
+        	secretObj, err := jwt_go.ParseRSAPublicKeyFromPEM(verifyBytes)
+        	if err != nil {
+				return jwt, errors.Errorf("JWT backend error: couldn't parse public key file for local jwt: %s", err)
+			}
+        	jwt.Secret = secretObj
 		} else {
 			return jwt, errors.New("JWT backend error: missing jwt secret")
 		}
 
-		if userQuery, ok := authOpts["jwt_userquery"]; ok {
-			jwt.UserQuery = userQuery
-		} else {
-			localOk = false
-			missingOpts += " jwt_userquery"
+		if localDB, ok := authOpts["jwt_db"]; ok {
+			jwt.LocalDB = localDB
 		}
 
-		if superuserQuery, ok := authOpts["jwt_superquery"]; ok {
-			jwt.SuperuserQuery = superuserQuery
+ 		// If no localDB, just verify the claims with the public key, so no queries are needed
+ 		if jwt.LocalDB != "none" {
+			if userQuery, ok := authOpts["jwt_userquery"]; ok {
+				jwt.UserQuery = userQuery
+			} else {
+				localOk = false
+				missingOpts += " jwt_userquery"
+			}
+
+			if superuserQuery, ok := authOpts["jwt_superquery"]; ok {
+				jwt.SuperuserQuery = superuserQuery
+			}
 		}
 
 		if aclQuery, ok := authOpts["jwt_aclquery"]; ok {
 			jwt.AclQuery = aclQuery
-		}
-
-		if localDB, ok := authOpts["jwt_db"]; ok {
-			jwt.LocalDB = localDB
 		}
 
 		if !localOk {
@@ -203,7 +219,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 			mysql.AclQuery = jwt.AclQuery
 
 			jwt.Mysql = mysql
-		} else {
+		} else if jwt.LocalDB == "postgres" {
 			//Try to create a postgres backend with these custom queries.
 			postgres, err := NewPostgres(authOpts, logLevel, hasher)
 			if err != nil {
@@ -230,13 +246,20 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 		return o.jwtRequest(o.Host, o.UserUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
 
-	//If not remote, get the claims and check against postgres for user.
+	// If not remote, get and verify the claims
 	claims, err := o.getClaims(token)
 
 	if err != nil {
 		log.Printf("jwt get user error: %s", err)
 		return false
 	}
+
+	// If no database is set, just verifying the claim is fine.
+	if o.LocalDB == "none" {
+		return true
+	}
+
+	// If localDB is set, check against database for user.
 	//Now check against the db.
 	if o.UserField == "Username" {
 		return o.getLocalUser(claims.Username)
@@ -271,17 +294,110 @@ func (o JWT) GetSuperuser(token string) bool {
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.GetSuperuser(claims.Username)
-		} else {
+		} else if o.LocalDB == "postgres" {
 			return o.Postgres.GetSuperuser(claims.Username)
 		}
 	}
 
 	if o.LocalDB == "mysql" {
 		return o.Mysql.GetSuperuser(claims.Subject)
-	} else {
+	} else if o.LocalDB == "postgres" {
 		return o.Postgres.GetSuperuser(claims.Subject)
 	}
+	return false
+}
 
+
+// Check acl in a db-less context. AclQuery contains a regex with placeholders. The placeholders are substituted first,
+// then the placeholder is evaluated against the string <access-string><space><topic>. Placeholders are in the form %fieldname%,
+// and can contain any field from the claims. Additionally, %clientId% is replaced with the client-id
+// <access-string> is either read, write or subscribe. If access checked is readwrite, the regex is AND'd for read and write apart. Use (read|write) or (read|write|subscribe) in your acl.
+// <space> is one space character
+// <topic> is the topic requested
+func (o JWT) evalAclQuery(token, topic, clientid string, acc int32) (bool) {
+	// no query, return true
+	if o.AclQuery == "" {
+		return true
+	}
+
+	// Get the claims
+ 	claims, err := o.getClaims(token)
+	if err != nil {
+		log.Debugf("parse claims failed %s", err)
+		return false
+	}
+
+	// Replace placeholders
+	reg, err := regexp.Compile(`%\w+%`)
+    if err != nil {
+		log.Errorf("Regexp compile %s failed %s", `%\w+%`, err)
+		return false
+	}
+
+	acl := reg.ReplaceAllStringFunc(o.AclQuery, func(s string) string {
+		f := s[1:len(s)-1]
+		if f == "clientId" {
+			return clientid
+		}
+		return getField(claims, f)
+	})
+
+	// Check regex
+	aclReg, err := regexp.Compile(acl)
+    if err != nil {
+		log.Errorf("Regexp compile %s failed %s", acl, err)
+		return false
+	}
+
+	switch (acc) {
+		case MOSQ_ACL_READ:
+			s := "read " + topic
+			log.Debugf("Match %s against %s", acl, s)
+			return aclReg.MatchString(s)
+		case MOSQ_ACL_WRITE:
+			s := "write " + topic
+			log.Debugf("Match %s against %s", acl, s)
+			return aclReg.MatchString(s)
+		case MOSQ_ACL_READWRITE:
+			s := "write " + topic
+			s2 := "read " + topic
+			log.Debugf("Match %s against %s and %s", acl, s, s2)
+			return aclReg.MatchString(s) && aclReg.MatchString(s2)
+		case MOSQ_ACL_SUBSCRIBE:
+			s := "subscribe " + topic
+			log.Debugf("Match %s against %s", acl, s)
+			return aclReg.MatchString(s)
+	}
+	return false
+}
+
+// getField gets given field of struct v via the reflect package, or an empty string on error.
+func getField(v interface{}, fieldname string) string {
+    // v must be a pointer to a struct
+    rv := reflect.ValueOf(v)
+    if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
+   		log.Errorf("getField: v must be pointer to struct")
+        return ""
+    }
+
+    // Dereference pointer
+    rv = rv.Elem()
+
+    // Lookup field by fieldname
+    fv := rv.FieldByName(fieldname)
+    if !fv.IsValid() {
+        log.Errorf("getField: not a field name: %s", fieldname)
+        return ""
+    }
+
+    // We expect a string field
+    if fv.Kind() != reflect.String {
+        log.Errorf("getField: %s is not a string field", fieldname)
+        return ""
+    }
+
+    // Get the value
+    return fv.String()
 }
 
 //CheckAcl checks user authorization.
@@ -300,6 +416,9 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		}
 		return o.jwtRequest(o.Host, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
+	if o.LocalDB == "none" {
+		return o.evalAclQuery(token, topic, clientid, acc)
+	}
 
 	//If not remote, get the claims and check against postgres for user.
 	//But check first that there's acl query.
@@ -316,16 +435,16 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	if o.UserField == "Username" {
 		if o.LocalDB == "mysql" {
 			return o.Mysql.CheckAcl(claims.Username, topic, clientid, acc)
-		} else {
+		} else if o.LocalDB == "postgres" {
 			return o.Postgres.CheckAcl(claims.Username, topic, clientid, acc)
 		}
 	}
 	if o.LocalDB == "mysql" {
 		return o.Mysql.CheckAcl(claims.Subject, topic, clientid, acc)
-	} else {
+	} else if o.LocalDB == "postgres" {
 		return o.Postgres.CheckAcl(claims.Subject, topic, clientid, acc)
 	}
-
+	return false
 }
 
 func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port, paramsMode, responseMode string, urlValues url.Values) bool {
@@ -446,7 +565,7 @@ func (o JWT) getLocalUser(username string) bool {
 	var err error
 	if o.LocalDB == "mysql" {
 		err = o.Mysql.DB.Get(&count, o.UserQuery, username)
-	} else {
+	} else if o.LocalDB == "postgres" {
 		err = o.Postgres.DB.Get(&count, o.UserQuery, username)
 	}
 
@@ -469,8 +588,8 @@ func (o JWT) getLocalUser(username string) bool {
 
 func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 
-	jwtToken, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(o.Secret), nil
+	jwtToken, err := jwt_go.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt_go.Token) (interface{}, error) {
+		return o.Secret, nil
 	})
 
 	if err != nil {
