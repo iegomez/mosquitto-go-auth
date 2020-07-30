@@ -10,10 +10,9 @@ import (
 	"net/http"
 	h "net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
-	"regexp"
-	"reflect"
 	"time"
 
 	jwt_go "github.com/dgrijalva/jwt-go"
@@ -32,6 +31,7 @@ type JWT struct {
 	UserQuery      string
 	SuperuserQuery string
 	AclQuery       string
+	AclScopeField  string
 
 	UserUri      string
 	SuperuserUri string
@@ -168,16 +168,16 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 		if secret, ok := authOpts["jwt_secret"]; ok {
 			jwt.Secret = []byte(secret)
 		} else if pub_key_file, ok := authOpts["jwt_public_key_file"]; ok {
-        	verifyBytes, err := ioutil.ReadFile(pub_key_file)
-        	if err != nil {
+			verifyBytes, err := ioutil.ReadFile(pub_key_file)
+			if err != nil {
 				return jwt, errors.Errorf("JWT backend error: couldn't read public key file for local jwt: %s", err)
-        	}
-        	// @todo auto-select PEM-type?
-        	secretObj, err := jwt_go.ParseRSAPublicKeyFromPEM(verifyBytes)
-        	if err != nil {
+			}
+			// @todo auto-select PEM-type?
+			secretObj, err := jwt_go.ParseRSAPublicKeyFromPEM(verifyBytes)
+			if err != nil {
 				return jwt, errors.Errorf("JWT backend error: couldn't parse public key file for local jwt: %s", err)
 			}
-        	jwt.Secret = secretObj
+			jwt.Secret = secretObj
 		} else {
 			return jwt, errors.New("JWT backend error: missing jwt secret")
 		}
@@ -186,8 +186,8 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 			jwt.LocalDB = localDB
 		}
 
- 		// If no localDB, just verify the claims with the public key, so no queries are needed
- 		if jwt.LocalDB != "none" {
+		// If no localDB, just verify the claims with the public key, so no queries are needed
+		if jwt.LocalDB != "none" {
 			if userQuery, ok := authOpts["jwt_userquery"]; ok {
 				jwt.UserQuery = userQuery
 			} else {
@@ -202,6 +202,9 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 
 		if aclQuery, ok := authOpts["jwt_aclquery"]; ok {
 			jwt.AclQuery = aclQuery
+		}
+		if aclScopeField, ok := authOpts["jwt_acl_scope_field"]; ok {
+			jwt.AclScopeField = aclScopeField
 		}
 
 		if !localOk {
@@ -307,97 +310,142 @@ func (o JWT) GetSuperuser(token string) bool {
 	return false
 }
 
-
-// Check acl in a db-less context. AclQuery contains a regex with placeholders. The placeholders are substituted first,
-// then the placeholder is evaluated against the string <access-string><space><topic>. Placeholders are in the form %fieldname%,
-// and can contain any field from the claims. Additionally, %clientId% is replaced with the client-id
-// <access-string> is either read, write or subscribe. If access checked is readwrite, the regex is AND'd for read and write apart. Use (read|write) or (read|write|subscribe) in your acl.
-// <space> is one space character
-// <topic> is the topic requested
-func (o JWT) evalAclQuery(token, topic, clientid string, acc int32) (bool) {
+// Check acl in a db-less context. AclQuery contains a comma separated string with expressions. Each expression consists
+// of a string to match with, then a column (:), then a regex to match against. Both string and regex can have placeholders.
+// The placeholders in the form %fieldname% are substituted first with as values the fields from the claims (short, lowercase
+// variants, as they are in json). Additionally, %clientId%, %topic%, %access% and %scope% can be used. %access% is the
+// requested access as string, so either read, write or subscribe. If access is readwrite, the test is done for write and
+// read apart and AND'd. %scope% is taken from the claims, the field is set in config AclScopeField. It is then spit on spaces
+// and for each %scope% is filled and the expression is evaluated. On the first match access is granted (so OR'd). If no scope
+// is given, ["default"] is used.
+// Example:
+//	 auth_opt_jwt_aclquery %scope% %access% %topic%:read-scope read topic/%sub%,%scope% %access% %topic%:test-scope (read|write|subscribe) other/%clientId%/%sub%
+//	 auth_opt_jwt_acl_scope_field scope
+func (o JWT) checkAclLocal(tokenStr, topic, clientId string, acc int32) bool {
 	// no query, return true
 	if o.AclQuery == "" {
 		return true
 	}
 
-	// Get the claims
- 	claims, err := o.getClaims(token)
-	if err != nil {
-		log.Debugf("parse claims failed %s", err)
-		return false
+	parser := &jwt_go.Parser{
+		SkipClaimsValidation: true,
 	}
-
-	// Replace placeholders
-	reg, err := regexp.Compile(`%\w+%`)
-    if err != nil {
-		log.Errorf("Regexp compile %s failed %s", `%\w+%`, err)
-		return false
-	}
-
-	acl := reg.ReplaceAllStringFunc(o.AclQuery, func(s string) string {
-		f := s[1:len(s)-1]
-		if f == "clientId" {
-			return clientid
-		}
-		return getField(claims, f)
+	jwtToken, err := parser.Parse(tokenStr, func(token *jwt_go.Token) (interface{}, error) {
+		return o.Secret, nil
 	})
-
-	// Check regex
-	aclReg, err := regexp.Compile(acl)
-    if err != nil {
-		log.Errorf("Regexp compile %s failed %s", acl, err)
+	if err != nil {
+		log.Debugf("jwt parse error: %s", err)
 		return false
 	}
 
-	switch (acc) {
+	claims, ok := jwtToken.Claims.(jwt_go.MapClaims)
+	if !ok {
+		// no need to use a static error, this should never happen
+		log.Debugf("api/auth: expected *jwt_go.MapClaims, got %T", jwtToken.Claims)
+		return false
+	}
+
+	// prepare values-map
+	values := map[string]interface{}{}
+	for k, v := range claims {
+		values[k] = v
+	}
+	// Add other static vars
+	values["topic"] = topic
+	values["clientId"] = clientId
+
+	// Iterate all scopes. If one scope matches, return true.
+	// Do so for the requested access. For access readwrite, we do the read and write separately and AND the result.
+	for _, scope := range o.getScopes(&claims) {
+		values["scope"] = scope
+		match := false
+		switch acc {
 		case MOSQ_ACL_READ:
-			s := "read " + topic
-			log.Debugf("Match %s against %s", acl, s)
-			return aclReg.MatchString(s)
+			values["access"] = "read"
+			match = evalAclQuery(o.AclQuery, &values)
 		case MOSQ_ACL_WRITE:
-			s := "write " + topic
-			log.Debugf("Match %s against %s", acl, s)
-			return aclReg.MatchString(s)
+			values["access"] = "write"
+			match = evalAclQuery(o.AclQuery, &values)
 		case MOSQ_ACL_READWRITE:
-			s := "write " + topic
-			s2 := "read " + topic
-			log.Debugf("Match %s against %s and %s", acl, s, s2)
-			return aclReg.MatchString(s) && aclReg.MatchString(s2)
+			// Do AND of write and read
+			values["access"] = "write"
+			match = evalAclQuery(o.AclQuery, &values)
+			if match {
+				values["access"] = "read"
+				match = evalAclQuery(o.AclQuery, &values)
+			}
 		case MOSQ_ACL_SUBSCRIBE:
-			s := "subscribe " + topic
-			log.Debugf("Match %s against %s", acl, s)
-			return aclReg.MatchString(s)
+			values["access"] = "subscribe"
+			match = evalAclQuery(o.AclQuery, &values)
+		}
+		if match {
+			return true
+		}
 	}
 	return false
 }
 
-// getField gets given field of struct v via the reflect package, or an empty string on error.
-func getField(v interface{}, fieldname string) string {
-    // v must be a pointer to a struct
-    rv := reflect.ValueOf(v)
-    if rv.Kind() != reflect.Ptr || rv.Elem().Kind() != reflect.Struct {
-   		log.Errorf("getField: v must be pointer to struct")
-        return ""
-    }
+// If AclScopeField is set, get that field from claims. Split it on whitespace and return as string-slice.
+// If none set, or anything goes wrong, return ["default"]
+func (o JWT) getScopes(claims *jwt_go.MapClaims) []string {
+	if o.AclScopeField != "" {
+		scopes, ok := (*claims)[o.AclScopeField]
+		if ok {
+			scopesStr, ok := scopes.(string)
+			if ok {
+				return strings.Fields(scopesStr)
+			}
+		}
+	}
+	return []string{"default"}
+}
 
-    // Dereference pointer
-    rv = rv.Elem()
+// Replace placeholders and eval query
+func evalAclQuery(query string, valuesPtr *map[string]interface{}) bool {
+	acl := replacePlaceholders(query, valuesPtr)
 
-    // Lookup field by fieldname
-    fv := rv.FieldByName(fieldname)
-    if !fv.IsValid() {
-        log.Errorf("getField: not a field name: %s", fieldname)
-        return ""
-    }
+	for _, rule := range strings.Split(acl, ",") {
+		parts := strings.SplitN(rule, ":", 2)
+		log.Debugf("Match %s against %s", parts[0], parts[1])
 
-    // We expect a string field
-    if fv.Kind() != reflect.String {
-        log.Errorf("getField: %s is not a string field", fieldname)
-        return ""
-    }
+		aclReg, err := regexp.Compile(parts[1])
+		if err != nil {
+			log.Errorf("Regexp compile %s failed %s", acl, err)
+			continue
+		}
 
-    // Get the value
-    return fv.String()
+		if aclReg.MatchString(parts[0]) {
+			return true
+		}
+	}
+	return false
+}
+
+// Replace placeholders
+func replacePlaceholders(subject string, valuesPtr *map[string]interface{}) string {
+	reg, err := regexp.Compile(`%\w+%`)
+	if err != nil {
+		log.Errorf("Regexp compile %s failed %s", `%\w+%`, err)
+		return subject
+	}
+
+	return reg.ReplaceAllStringFunc(subject, func(s string) string {
+		f := s[1 : len(s)-1]
+		v, ok := (*valuesPtr)[f]
+		if ok {
+			switch v := v.(type) {
+			case bool:
+				strconv.FormatBool(bool(v))
+			case float64:
+				return strconv.FormatFloat(float64(v), 'f', 1, 64)
+			case int64:
+				return strconv.Itoa(int(v))
+			case string:
+				return string(v)
+			}
+		}
+		return ""
+	})
 }
 
 //CheckAcl checks user authorization.
@@ -417,7 +465,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 		return o.jwtRequest(o.Host, o.AclUri, token, o.WithTLS, o.VerifyPeer, dataMap, o.Port, o.ParamsMode, o.ResponseMode, urlValues)
 	}
 	if o.LocalDB == "none" {
-		return o.evalAclQuery(token, topic, clientid, acc)
+		return o.checkAclLocal(token, topic, clientid, acc)
 	}
 
 	//If not remote, get the claims and check against postgres for user.
