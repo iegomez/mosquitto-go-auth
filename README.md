@@ -487,7 +487,8 @@ pattern read test/%c
 
 The `ACLs` file follows mosquitto's regular syntax: [mosquitto(5)](https://mosquitto.org/man/mosquitto-conf-5.html).
 
-There's no special `superuser` check for this backend since granting a user all permissions on `#` works in the same way. Furthermore, if this is **the only backend registered**, then providing no `ACLs` file path will default to grant all permissions for authenticated users when doing `ACL` checks (but then, why use a plugin if you can just use Mosquitto's static file checks, right?): if, instead, no `ACLs` file path is provided but **there are more backends registered**, this backend will default to deny any permissions for any user (again, back to basics).
+There's no special `superuser` check for this backend since granting a user all permissions on `#` works in the same way. 
+Furthermore, if this is **the only backend registered**, then providing no `ACLs` file path will default to grant all permissions for authenticated users when doing `ACL` checks (but then, why use a plugin if you can just use Mosquitto's static file checks, right?): if, instead, no `ACLs` file path is provided but **there are more backends registered**, this backend will default to deny any permissions for any user (again, back to basics).
 
 #### Testing Files
 
@@ -1052,7 +1053,8 @@ To test a Redis Cluster the plugin expects that there's a cluster with 3 masters
 The `mongo` backend, as the `redis` one, defines some formats to checks user, superuser and acls.
 Two collections are defined, one for users and the other for common acls.
 
-In the first case, a user consists of a "username" string, a "password" string (as always, PBKDF2 hash), a "superuser" boolean, and an "acls" array of rules. These rules consis of a "topic" string and an int "acc", where 1 means read only, 2 means write only and 3 means readwrite.
+In the first case, a user consists of a "username" string, a "password" string (as always, PBKDF2 hash), a "superuser" boolean, and an "acls" array of rules. 
+These rules consis of a "topic" string and an int "acc", where 1 means read only, 2 means write only, 3 means readwrite and 4 means subscribe (see ACL access values section for more details).
 
 Example user: 
 
@@ -1062,7 +1064,8 @@ Example user:
 		"password" : "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw==", 
 		"superuser" : true, 
 		"acls" : [ 
-			{ "topic" : "test/topic/1", "acc" : 1 }, 
+			{ "topic" : "test/topic/1", "acc" : 1 },
+            { "topic" : "test/topic/1", "acc" : 4 }, 
 			{ "topic" : "single/topic/+", "acc" : 1}, 
 			{ "topic" : "hierarchy/#", "acc" : 1 }, 
 			{ "topic" : "write/test", "acc" : 2 }, 
