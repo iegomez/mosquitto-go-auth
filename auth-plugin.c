@@ -15,7 +15,7 @@
 #endif
 
 int mosquitto_auth_plugin_version(void) {
-  return MOSQ_AUTH_PLUGIN_VERSION;
+  return 4;
 }
 
 int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth_opts, int auth_opt_count) {
