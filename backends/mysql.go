@@ -132,8 +132,8 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		customSSL = false
 	}
 
-	if sslCert, ok := authOpts["mysql_sslrootcert"]; ok {
-		mysql.SSLCert = sslCert
+	if sslRootCert, ok := authOpts["mysql_sslrootcert"]; ok {
+		mysql.SSLRootCert = sslRootCert
 	} else {
 		customSSL = false
 	}
