@@ -613,7 +613,9 @@ rw int not null);
 
 ### Mysql
 
-The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, then a socket path must be given:
+The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`. 
+One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, 
+then a socket path must be given:
 
 ```
 auth_opt_mysql_protocol unix
@@ -622,15 +624,37 @@ auth_opt_mysql_socket /path/to/socket
 
 The default protocol when the option is missing will be `tcp`, even if a socket path is given.
 
-Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, sslcert, sslkey and sslrootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
+Another change has to do with sslmode options, with options being `true`, `false`, `skip-verify` or `custo`m. 
+When custom mode is given, `sslcert`, `sslkey` and `sslrootcert` paths are expected. 
+If the option is not set or one or more required paths are missing, it will default to false.
 
-Also, default host `localhost` and port 3306 will be used if none are given.  
+Also, default host `localhost` and port `3306` will be used if none are given.  
 
 To allow native passwords, set the option to true:
 
 ```
 auth_opt_mysql_allow_native_passwords true
 ```
+
+Supported options for `mysql` are:
+
+| Option         		| default           |  Mandatory  | Meaning                  |
+| -------------- 		| ----------------- | :---------: | ------------------------ |
+| mysql_host            |     localhost     |     N       | hostname/address
+| mysql_port            |       3306        |     N       | TCP port
+| mysql_user            |                   |     Y       | username
+| mysql_password        |                   |     Y       | password
+| mysql_dbname          |                   |     Y       | database name
+| mysql_userquery       |                   |     Y       | SQL for users
+| mysql_superquery      |                   |     N       | SQL for superusers
+| mysql_aclquery        |                   |     N       | SQL for ACLs
+| mysql_sslmode         |     disable       |     N       | SSL/TLS mode.
+| mysql_sslcert         |                   |     N       | SSL/TLS Client Cert.
+| mysql_sslkey          |                   |     N       | SSL/TLS Client Cert. Key
+| mysql_sslrootcert     |                   |     N       | SSL/TLS Root Cert
+| mysql_protocol        |       tcp         |     N       | Connection protocol
+| mysql_socket          |                   |     N       | Unix socket path
+
 
 Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. These are some **example** queries for `mysql`:
 
