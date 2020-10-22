@@ -247,6 +247,7 @@ There are 2 types of caches supported: an in memory one using [go-cache](https:/
 
 Set `cache` option to true to use a cache (defaults to false when missing) and `cache_type` to set the type of the cache. By default the plugin will use `go-cache` unless explicitly told to use Redis.
 Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache` on startup is not yet supported**).
+Set `cache_refresh` to refresh expiration each time a record is found in the cache (defaults to false).
 
 Finally, set expiration times in seconds for authentication (`auth`) and authorization (`acl`) caches:
 
@@ -254,6 +255,7 @@ Finally, set expiration times in seconds for authentication (`auth`) and authori
 auth_opt_cache true
 auth_opt_cache_type redis
 auth_opt_cache_reset true
+auth_opt_cache_refresh true
 
 auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
