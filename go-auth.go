@@ -60,18 +60,18 @@ const (
 	grpcBackend     = "grpc"
 )
 
-//Use a map of bools instead of empty structs so we may disable plugins easily.
-var allowedBackends = map[string]bool{
-	postgresBackend: true,
-	jwtBackend:      true,
-	redisBackend:    true,
-	httpBackend:     true,
-	filesBackend:    true,
-	mysqlBackend:    true,
-	sqliteBackend:   true,
-	mongoBackend:    true,
-	pluginBackend:   true,
-	grpcBackend:     true,
+// Serves s a check for allowed backends and a map from backend to expected opts prefix.
+var allowedBackendsOptsPrefix = map[string]string{
+	postgresBackend: "pg",
+	jwtBackend:      "jwt",
+	redisBackend:    "redis",
+	httpBackend:     "http",
+	filesBackend:    "files",
+	mysqlBackend:    "mysql",
+	sqliteBackend:   "sqlite",
+	mongoBackend:    "mongo",
+	pluginBackend:   "plugin",
+	grpcBackend:     "grpc",
 }
 
 var backends []string          //List of selected backends.
@@ -103,7 +103,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 			if len(backends) > 0 {
 				backendsCheck := true
 				for _, backend := range backends {
-					if _, ok := allowedBackends[backend]; !ok {
+					if _, ok := allowedBackendsOptsPrefix[backend]; !ok {
 						backendsCheck = false
 						log.Errorf("backend not allowed: %s", backend)
 					}
@@ -254,7 +254,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 			}
 		} else {
-			hasher := hashing.NewHasher(authOpts, bename)
+			hasher := hashing.NewHasher(authOpts, allowedBackendsOptsPrefix[bename])
 			switch bename {
 			case postgresBackend:
 				beIface, err = bes.NewPostgres(authOpts, authPlugin.logLevel, hasher)
