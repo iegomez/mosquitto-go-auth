@@ -21,9 +21,9 @@
 int mosquitto_auth_plugin_version(void) {
   #ifdef MOSQ_AUTH_PLUGIN_VERSION
     #if MOSQ_AUTH_PLUGIN_VERSION == 5
-        return 4; // This is v2.0, use the backwards compatibility
+      return 4; // This is v2.0, use the backwards compatibility
     #else
-        return MOSQ_AUTH_PLUGIN_VERSION;
+      return MOSQ_AUTH_PLUGIN_VERSION;
     #endif
   #else
     return 4;
