@@ -11,7 +11,9 @@ import (
 func TestGoStore(t *testing.T) {
 	authExpiration := 100 * time.Millisecond
 	aclExpiration := 100 * time.Millisecond
-	store := NewGoStore(authExpiration, aclExpiration)
+	refreshExpiration := false
+
+	store := NewGoStore(authExpiration, aclExpiration, refreshExpiration)
 
 	ctx := context.Background()
 
@@ -91,12 +93,41 @@ func TestGoStore(t *testing.T) {
 	assert.False(t, present)
 	assert.False(t, granted)
 
+	// Check expiration is refreshed.
+	store = NewGoStore(authExpiration, aclExpiration, true)
+
+	// Test granted access.
+	err = store.SetAuthRecord(ctx, username, password, "true")
+	assert.Nil(t, err)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Check again within expiration time.
+	time.Sleep(50 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Expiration should have been refreshed.
+	time.Sleep(55 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
 }
 
 func TestRedisSingleStore(t *testing.T) {
 	authExpiration := 1000 * time.Millisecond
 	aclExpiration := 1000 * time.Millisecond
-	store := NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration)
+	refreshExpiration := false
+
+	store := NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, refreshExpiration)
 
 	ctx := context.Background()
 
@@ -152,14 +183,43 @@ func TestRedisSingleStore(t *testing.T) {
 
 	assert.True(t, present)
 	assert.False(t, granted)
+
+	// Check expiration is refreshed.
+	store = NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, true)
+
+	// Test granted access.
+	err = store.SetAuthRecord(ctx, username, password, "true")
+	assert.Nil(t, err)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Check it again within expiration time.
+	time.Sleep(500 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Expiration should have been refreshed.
+	time.Sleep(700 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
 }
 
 func TestRedisClusterStore(t *testing.T) {
 	authExpiration := 1000 * time.Millisecond
 	aclExpiration := 1000 * time.Millisecond
+	refreshExpiration := false
 
 	addresses := []string{"localhost:7000", "localhost:7001", "localhost:7002"}
-	store := NewRedisClusterStore("", addresses, authExpiration, aclExpiration)
+	store := NewRedisClusterStore("", addresses, authExpiration, aclExpiration, refreshExpiration)
 
 	ctx := context.Background()
 
@@ -215,4 +275,31 @@ func TestRedisClusterStore(t *testing.T) {
 
 	assert.True(t, present)
 	assert.False(t, granted)
+
+	store = NewRedisClusterStore("", addresses, authExpiration, aclExpiration, true)
+
+	// Test granted access.
+	err = store.SetAuthRecord(ctx, username, password, "true")
+	assert.Nil(t, err)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Check it again within expiration time.
+	time.Sleep(500 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
+
+	// Expiration should have been refreshed.
+	time.Sleep(700 * time.Millisecond)
+
+	present, granted = store.CheckAuthRecord(ctx, username, password)
+
+	assert.True(t, present)
+	assert.True(t, granted)
 }
