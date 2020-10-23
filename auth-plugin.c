@@ -19,15 +19,15 @@
 #include "go-auth.h"
 
 int mosquitto_auth_plugin_version(void) {
-#ifdef MOSQ_AUTH_PLUGIN_VERSION
+  #ifdef MOSQ_AUTH_PLUGIN_VERSION
     #if MOSQ_AUTH_PLUGIN_VERSION == 5
         return 4; // This is v2.0, use the backwards compatibility
     #else
         return MOSQ_AUTH_PLUGIN_VERSION;
     #endif
-#else
+  #else
     return 4;
-#endif
+  #endif
 }
 
 int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth_opts, int auth_opt_count) {
