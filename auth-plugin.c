@@ -5,17 +5,29 @@
 
 #include <mosquitto.h>
 #include <mosquitto_plugin.h>
+
+
+
 #if MOSQ_AUTH_PLUGIN_VERSION >= 3
 # include <mosquitto_broker.h>
 #endif
-#include "go-auth.h"
 
 #if MOSQ_AUTH_PLUGIN_VERSION >= 3
 # define mosquitto_auth_opt mosquitto_opt
 #endif
 
+#include "go-auth.h"
+
 int mosquitto_auth_plugin_version(void) {
-  return 4;
+  #ifdef MOSQ_AUTH_PLUGIN_VERSION
+    #if MOSQ_AUTH_PLUGIN_VERSION == 5
+      return 4; // This is v2.0, use the backwards compatibility
+    #else
+      return MOSQ_AUTH_PLUGIN_VERSION;
+    #endif
+  #else
+    return 4;
+  #endif
 }
 
 int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth_opts, int auth_opt_count) {
