@@ -176,7 +176,12 @@ This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` a
 
 #### Raspberry Pi
 
-To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
+**Important notice:** RPi support has been tested only until versions 1.4.x. 
+The introduction of new plugin functions in Mosquitto may result in some issue compiling versions 1.5.x and later.
+Please reach me with any solutions you may find when resolving said issues.
+
+To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. 
+You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
 
 ```
 wget https://storage.googleapis.com/golang/go1.10.1.linux-armv6l.tar.gz
@@ -251,8 +256,9 @@ Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache
 
 **Update v1.2:**
 Set `cache_refresh` to refresh expiration each time a record is found in the cache (defaults to false).
-**Before v1.2 cache was always refreshed upon check. In order to prevent security issues, 
-this has been turned into an option that default to no refreshing.
+Before v1.2 cache was always refreshed upon check. 
+In order to prevent security issues, where an attacker would frequently check on a topic to keep their granted status,
+even when revoked in the underlying backend, this has been turned into an option that defaults to no refreshing.
 
 
 Finally, set expiration times in seconds for authentication (`auth`) and authorization (`acl`) caches:
@@ -1137,9 +1143,11 @@ If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` fla
 	//authOpts["mongo_password"] = "go_auth_test"
 ```
 
-### Custom (experimental)
+### Custom
 
-Using the "plugin" package from Go, this project allows to write your own custom backend, compile it as a shared object and link to it from mosquitto-go-auth. As the Go [docs](https://golang.org/pkg/plugin/) state, _The plugin support is currently incomplete, only supports Linux, and has known bugs. Please report any issues_ , thus the "experimental" in the title. So use this feature at your own risk.
+Using the `plugin` package from Go, this project allows to write your own custom backend, 
+compile it as a shared object and link to it from mosquitto-go-auth. 
+Check Go pluing [docs](https://golang.org/pkg/plugin/) for more details.
 
 In order to create your own plugin, you need to declare a main package that exposes the following functions (and uses the logrus package for logging):
 
