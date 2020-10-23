@@ -46,8 +46,6 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 		ParamsMode:   "json",
 	}
 
-	//If remote, set remote api fields. Else, set jwt secret.
-
 	missingOpts := ""
 	httpOk := true
 
