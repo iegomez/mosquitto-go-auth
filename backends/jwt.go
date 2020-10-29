@@ -31,13 +31,14 @@ type JWT struct {
 	SuperuserQuery string
 	AclQuery       string
 
-	UserUri      string
-	SuperuserUri string
-	AclUri       string
-	Host         string
-	Port         string
-	WithTLS      bool
-	VerifyPeer   bool
+	UserUri        string
+	SuperuserUri   string
+	AclUri         string
+	Host           string
+	Port           string
+	WithTLS        bool
+	VerifyPeer     bool
+	SkipExpiration bool
 
 	ParamsMode   string
 	ResponseMode string
@@ -85,6 +86,10 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 
 	if remote, ok := authOpts["jwt_remote"]; ok && remote == "true" {
 		jwt.Remote = true
+	}
+
+	if skipExpiration, ok := authOpts["jwt_skip_expiration"]; ok && skipExpiration == "true" {
+		jwt.SkipExpiration = true
 	}
 
 	//If remote, set remote api fields. Else, set jwt secret.
@@ -473,12 +478,19 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 		return []byte(o.Secret), nil
 	})
 
+	expirationError := false
 	if err != nil {
-		log.Debugf("jwt parse error: %s", err)
-		return nil, err
+		if !o.SkipExpiration {
+			log.Debugf("jwt parse error: %s", err)
+			return nil, err
+		}
+
+		if v, ok := err.(*jwt.ValidationError); ok && v.Errors == jwt.ValidationErrorExpired {
+			expirationError = true
+		}
 	}
 
-	if !jwtToken.Valid {
+	if !jwtToken.Valid && !expirationError {
 		return nil, errors.New("jwt invalid token")
 	}
 
