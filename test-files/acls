@@ -9,5 +9,8 @@ topic read test/topic/+
 user test3
 topic read test/#
 
+user not_present
+topic read test/#
+
 pattern read test/%u
 pattern read test/%c
