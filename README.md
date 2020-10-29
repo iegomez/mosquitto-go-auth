@@ -176,7 +176,12 @@ This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` a
 
 #### Raspberry Pi
 
-To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
+**Important notice:** RPi support has been tested only until versions 1.4.x. 
+The introduction of new plugin functions in Mosquitto may result in some issue compiling versions 1.5.x and later.
+Please reach me with any solutions you may find when resolving said issues.
+
+To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. 
+You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
 
 ```
 wget https://storage.googleapis.com/golang/go1.10.1.linux-armv6l.tar.gz
@@ -248,12 +253,21 @@ There are 2 types of caches supported: an in memory one using [go-cache](https:/
 Set `cache` option to true to use a cache (defaults to false when missing) and `cache_type` to set the type of the cache. By default the plugin will use `go-cache` unless explicitly told to use Redis.
 Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache` on startup is not yet supported**).
 
+
+**Update v1.2:**
+Set `cache_refresh` to refresh expiration each time a record is found in the cache (defaults to false).
+Before v1.2 cache was always refreshed upon check. 
+In order to prevent security issues, where an attacker would frequently check on a topic to keep their granted status,
+even when revoked in the underlying backend, this has been turned into an option that defaults to no refreshing.
+
+
 Finally, set expiration times in seconds for authentication (`auth`) and authorization (`acl`) caches:
 
 ```
 auth_opt_cache true
 auth_opt_cache_type redis
 auth_opt_cache_reset true
+auth_opt_cache_refresh true
 
 auth_opt_auth_cache_seconds 30
 auth_opt_acl_cache_seconds 30
@@ -613,7 +627,9 @@ rw int not null);
 
 ### Mysql
 
-The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`. One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, then a socket path must be given:
+The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`. 
+One change has to do with the connection protocol, either a Unix socket or tcp (options are unix or tcp). If `unix` socket is the selected protocol, 
+then a socket path must be given:
 
 ```
 auth_opt_mysql_protocol unix
@@ -622,15 +638,37 @@ auth_opt_mysql_socket /path/to/socket
 
 The default protocol when the option is missing will be `tcp`, even if a socket path is given.
 
-Another change has to do with sslmode options, with options being true, false, skip-verify or custom. When custom mode is given, sslcert, sslkey and sslrootcert paths are expected. If the option is not set or one or more required paths are missing, it will default to false.
+Another change has to do with sslmode options, with options being `true`, `false`, `skip-verify` or `custo`m. 
+When custom mode is given, `sslcert`, `sslkey` and `sslrootcert` paths are expected. 
+If the option is not set or one or more required paths are missing, it will default to false.
 
-Also, default host `localhost` and port 3306 will be used if none are given.  
+Also, default host `localhost` and port `3306` will be used if none are given.  
 
 To allow native passwords, set the option to true:
 
 ```
 auth_opt_mysql_allow_native_passwords true
 ```
+
+Supported options for `mysql` are:
+
+| Option         		| default           |  Mandatory  | Meaning                  |
+| -------------- 		| ----------------- | :---------: | ------------------------ |
+| mysql_host            |     localhost     |     N       | hostname/address
+| mysql_port            |       3306        |     N       | TCP port
+| mysql_user            |                   |     Y       | username
+| mysql_password        |                   |     Y       | password
+| mysql_dbname          |                   |     Y       | database name
+| mysql_userquery       |                   |     Y       | SQL for users
+| mysql_superquery      |                   |     N       | SQL for superusers
+| mysql_aclquery        |                   |     N       | SQL for ACLs
+| mysql_sslmode         |     disable       |     N       | SSL/TLS mode.
+| mysql_sslcert         |                   |     N       | SSL/TLS Client Cert.
+| mysql_sslkey          |                   |     N       | SSL/TLS Client Cert. Key
+| mysql_sslrootcert     |                   |     N       | SSL/TLS Root Cert
+| mysql_protocol        |       tcp         |     N       | Connection protocol
+| mysql_socket          |                   |     N       | Unix socket path
+
 
 Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. These are some **example** queries for `mysql`:
 
@@ -1129,9 +1167,11 @@ If you wish to test Mongo's auth, you'll need to run mongo with the `--auth` fla
 	//authOpts["mongo_password"] = "go_auth_test"
 ```
 
-### Custom (experimental)
+### Custom
 
-Using the "plugin" package from Go, this project allows to write your own custom backend, compile it as a shared object and link to it from mosquitto-go-auth. As the Go [docs](https://golang.org/pkg/plugin/) state, _The plugin support is currently incomplete, only supports Linux, and has known bugs. Please report any issues_ , thus the "experimental" in the title. So use this feature at your own risk.
+Using the `plugin` package from Go, this project allows to write your own custom backend, 
+compile it as a shared object and link to it from mosquitto-go-auth. 
+Check Go pluing [docs](https://golang.org/pkg/plugin/) for more details.
 
 In order to create your own plugin, you need to declare a main package that exposes the following functions (and uses the logrus package for logging):
 

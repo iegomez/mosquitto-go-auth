@@ -139,7 +139,6 @@ func (o Files) readPasswords() (int, error) {
 
 //ReadAcls reads the Acl file and associates them to existing users. It omits any non existing users.
 func (o *Files) readAcls() (int, error) {
-
 	linesCount := 0
 
 	//Set currentUser as empty string
@@ -175,7 +174,8 @@ func (o *Files) readAcls() (int, error) {
 
 				//Check that user exists
 				if !ok {
-					return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d", lineArr[1], index)
+					log.Warnf("user %s doesn't exist, skipping acl", lineArr[1])
+					continue
 				}
 
 				currentUser = lineArr[1]
@@ -275,7 +275,6 @@ func (o *Files) readAcls() (int, error) {
 	}
 
 	return linesCount, nil
-
 }
 
 func checkCommentOrEmpty(line string) bool {
