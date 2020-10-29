@@ -46,13 +46,94 @@ var wrongJwtToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 	"username": "wrong_user",
 })
 
+var expiredToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	"iss":      "jwt-test",
+	"aud":      "jwt-test",
+	"nbf":      nowSecondsSinceEpoch,
+	"exp":      nowSecondsSinceEpoch - int64(time.Hour*24/time.Second),
+	"sub":      "user",
+	"username": username,
+})
+
+func TestJWTClaims(t *testing.T) {
+	Convey("Correct token should give no errors", t, func() {
+		// Initialize JWT in local mode.
+		authOpts := make(map[string]string)
+		authOpts["jwt_remote"] = "false"
+		authOpts["jwt_db"] = "postgres"
+		authOpts["jwt_secret"] = jwtSecret
+		authOpts["jwt_userquery"] = "select count(*) from test_user where username = $1 limit 1"
+		authOpts["jwt_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
+		authOpts["jwt_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
+		authOpts["pg_userquery"] = "mock_string"
+		authOpts["pg_superquery"] = "mock_string"
+		authOpts["pg_aclquery"] = "mock_string"
+		authOpts["jwt_userfield"] = "Username"
+
+		//Give necessary postgres options.
+		authOpts["pg_host"] = "localhost"
+		authOpts["pg_port"] = "5432"
+		authOpts["pg_dbname"] = "go_auth_test"
+		authOpts["pg_user"] = "go_auth_test"
+		authOpts["pg_password"] = "go_auth_test"
+
+		jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+		So(err, ShouldBeNil)
+
+		Convey("Correct token should give no error", func() {
+			token, err := jwtToken.SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = jwt.getClaims(token)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("A token signed with a different secret should give an error", func() {
+			token, err := jwtToken.SignedString([]byte("wrong-secret"))
+			So(err, ShouldBeNil)
+
+			_, err = jwt.getClaims(token)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("Wrong user token should give no error", func() {
+			token, err := wrongJwtToken.SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = jwt.getClaims(token)
+			So(err, ShouldBeNil)
+		})
+
+		Convey("Expired token should give an error when getting claims", func() {
+			token, err := expiredToken.SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = jwt.getClaims(token)
+			So(err, ShouldNotBeNil)
+		})
+
+		Convey("When setting skip expiration, expired token should not give an error", func() {
+			authOpts["jwt_skip_expiration"] = "true"
+
+			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+			So(err, ShouldBeNil)
+
+			token, err := expiredToken.SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			_, err = jwt.getClaims(token)
+			So(err, ShouldBeNil)
+		})
+	})
+}
+
 func TestLocalPostgresJWT(t *testing.T) {
 
 	Convey("Creating a token should return a nil error", t, func() {
 		token, err := jwtToken.SignedString([]byte(jwtSecret))
 		So(err, ShouldBeNil)
 
-		//Initialize JWT in local mode.
+		// Initialize JWT in local mode.
 		authOpts := make(map[string]string)
 		authOpts["jwt_remote"] = "false"
 		authOpts["jwt_db"] = "postgres"
@@ -187,7 +268,6 @@ func TestLocalPostgresJWT(t *testing.T) {
 			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
 
 			jwt.Halt()
-
 		})
 
 	})
