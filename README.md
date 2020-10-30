@@ -785,18 +785,19 @@ auth_opt_jwt_remote true
 
 The following `auth_opt_` options are supported by the `jwt` backend when remote is set to true:
 
-| Option                | default           |  Mandatory  | Meaning                             |
-| --------------------- | ----------------- | :---------: | ----------------------------------  |
-| jwt_host              |                   |      Y      | API server host name or ip          |
-| jwt_port              |                   |      Y      | TCP port number                     |
-| jwt_getuser_uri       |                   |      Y      | URI for check username/password     |
-| jwt_superuser_uri     |                   |      N      | URI for check superuser             |
-| jwt_aclcheck_uri      |                   |      Y      | URI for check acl                   |
-| jwt_with_tls          | false             |      N      | Use TLS on connect                  |
-| jwt_verify_peer       | false             |      N      | Whether to verify peer for tls      |
-| jwt_skip_expiration   | false             |      N      | Skip token expiration               |
-| jwt_response_mode     | status            |      N      | Response type (status, json, text)  |
-| jwt_params_mode       | json              |      N      | Data type (json, form)              |
+| Option                    | default           |  Mandatory  | Meaning                                     |
+| ------------------------- | ----------------- | :---------: | ------------------------------------------- |
+| jwt_host                  |                   |      Y      | API server host name or ip                  |
+| jwt_port                  |                   |      Y      | TCP port number                             |
+| jwt_getuser_uri           |                   |      Y      | URI for check username/password             |
+| jwt_superuser_uri         |                   |      N      | URI for check superuser                     |
+| jwt_aclcheck_uri          |                   |      Y      | URI for check acl                           |
+| jwt_with_tls              | false             |      N      | Use TLS on connect                          |
+| jwt_verify_peer           | false             |      N      | Whether to verify peer for tls              |
+| jwt_skip_user_expiration  | false             |      N      | Skip token expiration: (super)user check)   |
+| jwt_skip_acl_expiration   | false             |      N      | Skip token expiration: acl check            |
+| jwt_response_mode         | status            |      N      | Response type (status, json, text)          |
+| jwt_params_mode           | json              |      N      | Data type (json, form)                      |
 
 
 URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.  

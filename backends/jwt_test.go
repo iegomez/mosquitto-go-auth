@@ -84,7 +84,7 @@ func TestJWTClaims(t *testing.T) {
 			token, err := jwtToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token)
+			_, err = jwt.getClaims(token, false)
 			So(err, ShouldBeNil)
 		})
 
@@ -92,7 +92,7 @@ func TestJWTClaims(t *testing.T) {
 			token, err := jwtToken.SignedString([]byte("wrong-secret"))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token)
+			_, err = jwt.getClaims(token, false)
 			So(err, ShouldNotBeNil)
 		})
 
@@ -100,7 +100,7 @@ func TestJWTClaims(t *testing.T) {
 			token, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token)
+			_, err = jwt.getClaims(token, false)
 			So(err, ShouldBeNil)
 		})
 
@@ -108,20 +108,18 @@ func TestJWTClaims(t *testing.T) {
 			token, err := expiredToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token)
+			_, err = jwt.getClaims(token, false)
 			So(err, ShouldNotBeNil)
 		})
 
 		Convey("When setting skip expiration, expired token should not give an error", func() {
-			authOpts["jwt_skip_expiration"] = "true"
-
 			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
 			So(err, ShouldBeNil)
 
 			token, err := expiredToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token)
+			_, err = jwt.getClaims(token, true)
 			So(err, ShouldBeNil)
 		})
 	})

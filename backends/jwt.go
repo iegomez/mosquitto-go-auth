@@ -31,14 +31,15 @@ type JWT struct {
 	SuperuserQuery string
 	AclQuery       string
 
-	UserUri        string
-	SuperuserUri   string
-	AclUri         string
-	Host           string
-	Port           string
-	WithTLS        bool
-	VerifyPeer     bool
-	SkipExpiration bool
+	UserUri            string
+	SuperuserUri       string
+	AclUri             string
+	Host               string
+	Port               string
+	WithTLS            bool
+	VerifyPeer         bool
+	SkipUserExpiration bool
+	SkipACLExpiration  bool
 
 	ParamsMode   string
 	ResponseMode string
@@ -88,8 +89,12 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 		jwt.Remote = true
 	}
 
-	if skipExpiration, ok := authOpts["jwt_skip_expiration"]; ok && skipExpiration == "true" {
-		jwt.SkipExpiration = true
+	if skipUserExpiration, ok := authOpts["jwt_skip_user_expiration"]; ok && skipUserExpiration == "true" {
+		jwt.SkipUserExpiration = true
+	}
+
+	if skipACLExpiration, ok := authOpts["jwt_skip_acl_expiration"]; ok && skipACLExpiration == "true" {
+		jwt.SkipACLExpiration = true
 	}
 
 	//If remote, set remote api fields. Else, set jwt secret.
@@ -236,7 +241,7 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 	}
 
 	//If not remote, get the claims and check against postgres for user.
-	claims, err := o.getClaims(token)
+	claims, err := o.getClaims(token, o.SkipUserExpiration)
 
 	if err != nil {
 		log.Printf("jwt get user error: %s", err)
@@ -266,7 +271,7 @@ func (o JWT) GetSuperuser(token string) bool {
 	if o.SuperuserQuery == "" {
 		return false
 	}
-	claims, err := o.getClaims(token)
+	claims, err := o.getClaims(token, o.SkipUserExpiration)
 
 	if err != nil {
 		log.Debugf("jwt get superuser error: %s", err)
@@ -311,7 +316,7 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	if o.AclQuery == "" {
 		return true
 	}
-	claims, err := o.getClaims(token)
+	claims, err := o.getClaims(token, o.SkipACLExpiration)
 
 	if err != nil {
 		log.Debugf("jwt check acl error: %s", err)
@@ -472,7 +477,7 @@ func (o JWT) getLocalUser(username string) bool {
 	return false
 }
 
-func (o JWT) getClaims(tokenStr string) (*Claims, error) {
+func (o JWT) getClaims(tokenStr string, skipExpiration bool) (*Claims, error) {
 
 	jwtToken, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return []byte(o.Secret), nil
@@ -480,7 +485,7 @@ func (o JWT) getClaims(tokenStr string) (*Claims, error) {
 
 	expirationError := false
 	if err != nil {
-		if !o.SkipExpiration {
+		if !skipExpiration {
 			log.Debugf("jwt parse error: %s", err)
 			return nil, err
 		}
