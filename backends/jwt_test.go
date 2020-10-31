@@ -55,36 +55,18 @@ var expiredToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 	"username": username,
 })
 
+var tkOptions = tokenOptions{
+	secret:    jwtSecret,
+	userField: "Username",
+}
+
 func TestJWTClaims(t *testing.T) {
-	Convey("Correct token should give no errors", t, func() {
-		// Initialize JWT in local mode.
-		authOpts := make(map[string]string)
-		authOpts["jwt_remote"] = "false"
-		authOpts["jwt_db"] = "postgres"
-		authOpts["jwt_secret"] = jwtSecret
-		authOpts["jwt_userquery"] = "select count(*) from test_user where username = $1 limit 1"
-		authOpts["jwt_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
-		authOpts["jwt_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
-		authOpts["pg_userquery"] = "mock_string"
-		authOpts["pg_superquery"] = "mock_string"
-		authOpts["pg_aclquery"] = "mock_string"
-		authOpts["jwt_userfield"] = "Username"
-
-		//Give necessary postgres options.
-		authOpts["pg_host"] = "localhost"
-		authOpts["pg_port"] = "5432"
-		authOpts["pg_dbname"] = "go_auth_test"
-		authOpts["pg_user"] = "go_auth_test"
-		authOpts["pg_password"] = "go_auth_test"
-
-		jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
-		So(err, ShouldBeNil)
-
+	Convey("When getting claims", t, func() {
 		Convey("Correct token should give no error", func() {
 			token, err := jwtToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token, false)
+			_, err = getJWTClaims(jwtSecret, token, false)
 			So(err, ShouldBeNil)
 		})
 
@@ -92,7 +74,7 @@ func TestJWTClaims(t *testing.T) {
 			token, err := jwtToken.SignedString([]byte("wrong-secret"))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token, false)
+			_, err = getJWTClaims(jwtSecret, token, false)
 			So(err, ShouldNotBeNil)
 		})
 
@@ -100,7 +82,7 @@ func TestJWTClaims(t *testing.T) {
 			token, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token, false)
+			_, err = getJWTClaims(jwtSecret, token, false)
 			So(err, ShouldBeNil)
 		})
 
@@ -108,19 +90,75 @@ func TestJWTClaims(t *testing.T) {
 			token, err := expiredToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token, false)
+			_, err = getJWTClaims(jwtSecret, token, false)
 			So(err, ShouldNotBeNil)
 		})
 
-		Convey("When setting skip expiration, expired token should not give an error", func() {
-			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
-			So(err, ShouldBeNil)
-
+		Convey("When skipping expiration, expired token should not give an error", func() {
 			token, err := expiredToken.SignedString([]byte(jwtSecret))
 			So(err, ShouldBeNil)
 
-			_, err = jwt.getClaims(token, true)
+			_, err = getJWTClaims(jwtSecret, token, true)
 			So(err, ShouldBeNil)
+		})
+	})
+}
+
+func TestJsJWTChecker(t *testing.T) {
+	authOpts := make(map[string]string)
+
+	authOpts["jwt_js_user_script_path"] = "../test-files/js_user_script.js"
+	authOpts["jwt_js_superuser_script_path"] = "../test-files/js_superuser_script.js"
+	authOpts["jwt_js_acl_script_path"] = "../test-files/js_acl_script.js"
+
+	Convey("Creating a js checker should succeed", t, func() {
+		checker, err := NewJsJWTChecker(authOpts, tkOptions)
+		So(err, ShouldBeNil)
+
+		userResponse := checker.GetUser("correct")
+		So(userResponse, ShouldBeTrue)
+
+		userResponse = checker.GetUser("bad")
+		So(userResponse, ShouldBeFalse)
+
+		superuserResponse := checker.GetSuperuser("admin")
+		So(superuserResponse, ShouldBeTrue)
+
+		superuserResponse = checker.GetSuperuser("non-admin")
+		So(superuserResponse, ShouldBeFalse)
+
+		aclResponse := checker.CheckAcl("correct", "test/topic", "id", 1)
+		So(aclResponse, ShouldBeTrue)
+
+		aclResponse = checker.CheckAcl("incorrect", "test/topic", "id", 1)
+		So(userResponse, ShouldBeFalse)
+
+		aclResponse = checker.CheckAcl("correct", "bad/topic", "id", 1)
+		So(aclResponse, ShouldBeFalse)
+
+		aclResponse = checker.CheckAcl("correct", "test/topic", "wrong-id", 1)
+		So(aclResponse, ShouldBeFalse)
+
+		aclResponse = checker.CheckAcl("correct", "test/topic", "id", 2)
+		So(aclResponse, ShouldBeFalse)
+
+		Convey("Tokens may be pre-parsed and passed to the scripts", func() {
+			jsTokenOptions := tokenOptions{
+				parseToken: true,
+				secret:     jwtSecret,
+				userField:  "Username",
+			}
+
+			authOpts["jwt_js_user_script_path"] = "../test-files/js_parsed_user_script.js"
+
+			checker, err = NewJsJWTChecker(authOpts, jsTokenOptions)
+			So(err, ShouldBeNil)
+
+			token, err := jwtToken.SignedString([]byte(jwtSecret))
+			So(err, ShouldBeNil)
+
+			userResponse := checker.GetUser(token)
+			So(userResponse, ShouldBeTrue)
 		})
 	})
 }
@@ -133,31 +171,43 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 		// Initialize JWT in local mode.
 		authOpts := make(map[string]string)
-		authOpts["jwt_remote"] = "false"
+		authOpts["jwt_mode"] = "local"
 		authOpts["jwt_db"] = "postgres"
 		authOpts["jwt_secret"] = jwtSecret
-		authOpts["jwt_userquery"] = "select count(*) from test_user where username = $1 limit 1"
-		authOpts["jwt_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
-		authOpts["jwt_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
-		authOpts["pg_userquery"] = "mock_string"
-		authOpts["pg_superquery"] = "mock_string"
-		authOpts["pg_aclquery"] = "mock_string"
 		authOpts["jwt_userfield"] = "Username"
+		authOpts["jwt_userquery"] = "select count(*) from test_user where username = $1 limit 1"
 
-		//Give necessary postgres options.
-		authOpts["pg_host"] = "localhost"
-		authOpts["pg_port"] = "5432"
-		authOpts["pg_dbname"] = "go_auth_test"
-		authOpts["pg_user"] = "go_auth_test"
-		authOpts["pg_password"] = "go_auth_test"
+		// Give necessary postgres options.
+		authOpts["jwt_pg_host"] = "localhost"
+		authOpts["jwt_pg_port"] = "5432"
+		authOpts["jwt_pg_dbname"] = "go_auth_test"
+		authOpts["jwt_pg_user"] = "go_auth_test"
+		authOpts["jwt_pg_password"] = "go_auth_test"
+		authOpts["jwt_pg_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
+		authOpts["jwt_pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND rw >= $2"
+
+		// Set regular PG options just to create a PG instance and create the records.
+
+		pgAuthOpts := make(map[string]string)
+		pgAuthOpts["pg_host"] = "localhost"
+		pgAuthOpts["pg_port"] = "5432"
+		pgAuthOpts["pg_dbname"] = "go_auth_test"
+		pgAuthOpts["pg_user"] = "go_auth_test"
+		pgAuthOpts["pg_password"] = "go_auth_test"
+		pgAuthOpts["pg_userquery"] = "mock"
+		pgAuthOpts["pg_superquery"] = "mock"
+		pgAuthOpts["pg_aclquery"] = "mock"
+
+		db, err := NewPostgres(pgAuthOpts, log.DebugLevel, hashing.NewHasher(pgAuthOpts, ""))
+		So(err, ShouldBeNil)
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+			jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
 			So(err, ShouldBeNil)
 
 			//Empty db
-			jwt.Postgres.DB.MustExec("delete from test_user where 1 = 1")
-			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
+			db.DB.MustExec("delete from test_user where 1 = 1")
+			db.DB.MustExec("delete from test_acl where 1 = 1")
 
 			//Now test everything.
 
@@ -165,16 +215,15 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			userID := 0
 
-			err = jwt.Postgres.DB.Get(&userID, insertQuery, username, userPassHash, true)
+			err = db.DB.Get(&userID, insertQuery, username, userPassHash, true)
 
 			So(err, ShouldBeNil)
 			So(userID, ShouldBeGreaterThan, 0)
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
 
-				authenticated := jwt.GetUser(token, "", "")
+				authenticated := jwt.GetUser(token)
 				So(authenticated, ShouldBeTrue)
-
 			})
 
 			Convey("Given an incorrect token, it should not authenticate it", func() {
@@ -182,7 +231,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 				wrongToken, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 				So(err, ShouldBeNil)
 
-				authenticated := jwt.GetUser(wrongToken, "", "")
+				authenticated := jwt.GetUser(wrongToken)
 				So(authenticated, ShouldBeFalse)
 
 			})
@@ -190,8 +239,12 @@ func TestLocalPostgresJWT(t *testing.T) {
 			Convey("Given a token that is admin, super user should pass", func() {
 				superuser := jwt.GetSuperuser(token)
 				So(superuser, ShouldBeTrue)
+
 				Convey("But disabling superusers by removing superuri should now return false", func() {
-					jwt.SuperuserUri = ""
+					authOpts["jwt_superquery"] = ""
+					jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
+					So(err, ShouldBeNil)
+
 					superuser := jwt.GetSuperuser(username)
 					So(superuser, ShouldBeFalse)
 				})
@@ -199,15 +252,15 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now create some acls and test topics
 
-			strictAcl := "test/topic/1"
-			singleLevelAcl := "test/topic/+"
-			hierarchyAcl := "test/#"
+			strictACL := "test/topic/1"
+			singleLevelACL := "test/topic/+"
+			hierarchyACL := "test/#"
 
 			clientID := "test_client"
 
 			aclID := 0
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values($1, $2, $3) returning id"
-			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, strictAcl, MOSQ_ACL_READ)
+			err = db.DB.Get(&aclID, aclQuery, userID, strictACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
 			Convey("Given only strict acl in db, an exact match should work and and inexact one not", func() {
@@ -233,8 +286,8 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
-				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
+				tt1 := jwt.CheckAcl(token, singleLevelACL, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, hierarchyACL, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeFalse)
 				So(tt2, ShouldBeFalse)
@@ -243,7 +296,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
+			err = db.DB.Get(&aclID, aclQuery, userID, singleLevelACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
@@ -253,7 +306,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 
 			//Now insert hierarchy wildcard to check against.
 
-			err = jwt.Postgres.DB.Get(&aclID, aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
+			err = db.DB.Get(&aclID, aclQuery, userID, hierarchyACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
@@ -261,9 +314,32 @@ func TestLocalPostgresJWT(t *testing.T) {
 				So(tt1, ShouldBeTrue)
 			})
 
+			Convey("Deleting superuser and acl queries should work fine", func() {
+
+				authOpts["jwt_pg_superquery"] = ""
+				authOpts["jwt_pg_aclquery"] = ""
+
+				jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
+				So(err, ShouldBeNil)
+
+				Convey("So checking against them should give false and true for any user", func() {
+
+					tt1 := jwt.CheckAcl(token, singleLevelACL, clientID, MOSQ_ACL_READ)
+					tt2 := jwt.CheckAcl(token, hierarchyACL, clientID, MOSQ_ACL_READ)
+
+					So(tt1, ShouldBeTrue)
+					So(tt2, ShouldBeTrue)
+
+					superuser := jwt.GetSuperuser(token)
+					So(superuser, ShouldBeFalse)
+
+				})
+
+			})
+
 			//Empty db
-			jwt.Postgres.DB.MustExec("delete from test_user where 1 = 1")
-			jwt.Postgres.DB.MustExec("delete from test_acl where 1 = 1")
+			db.DB.MustExec("delete from test_user where 1 = 1")
+			db.DB.MustExec("delete from test_acl where 1 = 1")
 
 			jwt.Halt()
 		})
@@ -278,34 +354,46 @@ func TestLocalMysqlJWT(t *testing.T) {
 		token, err := jwtToken.SignedString([]byte(jwtSecret))
 		So(err, ShouldBeNil)
 
-		//Initialize JWT in local mode.
+		// Initialize JWT in local mode.
 		authOpts := make(map[string]string)
-		authOpts["jwt_remote"] = "false"
+		authOpts["jwt_mode"] = "local"
 		authOpts["jwt_db"] = "mysql"
 		authOpts["jwt_secret"] = jwtSecret
-		authOpts["jwt_userquery"] = "select count(*) from test_user where username = ? limit 1"
-		authOpts["jwt_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
-		authOpts["jwt_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
-		authOpts["mysql_userquery"] = "mock_string"
-		authOpts["mysql_superquery"] = "mock_string"
-		authOpts["mysql_aclquery"] = "mock_string"
 		authOpts["jwt_userfield"] = "Username"
+		authOpts["jwt_userquery"] = "select count(*) from test_user where username = ? limit 1"
 
-		//Give necessary postgres options.
-		authOpts["mysql_host"] = "localhost"
-		authOpts["mysql_port"] = "3306"
-		authOpts["mysql_dbname"] = "go_auth_test"
-		authOpts["mysql_user"] = "go_auth_test"
-		authOpts["mysql_password"] = "go_auth_test"
-		authOpts["mysql_allow_native_passwords"] = "true"
+		// Give necessary postgres options.
+		authOpts["jwt_mysql_host"] = "localhost"
+		authOpts["jwt_mysql_port"] = "3306"
+		authOpts["jwt_mysql_dbname"] = "go_auth_test"
+		authOpts["jwt_mysql_user"] = "go_auth_test"
+		authOpts["jwt_mysql_password"] = "go_auth_test"
+		authOpts["jwt_mysql_allow_native_passwords"] = "true"
+		authOpts["jwt_mysql_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
+		authOpts["jwt_mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND rw >= ?"
+
+		// Set options for our MySQL instance used to create test records.
+		mysqlAuthOpts := make(map[string]string)
+		mysqlAuthOpts["mysql_host"] = "localhost"
+		mysqlAuthOpts["mysql_port"] = "3306"
+		mysqlAuthOpts["mysql_dbname"] = "go_auth_test"
+		mysqlAuthOpts["mysql_user"] = "go_auth_test"
+		mysqlAuthOpts["mysql_password"] = "go_auth_test"
+		mysqlAuthOpts["mysql_allow_native_passwords"] = "true"
+		mysqlAuthOpts["mysql_userquery"] = "mock"
+		mysqlAuthOpts["mysql_superquery"] = "mock"
+		mysqlAuthOpts["mysql_aclquery"] = "mock"
+
+		db, err := NewMysql(mysqlAuthOpts, log.DebugLevel, hashing.NewHasher(mysqlAuthOpts, ""))
+		So(err, ShouldBeNil)
 
 		Convey("Given correct option NewJWT returns an instance of jwt backend", func() {
-			jwt, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+			jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
 			So(err, ShouldBeNil)
 
 			//Empty db
-			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
-			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
+			db.DB.MustExec("delete from test_user where 1 = 1")
+			db.DB.MustExec("delete from test_acl where 1 = 1")
 
 			//Now test everything.
 
@@ -313,7 +401,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			userID := int64(0)
 
-			res, err := jwt.Mysql.DB.Exec(insertQuery, username, userPassHash, true)
+			res, err := db.DB.Exec(insertQuery, username, userPassHash, true)
 			So(err, ShouldBeNil)
 
 			userID, err = res.LastInsertId()
@@ -323,7 +411,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			Convey("Given a correct token, it should correctly authenticate it", func() {
 
-				authenticated := jwt.GetUser(token, "", "")
+				authenticated := jwt.GetUser(token)
 				So(authenticated, ShouldBeTrue)
 
 			})
@@ -333,7 +421,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 				wrongToken, err := wrongJwtToken.SignedString([]byte(jwtSecret))
 				So(err, ShouldBeNil)
 
-				authenticated := jwt.GetUser(wrongToken, "", "")
+				authenticated := jwt.GetUser(wrongToken)
 				So(authenticated, ShouldBeFalse)
 
 			})
@@ -342,23 +430,24 @@ func TestLocalMysqlJWT(t *testing.T) {
 				superuser := jwt.GetSuperuser(token)
 				So(superuser, ShouldBeTrue)
 				Convey("But disabling superusers by removing superuri should now return false", func() {
-					jwt.SuperuserUri = ""
+					authOpts["jwt_superquery"] = ""
+					jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
+					So(err, ShouldBeNil)
+
 					superuser := jwt.GetSuperuser(username)
 					So(superuser, ShouldBeFalse)
 				})
 			})
 
-			//Now create some acls and test topics
-
-			strictAcl := "test/topic/1"
-			singleLevelAcl := "test/topic/+"
-			hierarchyAcl := "test/#"
+			strictACL := "test/topic/1"
+			singleLevelACL := "test/topic/+"
+			hierarchyACL := "test/#"
 
 			clientID := "test_client"
 
 			aclID := int64(0)
 			aclQuery := "INSERT INTO test_acl(test_user_id, topic, rw) values(?, ?, ?)"
-			res, err = jwt.Mysql.DB.Exec(aclQuery, userID, strictAcl, MOSQ_ACL_READ)
+			res, err = db.DB.Exec(aclQuery, userID, strictACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 			aclID, err = res.LastInsertId()
 			So(err, ShouldBeNil)
@@ -387,8 +476,8 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-				tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
-				tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
+				tt1 := jwt.CheckAcl(token, singleLevelACL, clientID, MOSQ_ACL_READ)
+				tt2 := jwt.CheckAcl(token, hierarchyACL, clientID, MOSQ_ACL_READ)
 
 				So(tt1, ShouldBeFalse)
 				So(tt2, ShouldBeFalse)
@@ -397,7 +486,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			//Now insert single level topic to check against.
 
-			_, err = jwt.Mysql.DB.Exec(aclQuery, userID, singleLevelAcl, MOSQ_ACL_READ)
+			_, err = db.DB.Exec(aclQuery, userID, singleLevelACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
@@ -407,7 +496,7 @@ func TestLocalMysqlJWT(t *testing.T) {
 
 			//Now insert hierarchy wildcard to check against.
 
-			_, err = jwt.Mysql.DB.Exec(aclQuery, userID, hierarchyAcl, MOSQ_ACL_READ)
+			_, err = db.DB.Exec(aclQuery, userID, hierarchyACL, MOSQ_ACL_READ)
 			So(err, ShouldBeNil)
 
 			Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
@@ -415,19 +504,18 @@ func TestLocalMysqlJWT(t *testing.T) {
 				So(tt1, ShouldBeTrue)
 			})
 
-			//Empty db
-			jwt.Mysql.DB.MustExec("delete from test_user where 1 = 1")
-			jwt.Mysql.DB.MustExec("delete from test_acl where 1 = 1")
-
 			Convey("Deleting superuser and acl queries should work fine", func() {
 
-				jwt.SuperuserQuery = ""
-				jwt.AclQuery = ""
+				authOpts["jwt_mysql_superquery"] = ""
+				authOpts["jwt_mysql_aclquery"] = ""
+
+				jwt, err := NewLocalJWTChecker(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), tkOptions)
+				So(err, ShouldBeNil)
 
 				Convey("So checking against them should give false and true for any user", func() {
 
-					tt1 := jwt.CheckAcl(token, singleLevelAcl, clientID, MOSQ_ACL_READ)
-					tt2 := jwt.CheckAcl(token, hierarchyAcl, clientID, MOSQ_ACL_READ)
+					tt1 := jwt.CheckAcl(token, singleLevelACL, clientID, MOSQ_ACL_READ)
+					tt2 := jwt.CheckAcl(token, hierarchyACL, clientID, MOSQ_ACL_READ)
 
 					So(tt1, ShouldBeTrue)
 					So(tt2, ShouldBeTrue)
@@ -438,6 +526,10 @@ func TestLocalMysqlJWT(t *testing.T) {
 				})
 
 			})
+
+			//Empty db
+			db.DB.MustExec("delete from test_user where 1 = 1")
+			db.DB.MustExec("delete from test_acl where 1 = 1")
 
 			jwt.Halt()
 
@@ -451,7 +543,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
@@ -497,7 +589,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 				params = data.(map[string]interface{})
 				paramsAcc := int64(params["acc"].(float64))
 
-				if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+				if params["topic"].(string) == topic && params["clientid"].(string) == clientID && paramsAcc <= acc {
 					httpResponse.Ok = true
 					httpResponse.Error = ""
 					break
@@ -519,7 +611,7 @@ func TestJWTAllJsonServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "json"
 	authOpts["jwt_response_mode"] = "json"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -552,7 +644,10 @@ func TestJWTAllJsonServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -568,26 +663,26 @@ func TestJWTAllJsonServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
@@ -604,7 +699,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
@@ -636,7 +731,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 		case "/acl":
 			params = data.(map[string]interface{})
 			paramsAcc := int64(params["acc"].(float64))
-			if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+			if params["topic"].(string) == topic && params["clientid"].(string) == clientID && paramsAcc <= acc {
 				w.WriteHeader(http.StatusOK)
 				break
 			}
@@ -648,7 +743,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "json"
 	authOpts["jwt_response_mode"] = "status"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -681,7 +776,10 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -697,26 +795,26 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
@@ -733,7 +831,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
@@ -767,7 +865,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 		case "/acl":
 			params = data.(map[string]interface{})
 			paramsAcc := int64(params["acc"].(float64))
-			if params["topic"].(string) == topic && params["clientid"].(string) == clientId && paramsAcc <= acc {
+			if params["topic"].(string) == topic && params["clientid"].(string) == clientID && paramsAcc <= acc {
 				w.Write([]byte("ok"))
 				break
 			}
@@ -779,7 +877,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "json"
 	authOpts["jwt_response_mode"] = "text"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -812,7 +910,10 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -828,26 +929,26 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
@@ -864,7 +965,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
@@ -898,7 +999,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 				httpResponse.Error = ""
 			case "/acl":
 				paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-				if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+				if params["topic"][0] == topic && params["clientid"][0] == clientID && paramsAcc <= acc {
 					httpResponse.Ok = true
 					httpResponse.Error = ""
 					break
@@ -920,7 +1021,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "form"
 	authOpts["jwt_response_mode"] = "json"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -953,7 +1054,10 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -969,26 +1073,26 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
@@ -1005,7 +1109,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
@@ -1031,7 +1135,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		case "/acl":
 			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-			if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+			if params["topic"][0] == topic && params["clientid"][0] == clientID && paramsAcc <= acc {
 				w.WriteHeader(http.StatusOK)
 				break
 			}
@@ -1043,7 +1147,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "form"
 	authOpts["jwt_response_mode"] = "status"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -1076,7 +1180,10 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -1092,26 +1199,26 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
@@ -1128,7 +1235,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 	topic := "test/topic"
 	var acc = int64(1)
-	clientId := "test_client"
+	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
 	wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
@@ -1157,7 +1264,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 			w.Write([]byte("ok"))
 		case "/acl":
 			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
-			if params["topic"][0] == topic && params["clientid"][0] == clientId && paramsAcc <= acc {
+			if params["topic"][0] == topic && params["clientid"][0] == clientID && paramsAcc <= acc {
 				w.Write([]byte("ok"))
 				break
 			}
@@ -1169,7 +1276,7 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	defer mockServer.Close()
 
 	authOpts := make(map[string]string)
-	authOpts["jwt_remote"] = "true"
+	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "form"
 	authOpts["jwt_response_mode"] = "text"
 	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
@@ -1202,7 +1309,10 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
-				hb.SuperuserUri = ""
+				authOpts["jwt_superuser_uri"] = ""
+				hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""))
+				So(err, ShouldBeNil)
+
 				superuser := hb.GetSuperuser(username)
 				So(superuser, ShouldBeFalse)
 			})
@@ -1218,26 +1328,26 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_WRITE)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(token, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated := hb.CheckAcl(token, "fake/topic", clientID, MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
-		Convey("Given a clientId that doesn't match, check acl should return false", func() {
+		Convey("Given a clientID that doesn't match, check acl should return false", func() {
 
 			authenticated := hb.CheckAcl(token, topic, "fake_client_id", MOSQ_ACL_READ)
 			So(authenticated, ShouldBeFalse)

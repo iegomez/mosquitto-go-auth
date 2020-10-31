@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iegomez/mosquitto-go-auth/hashing"
-
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/iegomez/mosquitto-go-auth/cache"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -270,7 +269,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmBackends[jwtBackend] = beIface.(bes.JWT)
+					cmBackends[jwtBackend] = beIface.(*bes.JWT)
 				}
 			case filesBackend:
 				beIface, err = bes.NewFiles(authOpts, authPlugin.logLevel, hasher)
