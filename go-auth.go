@@ -374,6 +374,8 @@ func setCache(authOpts map[string]string) {
 
 	var aclCacheSeconds int64 = 30
 	var authCacheSeconds int64 = 30
+	var authJitterSeconds int64 = 3
+	var aclJitterSeconds int64 = 3
 
 	if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
 		authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
@@ -384,12 +386,30 @@ func setCache(authOpts map[string]string) {
 		}
 	}
 
+	if authJitterSec, ok := authOpts["auth_jitter_seconds"]; ok {
+		authSec, err := strconv.ParseInt(authJitterSec, 10, 64)
+		if err == nil {
+			authJitterSeconds = authSec
+		} else {
+			log.Warningf("couldn't parse authJitterSeconds (err: %s), defaulting to %d", err, authJitterSeconds)
+		}
+	}
+
 	if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
 		aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
 		if err == nil {
 			aclCacheSeconds = aclSec
 		} else {
 			log.Warningf("couldn't parse aclCacheSeconds (err: %s), defaulting to %d", err, aclCacheSeconds)
+		}
+	}
+
+	if aclJitterSec, ok := authOpts["acl_jitter_seconds"]; ok {
+		aclSec, err := strconv.ParseInt(aclJitterSec, 10, 64)
+		if err == nil {
+			aclJitterSeconds = aclSec
+		} else {
+			log.Warningf("couldn't parse aclJitterSeconds (err: %s), defaulting to %d", err, aclJitterSeconds)
 		}
 	}
 
@@ -439,6 +459,8 @@ func setCache(authOpts map[string]string) {
 				addresses,
 				time.Duration(authCacheSeconds)*time.Second,
 				time.Duration(aclCacheSeconds)*time.Second,
+				time.Duration(authJitterSeconds)*time.Second,
+				time.Duration(aclJitterSeconds)*time.Second,
 				refreshExpiration,
 			)
 
@@ -467,6 +489,8 @@ func setCache(authOpts map[string]string) {
 				db,
 				time.Duration(authCacheSeconds)*time.Second,
 				time.Duration(aclCacheSeconds)*time.Second,
+				time.Duration(authJitterSeconds)*time.Second,
+				time.Duration(aclJitterSeconds)*time.Second,
 				refreshExpiration,
 			)
 		}
@@ -475,6 +499,8 @@ func setCache(authOpts map[string]string) {
 		authPlugin.cache = cache.NewGoStore(
 			time.Duration(authCacheSeconds)*time.Second,
 			time.Duration(aclCacheSeconds)*time.Second,
+			time.Duration(authJitterSeconds)*time.Second,
+			time.Duration(aclJitterSeconds)*time.Second,
 			refreshExpiration,
 		)
 	}

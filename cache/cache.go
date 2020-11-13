@@ -6,6 +6,7 @@ import (
 	b64 "encoding/base64"
 	"fmt"
 	"hash"
+	"math/rand"
 	"strings"
 	"time"
 
@@ -19,6 +20,8 @@ import (
 type redisStore struct {
 	authExpiration    time.Duration
 	aclExpiration     time.Duration
+	authJitter        time.Duration
+	aclJitter         time.Duration
 	refreshExpiration bool
 	client            bes.RedisClient
 	h                 hash.Hash
@@ -27,6 +30,8 @@ type redisStore struct {
 type goStore struct {
 	authExpiration    time.Duration
 	aclExpiration     time.Duration
+	authJitter        time.Duration
+	aclJitter         time.Duration
 	refreshExpiration bool
 	client            *goCache.Cache
 	h                 hash.Hash
@@ -46,12 +51,14 @@ type Store interface {
 }
 
 // NewGoStore initializes a cache using go-cache as the store.
-func NewGoStore(authExpiration, aclExpiration time.Duration, refreshExpiration bool) *goStore {
+func NewGoStore(authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *goStore {
 	// TODO: support hydrating the cache to retain previous values.
 
 	return &goStore{
 		authExpiration:    authExpiration,
 		aclExpiration:     aclExpiration,
+		authJitter:        authJitter,
+		aclJitter:         aclJitter,
 		refreshExpiration: refreshExpiration,
 		client:            goCache.New(time.Second*defaultExpiration, time.Second*(defaultExpiration*2)),
 		h:                 sha1.New(),
@@ -59,7 +66,7 @@ func NewGoStore(authExpiration, aclExpiration time.Duration, refreshExpiration b
 }
 
 // NewSingleRedisStore initializes a cache using a single Redis instance as the store.
-func NewSingleRedisStore(host, port, password string, db int, authExpiration, aclExpiration time.Duration, refreshExpiration bool) *redisStore {
+func NewSingleRedisStore(host, port, password string, db int, authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *redisStore {
 	addr := fmt.Sprintf("%s:%s", host, port)
 	redisClient := goredis.NewClient(&goredis.Options{
 		Addr:     addr,
@@ -70,6 +77,8 @@ func NewSingleRedisStore(host, port, password string, db int, authExpiration, ac
 	return &redisStore{
 		authExpiration:    authExpiration,
 		aclExpiration:     aclExpiration,
+		authJitter:        authJitter,
+		aclJitter:         aclJitter,
 		refreshExpiration: refreshExpiration,
 		client:            bes.SingleRedisClient{redisClient},
 		h:                 sha1.New(),
@@ -77,7 +86,7 @@ func NewSingleRedisStore(host, port, password string, db int, authExpiration, ac
 }
 
 // NewSingleRedisStore initializes a cache using a Redis Cluster as the store.
-func NewRedisClusterStore(password string, addresses []string, authExpiration, aclExpiration time.Duration, refreshExpiration bool) *redisStore {
+func NewRedisClusterStore(password string, addresses []string, authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *redisStore {
 	clusterClient := goredis.NewClusterClient(
 		&goredis.ClusterOptions{
 			Addrs:    addresses,
@@ -87,6 +96,8 @@ func NewRedisClusterStore(password string, addresses []string, authExpiration, a
 	return &redisStore{
 		authExpiration:    authExpiration,
 		aclExpiration:     aclExpiration,
+		authJitter:        authJitter,
+		aclJitter:         aclJitter,
 		refreshExpiration: refreshExpiration,
 		client:            clusterClient,
 		h:                 sha1.New(),
@@ -113,6 +124,22 @@ func isMovedError(err error) bool {
 	}
 
 	return false
+}
+
+// return a expiration duration with a jitter added
+// The result is between expiration-jitter and expiration+jitter.
+// Negative value are never returned, 0 is used instead
+func expirationWithJitter(expiration, jitter time.Duration) time.Duration {
+	if jitter == 0 {
+		return expiration
+	}
+
+	result := expiration + time.Duration(rand.Int63n(int64(jitter)*2)-int64(jitter))
+	if result < 0 {
+		return 0
+	}
+
+	return result
 }
 
 // Connect flushes the cache if reset is set.
@@ -153,13 +180,13 @@ func (s *redisStore) Close() {
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
 func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
 	record := toAuthRecord(username, password, s.h)
-	return s.checkRecord(ctx, record, s.authExpiration)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.authExpiration, s.authJitter))
 }
 
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.checkRecord(ctx, record, s.aclExpiration)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.aclExpiration, s.authJitter))
 }
 
 func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime time.Duration) (bool, bool) {
@@ -239,7 +266,7 @@ func (s *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password, s.h)
-	s.client.Set(record, granted, s.authExpiration)
+	s.client.Set(record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
 
 	return nil
 }
@@ -247,7 +274,7 @@ func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, 
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	s.client.Set(record, granted, s.aclExpiration)
+	s.client.Set(record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
 
 	return nil
 }
@@ -255,13 +282,13 @@ func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid st
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *redisStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password, s.h)
-	return s.setRecord(ctx, record, granted, s.authExpiration)
+	return s.setRecord(ctx, record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
 }
 
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.setRecord(ctx, record, granted, s.aclExpiration)
+	return s.setRecord(ctx, record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
 }
 
 func (s *redisStore) setRecord(ctx context.Context, record, granted string, expirationTime time.Duration) error {

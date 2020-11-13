@@ -8,17 +8,44 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestExpirationWithJitter(t *testing.T) {
+	// Since expirationWithJitter use random, to multiple time to ensure
+	// result is within expected boundary
+	for n := 0; n < 1000; n++ {
+		expiration := 100 * time.Millisecond
+		jitter := 0 * time.Millisecond
+
+		got := expirationWithJitter(expiration, jitter)
+		assert.Equal(t, expiration, got)
+
+		jitter = 10 * time.Millisecond
+
+		got = expirationWithJitter(expiration, jitter)
+		assert.True(t, expiration-jitter <= got)
+		assert.True(t, got <= expiration+jitter)
+
+		jitter = 150 * time.Millisecond
+
+		got = expirationWithJitter(expiration, jitter)
+		assert.True(t, 0 <= got)
+		assert.True(t, got <= expiration+jitter)
+	}
+}
+
 func TestGoStore(t *testing.T) {
 	authExpiration := 100 * time.Millisecond
 	aclExpiration := 100 * time.Millisecond
+	jitter := 0 * time.Millisecond
 	refreshExpiration := false
 
-	store := NewGoStore(authExpiration, aclExpiration, refreshExpiration)
+	store := NewGoStore(authExpiration, aclExpiration, jitter, jitter, refreshExpiration)
 
 	ctx := context.Background()
 
 	assert.Equal(t, authExpiration, store.authExpiration)
 	assert.Equal(t, aclExpiration, store.aclExpiration)
+	assert.Equal(t, jitter, store.authJitter)
+	assert.Equal(t, jitter, store.aclJitter)
 
 	assert.True(t, store.Connect(ctx, false))
 
@@ -94,7 +121,7 @@ func TestGoStore(t *testing.T) {
 	assert.False(t, granted)
 
 	// Check expiration is refreshed.
-	store = NewGoStore(authExpiration, aclExpiration, true)
+	store = NewGoStore(authExpiration, aclExpiration, jitter, jitter, true)
 
 	// Test granted access.
 	err = store.SetAuthRecord(ctx, username, password, "true")
@@ -125,14 +152,17 @@ func TestGoStore(t *testing.T) {
 func TestRedisSingleStore(t *testing.T) {
 	authExpiration := 1000 * time.Millisecond
 	aclExpiration := 1000 * time.Millisecond
+	jitter := 0 * time.Millisecond
 	refreshExpiration := false
 
-	store := NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, refreshExpiration)
+	store := NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, jitter, jitter, refreshExpiration)
 
 	ctx := context.Background()
 
 	assert.Equal(t, authExpiration, store.authExpiration)
 	assert.Equal(t, aclExpiration, store.aclExpiration)
+	assert.Equal(t, jitter, store.authJitter)
+	assert.Equal(t, jitter, store.aclJitter)
 
 	assert.True(t, store.Connect(ctx, false))
 
@@ -185,7 +215,7 @@ func TestRedisSingleStore(t *testing.T) {
 	assert.False(t, granted)
 
 	// Check expiration is refreshed.
-	store = NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, true)
+	store = NewSingleRedisStore("localhost", "6379", "", 3, authExpiration, aclExpiration, jitter, jitter, true)
 
 	// Test granted access.
 	err = store.SetAuthRecord(ctx, username, password, "true")
@@ -216,15 +246,18 @@ func TestRedisSingleStore(t *testing.T) {
 func TestRedisClusterStore(t *testing.T) {
 	authExpiration := 1000 * time.Millisecond
 	aclExpiration := 1000 * time.Millisecond
+	jitter := 0 * time.Millisecond
 	refreshExpiration := false
 
 	addresses := []string{"localhost:7000", "localhost:7001", "localhost:7002"}
-	store := NewRedisClusterStore("", addresses, authExpiration, aclExpiration, refreshExpiration)
+	store := NewRedisClusterStore("", addresses, authExpiration, aclExpiration, jitter, jitter, refreshExpiration)
 
 	ctx := context.Background()
 
 	assert.Equal(t, authExpiration, store.authExpiration)
 	assert.Equal(t, aclExpiration, store.aclExpiration)
+	assert.Equal(t, jitter, store.authJitter)
+	assert.Equal(t, jitter, store.aclJitter)
 
 	assert.True(t, store.Connect(ctx, false))
 
@@ -276,7 +309,7 @@ func TestRedisClusterStore(t *testing.T) {
 	assert.True(t, present)
 	assert.False(t, granted)
 
-	store = NewRedisClusterStore("", addresses, authExpiration, aclExpiration, true)
+	store = NewRedisClusterStore("", addresses, authExpiration, aclExpiration, jitter, jitter, true)
 
 	// Test granted access.
 	err = store.SetAuthRecord(ctx, username, password, "true")
