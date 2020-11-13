@@ -92,19 +92,23 @@ func TestGRPC(t *testing.T) {
 
 			Convey("given incorrect credentials user should not be authenticated", func(c C) {
 
-				auth := g.GetUser(grpcUsername, "wrong", grpcClientId)
+				auth, err := g.GetUser(grpcUsername, "wrong", grpcClientId)
+				So(err, ShouldBeNil)
 				c.So(auth, ShouldBeFalse)
 				Convey("given correct credential user should be authenticated", func(c C) {
 
-					auth := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					So(err, ShouldBeNil)
 					c.So(auth, ShouldBeTrue)
 
 					Convey("given a non superuser user the service should respond false", func(c C) {
-						auth = g.GetSuperuser(grpcUsername)
+						auth, err = g.GetSuperuser(grpcUsername)
+						So(err, ShouldBeNil)
 						So(auth, ShouldBeFalse)
 
 						Convey("switching to a superuser should return true", func(c C) {
-							auth = g.GetSuperuser(grpcSuperuser)
+							auth, err = g.GetSuperuser(grpcSuperuser)
+							So(err, ShouldBeNil)
 							So(auth, ShouldBeTrue)
 
 							Convey("but if we disable superuser checks it should return false", func(c C) {
@@ -112,16 +116,19 @@ func TestGRPC(t *testing.T) {
 								g, err = NewGRPC(authOpts, log.DebugLevel)
 								c.So(err, ShouldBeNil)
 
-								auth = g.GetSuperuser(grpcSuperuser)
+								auth, err = g.GetSuperuser(grpcSuperuser)
+								So(err, ShouldBeNil)
 								So(auth, ShouldBeFalse)
 							})
 
 							Convey("authorizing a wrong topic should fail", func(c C) {
-								auth = g.CheckAcl(grpcUsername, "wrong/topic", grpcClientId, grpcAcc)
+								auth, err = g.CheckAcl(grpcUsername, "wrong/topic", grpcClientId, grpcAcc)
+								So(err, ShouldBeNil)
 								So(auth, ShouldBeFalse)
 
 								Convey("switching to a correct one should succedd", func(c C) {
-									auth = g.CheckAcl(grpcUsername, grpcTopic, grpcClientId, grpcAcc)
+									auth, err = g.CheckAcl(grpcUsername, grpcTopic, grpcClientId, grpcAcc)
+									So(err, ShouldBeNil)
 									So(auth, ShouldBeTrue)
 
 								})

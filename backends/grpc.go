@@ -52,7 +52,7 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
 }
 
 // GetUser checks that the username exists and the given password hashes to the same password.
-func (o GRPC) GetUser(username, password, clientid string) bool {
+func (o GRPC) GetUser(username, password, clientid string) (bool, error) {
 
 	req := gs.GetUserRequest{
 		Username: username,
@@ -64,18 +64,18 @@ func (o GRPC) GetUser(username, password, clientid string) bool {
 
 	if err != nil {
 		log.Errorf("grpc get user error: %s", err)
-		return false
+		return false, err
 	}
 
-	return resp.Ok
+	return resp.Ok, nil
 
 }
 
 // GetSuperuser checks that the user is a superuser.
-func (o GRPC) GetSuperuser(username string) bool {
+func (o GRPC) GetSuperuser(username string) (bool, error) {
 
 	if o.disableSuperuser {
-		return false
+		return false, nil
 	}
 
 	req := gs.GetSuperuserRequest{
@@ -86,15 +86,15 @@ func (o GRPC) GetSuperuser(username string) bool {
 
 	if err != nil {
 		log.Errorf("grpc get superuser error: %s", err)
-		return false
+		return false, err
 	}
 
-	return resp.Ok
+	return resp.Ok, nil
 
 }
 
 // CheckAcl checks if the user has access to the given topic.
-func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 
 	req := gs.CheckAclRequest{
 		Username: username,
@@ -107,10 +107,10 @@ func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	if err != nil {
 		log.Errorf("grpc check acl error: %s", err)
-		return false
+		return false, err
 	}
 
-	return resp.Ok
+	return resp.Ok, nil
 
 }
 

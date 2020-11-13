@@ -128,7 +128,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Mongo) GetUser(username, password, clientid string) bool {
+func (o Mongo) GetUser(username, password, clientid string) (bool, error) {
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
 
@@ -137,22 +137,22 @@ func (o Mongo) GetUser(username, password, clientid string) bool {
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get user error: %s", err)
-		return false
+		return false, err
 	}
 
 	if o.hasher.Compare(password, user.PasswordHash) {
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 
 }
 
 //GetSuperuser checks that the key username:su exists and has value "true".
-func (o Mongo) GetSuperuser(username string) bool {
+func (o Mongo) GetSuperuser(username string) (bool, error) {
 
 	if o.disableSuperuser {
-		return false
+		return false, nil
 	}
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
@@ -162,15 +162,15 @@ func (o Mongo) GetSuperuser(username string) bool {
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get superuser error: %s", err)
-		return false
+		return false, err
 	}
 
-	return user.Superuser
+	return user.Superuser, nil
 
 }
 
 //CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
-func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 
 	//Get user and check his acls.
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
@@ -180,12 +180,12 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
 		log.Debugf("Mongo get superuser error: %s", err)
-		return false
+		return false, err
 	}
 
 	for _, acl := range user.Acls {
 		if (acl.Acc == acc || acl.Acc == 3) && TopicsMatch(acl.Topic, topic) {
-			return true
+			return true, nil
 		}
 	}
 
@@ -196,7 +196,7 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 	if err != nil {
 		log.Debugf("Mongo check acl error: %s", err)
-		return false
+		return false, err
 	}
 
 	defer cur.Close(context.TODO())
@@ -208,14 +208,14 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) bool {
 			aclTopic := strings.Replace(acl.Topic, "%c", clientid, -1)
 			aclTopic = strings.Replace(aclTopic, "%u", username, -1)
 			if TopicsMatch(aclTopic, topic) {
-				return true
+				return true, nil
 			}
 		} else {
 			log.Errorf("mongo cursor decode error: %s", err)
 		}
 	}
 
-	return false
+	return false, nil
 
 }
 

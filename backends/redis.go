@@ -137,10 +137,10 @@ func isMovedError(err error) bool {
 }
 
 //GetUser checks that the username exists and the given password hashes to the same password.
-func (o Redis) GetUser(username, password, _ string) bool {
+func (o Redis) GetUser(username, password, _ string) (bool, error) {
 	ok, err := o.getUser(username, password)
 	if err == nil {
-		return ok
+		return ok, nil
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
@@ -148,7 +148,7 @@ func (o Redis) GetUser(username, password, _ string) bool {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)
-			return false
+			return false, err
 		}
 
 		//Retry once.
@@ -158,7 +158,7 @@ func (o Redis) GetUser(username, password, _ string) bool {
 	if err != nil {
 		log.Debugf("redis get user error: %s", err)
 	}
-	return ok
+	return ok, err
 }
 
 func (o Redis) getUser(username, password string) (bool, error) {
@@ -175,14 +175,14 @@ func (o Redis) getUser(username, password string) (bool, error) {
 }
 
 //GetSuperuser checks that the key username:su exists and has value "true".
-func (o Redis) GetSuperuser(username string) bool {
+func (o Redis) GetSuperuser(username string) (bool, error) {
 	if o.disableSuperuser {
-		return false
+		return false, nil
 	}
 
 	ok, err := o.getSuperuser(username)
 	if err == nil {
-		return ok
+		return ok, nil
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
@@ -190,7 +190,7 @@ func (o Redis) GetSuperuser(username string) bool {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)
-			return false
+			return false, err
 		}
 
 		//Retry once.
@@ -200,7 +200,7 @@ func (o Redis) GetSuperuser(username string) bool {
 	if err != nil {
 		log.Debugf("redis get superuser error: %s", err)
 	}
-	return ok
+	return ok, err
 }
 
 func (o Redis) getSuperuser(username string) (bool, error) {
@@ -216,10 +216,10 @@ func (o Redis) getSuperuser(username string) (bool, error) {
 	return false, nil
 }
 
-func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o Redis) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	ok, err := o.checkAcl(username, topic, clientid, acc)
 	if err == nil {
-		return ok
+		return ok, nil
 	}
 
 	//If using Redis Cluster, reload state and attempt once more.
@@ -227,7 +227,7 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 		err = o.conn.ReloadState(o.ctx)
 		if err != nil {
 			log.Debugf("redis reload state error: %s", err)
-			return false
+			return false, err
 		}
 
 		//Retry once.
@@ -237,7 +237,7 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if err != nil {
 		log.Debugf("redis check acl error: %s", err)
 	}
-	return ok
+	return ok, err
 }
 
 //CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.

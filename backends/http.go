@@ -126,7 +126,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 	return http, nil
 }
 
-func (o HTTP) GetUser(username, password, clientid string) bool {
+func (o HTTP) GetUser(username, password, clientid string) (bool, error) {
 
 	var dataMap = map[string]interface{}{
 		"username": username,
@@ -144,10 +144,10 @@ func (o HTTP) GetUser(username, password, clientid string) bool {
 
 }
 
-func (o HTTP) GetSuperuser(username string) bool {
+func (o HTTP) GetSuperuser(username string) (bool, error) {
 
 	if o.SuperuserUri == "" {
-		return false
+		return false, nil
 	}
 
 	var dataMap = map[string]interface{}{
@@ -162,7 +162,7 @@ func (o HTTP) GetSuperuser(username string) bool {
 
 }
 
-func (o HTTP) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o HTTP) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 
 	dataMap := map[string]interface{}{
 		"username": username,
@@ -182,11 +182,11 @@ func (o HTTP) CheckAcl(username, topic, clientid string, acc int32) bool {
 
 }
 
-func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, urlValues map[string][]string) bool {
+func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, urlValues map[string][]string) (bool, error) {
 
 	// Don't do the request if the client is nil.
 	if o.Client == nil {
-		return false
+		return false, errors.New("client not initilized")
 	}
 
 	tlsStr := "http://"
@@ -211,7 +211,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		if err != nil {
 			log.Errorf("marshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		contentReader := bytes.NewReader(dataJson)
@@ -220,7 +220,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
-			return false
+			return false, err
 		}
 
 		req.Header.Set("Content-Type", "application/json")
@@ -230,21 +230,24 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 	if err != nil {
 		log.Errorf("POST error: %s", err)
-		return false
+		return false, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		log.Errorf("read error: %s", err)
-		return false
+		return false, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Infof("error code: %d", resp.StatusCode)
-		return false
+		if resp.StatusCode >= 500 {
+			err = fmt.Errorf("error code: %d", resp.StatusCode)
+		}
+		return false, err
 	}
 
 	if o.ResponseMode == "text" {
@@ -252,7 +255,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
 			log.Infof("api error: %s", string(body))
-			return false
+			return false, nil
 		}
 
 	} else if o.ResponseMode == "json" {
@@ -263,18 +266,18 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		if err != nil {
 			log.Errorf("unmarshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		if !response.Ok {
 			log.Infof("api error: %s", response.Error)
-			return false
+			return false, nil
 		}
 
 	}
 
 	log.Debugf("http request approved for %s", username)
-	return true
+	return true, nil
 
 }
 

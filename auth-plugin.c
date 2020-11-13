@@ -18,6 +18,11 @@
 
 #include "go-auth.h"
 
+// Same constant as one in go-auth.go.
+#define AuthRejected 0
+#define AuthGranted 1
+#define AuthError 2
+
 int mosquitto_auth_plugin_version(void) {
   #ifdef MOSQ_AUTH_PLUGIN_VERSION
     #if MOSQ_AUTH_PLUGIN_VERSION == 5
@@ -91,8 +96,14 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
   GoString go_password = {password, strlen(password)};
   GoString go_clientid = {clientid, strlen(clientid)};
 
-  if(AuthUnpwdCheck(go_username, go_password, go_clientid)){
+  GoUint8 ret = AuthUnpwdCheck(go_username, go_password, go_clientid);
+
+  if(ret == AuthGranted){
     return MOSQ_ERR_SUCCESS;
+  }
+
+  if (ret == AuthError){
+    return MOSQ_ERR_UNKNOWN;
   }
 
   return MOSQ_ERR_AUTH;
@@ -122,8 +133,14 @@ int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *u
   GoString go_topic = {topic, strlen(topic)};
   GoInt32 go_access = access;
 
-  if(AuthAclCheck(go_clientid, go_username, go_topic, go_access)){
+  GoUint8 ret = AuthAclCheck(go_clientid, go_username, go_topic, go_access);
+
+  if(ret == AuthGranted){
     return MOSQ_ERR_SUCCESS;
+  }
+
+  if(ret == AuthError){
+    return MOSQ_ERR_UNKNOWN;
   }
 
   return MOSQ_ERR_ACL_DENIED;

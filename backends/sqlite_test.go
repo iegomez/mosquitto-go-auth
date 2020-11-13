@@ -87,20 +87,23 @@ func TestFileSqlite(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, userPass, "")
+			authenticated, err := sqlite.GetUser(username, userPass, "")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, "wrong_password", "")
+			authenticated, err := sqlite.GetUser(username, "wrong_password", "")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a username that is admin, super user should pass", func() {
-			superuser := sqlite.GetSuperuser(username)
+			superuser, err := sqlite.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(superuser, ShouldBeTrue)
 		})
 
@@ -128,9 +131,11 @@ func TestFileSqlite(t *testing.T) {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
 
-			tt1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
-			tt2 := sqlite.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+			tt2, err2 := sqlite.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
 
@@ -139,16 +144,19 @@ func TestFileSqlite(t *testing.T) {
 		Convey("Given read only privileges, a pub check should fail", func() {
 
 			testTopic1 := "test/topic/1"
-			tt1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_WRITE)
+			tt1, err1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_WRITE)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeFalse)
 
 		})
 
 		Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-			tt1 := sqlite.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
-			tt2 := sqlite.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
+			tt2, err2 := sqlite.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeFalse)
 			So(tt2, ShouldBeFalse)
 
@@ -160,7 +168,8 @@ func TestFileSqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -168,7 +177,8 @@ func TestFileSqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -178,7 +188,8 @@ func TestFileSqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -188,7 +199,8 @@ func TestFileSqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -255,20 +267,23 @@ func TestMemorySqlite(t *testing.T) {
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, userPass, "")
+			authenticated, err := sqlite.GetUser(username, userPass, "")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
 
-			authenticated := sqlite.GetUser(username, "wrong_password", "")
+			authenticated, err := sqlite.GetUser(username, "wrong_password", "")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a username that is admin, super user should pass", func() {
-			superuser := sqlite.GetSuperuser(username)
+			superuser, err := sqlite.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(superuser, ShouldBeTrue)
 		})
 
@@ -297,9 +312,11 @@ func TestMemorySqlite(t *testing.T) {
 			testTopic1 := `test/topic/1`
 			testTopic2 := `test/topic/2`
 
-			tt1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
-			tt2 := sqlite.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+			tt2, err2 := sqlite.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
 
@@ -308,16 +325,19 @@ func TestMemorySqlite(t *testing.T) {
 		Convey("Given read only privileges, a pub check should fail", func() {
 
 			testTopic1 := "test/topic/1"
-			tt1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_WRITE)
+			tt1, err1 := sqlite.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_WRITE)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeFalse)
 
 		})
 
 		Convey("Given wildcard subscriptions against strict db acl, acl checks should fail", func() {
 
-			tt1 := sqlite.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
-			tt2 := sqlite.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
+			tt2, err2 := sqlite.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeFalse)
 			So(tt2, ShouldBeFalse)
 
@@ -329,7 +349,8 @@ func TestMemorySqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -337,7 +358,8 @@ func TestMemorySqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -347,7 +369,8 @@ func TestMemorySqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a db single level wildcard, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
@@ -357,7 +380,8 @@ func TestMemorySqlite(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("Given a topic not strictly present that matches a hierarchy wildcard, acl check should pass", func() {
-			tt1 := sqlite.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+			tt1, err1 := sqlite.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 

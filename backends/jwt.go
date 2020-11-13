@@ -232,7 +232,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 }
 
 //GetUser authenticates a given user.
-func (o JWT) GetUser(token, password, clientid string) bool {
+func (o JWT) GetUser(token, password, clientid string) (bool, error) {
 
 	if o.Remote {
 		var dataMap map[string]interface{}
@@ -245,7 +245,7 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 
 	if err != nil {
 		log.Printf("jwt get user error: %s", err)
-		return false
+		return false, err
 	}
 	//Now check against the db.
 	if o.UserField == "Username" {
@@ -256,10 +256,10 @@ func (o JWT) GetUser(token, password, clientid string) bool {
 }
 
 //GetSuperuser checks if the given user is a superuser.
-func (o JWT) GetSuperuser(token string) bool {
+func (o JWT) GetSuperuser(token string) (bool, error) {
 	if o.Remote {
 		if o.SuperuserUri == "" {
-			return false
+			return false, nil
 		}
 		var dataMap map[string]interface{}
 		var urlValues = url.Values{}
@@ -269,13 +269,13 @@ func (o JWT) GetSuperuser(token string) bool {
 	//If not remote, get the claims and check against postgres for user.
 	//But check first that there's superuser query.
 	if o.SuperuserQuery == "" {
-		return false
+		return false, nil
 	}
 	claims, err := o.getClaims(token, o.SkipUserExpiration)
 
 	if err != nil {
 		log.Debugf("jwt get superuser error: %s", err)
-		return false
+		return false, err
 	}
 	//Now check against db
 	if o.UserField == "Username" {
@@ -295,7 +295,7 @@ func (o JWT) GetSuperuser(token string) bool {
 }
 
 //CheckAcl checks user authorization.
-func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
+func (o JWT) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 
 	if o.Remote {
 		dataMap := map[string]interface{}{
@@ -314,13 +314,13 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 	//If not remote, get the claims and check against postgres for user.
 	//But check first that there's acl query.
 	if o.AclQuery == "" {
-		return true
+		return true, nil
 	}
 	claims, err := o.getClaims(token, o.SkipACLExpiration)
 
 	if err != nil {
 		log.Debugf("jwt check acl error: %s", err)
-		return false
+		return false, err
 	}
 	//Now check against the db.
 	if o.UserField == "Username" {
@@ -338,11 +338,11 @@ func (o JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
 
 }
 
-func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port, paramsMode, responseMode string, urlValues url.Values) bool {
+func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataMap map[string]interface{}, port, paramsMode, responseMode string, urlValues url.Values) (bool, error) {
 
 	// Don't do the request if the client is nil.
 	if o.Client == nil {
-		return false
+		return false, errors.New("client not initilized")
 	}
 
 	tlsStr := "http://"
@@ -365,7 +365,7 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 
 		if err != nil {
 			log.Errorf("marshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		contentReader := bytes.NewReader(dataJson)
@@ -373,7 +373,7 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
-			return false
+			return false, err
 		}
 		req.Header.Set("Content-Type", "application/json")
 	} else {
@@ -383,7 +383,7 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
-			return false
+			return false, err
 		}
 	}
 
@@ -393,21 +393,24 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 
 	if err != nil {
 		log.Errorf("error: %v", err)
-		return false
+		return false, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		log.Errorf("read error: %s", err)
-		return false
+		return false, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Infof("error code: %d", resp.StatusCode)
-		return false
+		if resp.StatusCode >= 500 {
+			err = fmt.Errorf("error code: %d", resp.StatusCode)
+		}
+		return false, err
 	}
 
 	if responseMode == "text" {
@@ -415,7 +418,7 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
 			log.Infof("api error: %s", string(body))
-			return false
+			return false, nil
 		}
 
 	} else if responseMode == "json" {
@@ -426,18 +429,18 @@ func (o JWT) jwtRequest(host, uri, token string, withTLS, verifyPeer bool, dataM
 
 		if err != nil {
 			log.Errorf("unmarshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		if !response.Ok {
 			log.Infof("api error: %s", response.Error)
-			return false
+			return false, nil
 		}
 
 	}
 
 	log.Debugf("jwt request approved for %s", token)
-	return true
+	return true, nil
 
 }
 
@@ -446,10 +449,10 @@ func (o JWT) GetName() string {
 	return "JWT"
 }
 
-func (o JWT) getLocalUser(username string) bool {
+func (o JWT) getLocalUser(username string) (bool, error) {
 	//If there's no user query, return false.
 	if o.UserQuery == "" {
-		return false
+		return false, nil
 	}
 
 	var count sql.NullInt64
@@ -462,19 +465,19 @@ func (o JWT) getLocalUser(username string) bool {
 
 	if err != nil {
 		log.Debugf("local JWT get user error: %s", err)
-		return false
+		return false, err
 	}
 
 	if !count.Valid {
 		log.Debugf("local JWT get user error: user %s not found", username)
-		return false
+		return false, nil
 	}
 
 	if count.Int64 > 0 {
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 func (o JWT) getClaims(tokenStr string, skipExpiration bool) (*Claims, error) {
