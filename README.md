@@ -349,6 +349,19 @@ auth_opt_log_file /var/log/mosquitto/mosquitto.log
 
 If `log_dest` or `log_file` are invalid, or if there's an error opening the file (e.g. no permissions), logging will default to `stderr`.
 
+#### Retry
+
+By default, if backend had an error (and no other backend granted access), an error is returned to Mosquitto.
+
+It's possible to enable retry, which will immediately retry all configured backends. This could be useful if the
+backend may be behind a load-balancer (like HTTP backend) and one instance may fail:
+
+```
+auth_opt_retry_count 2
+```
+
+The above example will do up to 2 retry (3 call in total) if backend had an error.
+
 #### Prefixes
 
 Though the plugin may have multiple backends enabled, there's a way to specify which backend must be used for a given user: prefixes. When enabled, `prefixes` allow to check if the username contains a predefined prefix in the form prefix_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
