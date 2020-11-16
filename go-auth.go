@@ -399,7 +399,7 @@ func setCache(authOpts map[string]string) {
 	}
 
 	refreshExpiration := false
-	if refresh, ok := authOpts["cache_rfresh"]; ok && refresh == "true" {
+	if refresh, ok := authOpts["cache_refresh"]; ok && refresh == "true" {
 		refreshExpiration = true
 	}
 
