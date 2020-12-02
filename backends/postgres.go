@@ -128,7 +128,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 
 	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
 		connStr = fmt.Sprintf("%s sslmode=verify-ca sslcert=%s sslkey=%s sslrootcert=%s", connStr, postgres.SSLCert, postgres.SSLKey, postgres.SSLRootCert)
-	} else if postgres.SSLMode == "required" {
+	} else if postgres.SSLMode == "require" {
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	} else {
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
