@@ -2,6 +2,14 @@
 
 Mosquitto Go Auth is an authentication and authorization plugin for the Mosquitto MQTT broker.
 
+# Current state
+
+**4, Dec, 2020**: The plugin is up to date and is compatible with the recent [2.0 Mosquitto version](https://mosquitto.org/blog/2020/12/version-2-0-0-released/) that was released just yesterday, while it maintains compatibility with older versions. That said, I've been working on a couple of requested features but haven't been able to do much progress in the past couple of weeks because of lack of time. There are also some other requested enhancements in line, as well as a bunch of PRs waiting for review.
+
+Though I've received some contributions and am very thankful and really, really appreciate them, this is still very much a _single-person-effort_ project, while at the same time I haven't had a use case for Mosquitto or any other MQTT broker for almost a year and a half now, making it a hard self for myself to prioritize it over other things going on. Don't read this as an alarm though, I'll surely keep maintaining it and will try to implement any request that gets some traction or I deem good enough/necessary, and fix any evident bug. But please consider that it'll take time, i.e. don't expect a high pace attending issues (though I'll try to respond as quickly as possible, even when deferring them).
+
+Sorry for the noise in the readme, I just wanted to make clear that my plan is to tackle that couple of features and then review the current PRs, hopefully during this month, and then defer everything to next year to try and reduce the backlog during January and February. Now you may continue to read relevant information about the plugin.
+
 ### Intro
 
 This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker. It's written (almost) entirely in Go: it uses `cgo` to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. 
