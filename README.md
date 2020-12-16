@@ -386,7 +386,7 @@ The main difference is that subscribe is checked at first, when a client connect
 So in practice you could deny general subscriptions such as # by returning false from the acl check when you receive `MOSQ_ACL_SUBSCRIBE`, but allow any particular one by returning true on `MOSQ_ACL_READ`.
 Please take this into consideration when designing your ACL records on every backend.
 
-Also, these are the current available values from `mosquitto`:
+Also, these are the current available bitwise values from `mosquitto`:
 
 ```
 #define MOSQ_ACL_NONE 0x00
@@ -395,6 +395,7 @@ Also, these are the current available values from `mosquitto`:
 #define MOSQ_ACL_SUBSCRIBE 0x04
 ```
 
+For example, an ACL for a topic with READ and SUBSCRIBE permission should be 5 (0b101) and an ACL for a topic with full permission should be 7 (0b111).
 If you're using prior versions then `MOSQ_ACL_SUBSCRIBE` is not available and you don't need to worry about it.
 
 #### Backend options
@@ -658,20 +659,20 @@ Finally, placeholders for mysql differ from those of postgres, changing from $1,
 User query:
 
 ```sql
-SELECT pass FROM account WHERE username = ? limit 1
+SELECT pass FROM test_user WHERE username = ? limit 1
 ```
 
 Superuser query:
 
 ```sql
-SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
+SELECT COUNT(*) FROM test_user WHERE username = ? AND super = 1
 ```
 
 
 Acl query:
 
 ```sql
-SELECT topic FROM acl WHERE (username = ?) AND rw = ?
+SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND test_acl.rw & ?
 ```
 
 #### Password hashing
