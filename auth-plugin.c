@@ -3,14 +3,10 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include <mosquitto.h>
+#include <mosquitto_broker.h>
 #include <mosquitto_plugin.h>
+#include <mosquitto.h>
 
-
-
-#if MOSQ_AUTH_PLUGIN_VERSION >= 3
-# include <mosquitto_broker.h>
-#endif
 
 #if MOSQ_AUTH_PLUGIN_VERSION >= 3
 # define mosquitto_auth_opt mosquitto_opt
