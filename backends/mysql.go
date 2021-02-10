@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 
 	mq "github.com/go-sql-driver/mysql"
@@ -34,6 +35,8 @@ type Mysql struct {
 	SocketPath           string
 	AllowNativePasswords bool
 	hasher               hashing.HashComparer
+
+	connectTries int
 }
 
 func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Mysql, error) {
@@ -190,8 +193,18 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		}
 	}
 
+	if tries, ok := authOpts["mysql_connect_tries"]; ok {
+		connectTries, err := strconv.Atoi(tries)
+
+		if err != nil {
+			log.Warnf("invalid mysql connect tries options: %s", err)
+		} else {
+			mysql.connectTries = connectTries
+		}
+	}
+
 	var err error
-	mysql.DB, err = OpenDatabase(msConfig.FormatDSN(), "mysql")
+	mysql.DB, err = OpenDatabase(msConfig.FormatDSN(), "mysql", mysql.connectTries)
 
 	if err != nil {
 		return mysql, errors.Errorf("MySql backend error: couldn't open db: %s", err)

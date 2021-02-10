@@ -499,20 +499,21 @@ The `postgres`  backend allows to specify queries for user, superuser and acl ch
 
 The following `auth_opt_` options are supported:
 
-| Option         		| default           |  Mandatory  | Meaning                  |
-| -------------- 		| ----------------- | :---------: | ------------------------ |
-| pg_host           | localhost         |             | hostname/address
-| pg_port           | 5432              |             | TCP port
-| pg_user           |                   |     Y       | username
-| pg_password       |                   |     Y       | password
-| pg_dbname         |                   |     Y       | database name
-| pg_userquery      |                   |     Y       | SQL for users
-| pg_superquery     |                   |     N       | SQL for superusers
-| pg_aclquery       |                   |     N       | SQL for ACLs
-| pg_sslmode        |     disable       |     N       | SSL/TLS mode.
-| pg_sslcert        |                   |     N       | SSL/TLS Client Cert.
-| pg_sslkey         |                   |     N       | SSL/TLS Client Cert. Key
-| pg_sslrootcert    |                   |     N       | SSL/TLS Root Cert
+| Option         		| default           |  Mandatory  | Meaning                  	 								|
+| --------------------- | ----------------- | :---------: | ----------------------------------------------------------- |
+| pg_host           	| 	 localhost      |             | hostname/address			 								|
+| pg_port           	| 		5432        |             | TCP port					 								|
+| pg_user           	|                   |     Y       | username					 								|
+| pg_password       	|                   |     Y       | password					 								|
+| pg_dbname         	|                   |     Y       | database name				 								|
+| pg_userquery      	|                   |     Y       | SQL for users				 								|
+| pg_superquery     	|                   |     N       | SQL for superusers			 								|
+| pg_aclquery       	|                   |     N       | SQL for ACLs				 								|
+| pg_sslmode        	|     disable       |     N       | SSL/TLS mode.				 								|
+| pg_sslcert        	|                   |     N       | SSL/TLS Client Cert.		 								|
+| pg_sslkey         	|                   |     N       | SSL/TLS Client Cert. Key	 								|
+| pg_sslrootcert    	|                   |     N       | SSL/TLS Root Cert			 								|
+| pg_connect_tries    	|        -1         |     N       | x < 0: try forever, x > 0: try x times						|
 
 Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
@@ -569,11 +570,17 @@ auth_opt_pg_port 5432
 auth_opt_pg_dbname appserver
 auth_opt_pg_user appserver
 auth_opt_pg_password appserver
+auth_opt_pg_connect_tries 5
 auth_opt_pg_userquery select password_hash from "user" where username = $1 and is_active = true limit 1
 auth_opt_pg_superquery select count(*) from "user" where username = $1 and is_admin = true
 auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" u inner join organization_user ou on ou.user_id = u.id inner join organization o on o.id = ou.organization_id inner join application a on a.organization_id = o.id where u.username = $1 and $2 = $2
 
 ```
+
+**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `pg_connect_tries` option.
+By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
+but you may choose to ping a max amount of times by setting any positive number. 
+If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.
 
 #### Password hashing
 
@@ -635,22 +642,23 @@ auth_opt_mysql_allow_native_passwords true
 
 Supported options for `mysql` are:
 
-| Option         		| default           |  Mandatory  | Meaning                  |
-| -------------- 		| ----------------- | :---------: | ------------------------ |
-| mysql_host            |     localhost     |     N       | hostname/address
-| mysql_port            |       3306        |     N       | TCP port
-| mysql_user            |                   |     Y       | username
-| mysql_password        |                   |     Y       | password
-| mysql_dbname          |                   |     Y       | database name
-| mysql_userquery       |                   |     Y       | SQL for users
-| mysql_superquery      |                   |     N       | SQL for superusers
-| mysql_aclquery        |                   |     N       | SQL for ACLs
-| mysql_sslmode         |     disable       |     N       | SSL/TLS mode.
-| mysql_sslcert         |                   |     N       | SSL/TLS Client Cert.
-| mysql_sslkey          |                   |     N       | SSL/TLS Client Cert. Key
-| mysql_sslrootcert     |                   |     N       | SSL/TLS Root Cert
-| mysql_protocol        |       tcp         |     N       | Connection protocol
-| mysql_socket          |                   |     N       | Unix socket path
+| Option         			| default           |  Mandatory  | Meaning                  									|
+| ------------------------- | ----------------- | :---------: | ----------------------------------------------------------- |
+| mysql_host            	|     localhost     |     N       | hostname/address											|
+| mysql_port            	|       3306        |     N       | TCP port													|
+| mysql_user            	|                   |     Y       | username													|
+| mysql_password        	|                   |     Y       | password													|
+| mysql_dbname          	|                   |     Y       | database name												|
+| mysql_userquery       	|                   |     Y       | SQL for users												|
+| mysql_superquery      	|                   |     N       | SQL for superusers											|
+| mysql_aclquery        	|                   |     N       | SQL for ACLs												|
+| mysql_sslmode         	|     disable       |     N       | SSL/TLS mode.												|
+| mysql_sslcert         	|                   |     N       | SSL/TLS Client Cert.										|
+| mysql_sslkey          	|                   |     N       | SSL/TLS Client Cert. Key									|
+| mysql_sslrootcert     	|                   |     N       | SSL/TLS Root Cert											|
+| mysql_protocol        	|       tcp         |     N       | Connection protocol											|
+| mysql_socket          	|                   |     N       | Unix socket path											|
+| mysql_connect_tries    	|        -1         |     N       | x < 0: try forever, x > 0: try x times						|
 
 
 Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. These are some **example** queries for `mysql`:
@@ -673,6 +681,11 @@ Acl query:
 ```sql
 SELECT topic FROM acl WHERE (username = ?) AND rw = ?
 ```
+
+**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `mysql_connect_tries` option.
+By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
+but you may choose to ping a max amount of times by setting any positive number. 
+If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.
 
 #### Password hashing
 
@@ -720,12 +733,13 @@ ON UPDATE CASCADE
 The `sqlite` backend works in the same way as `postgres` and `mysql` do, except that being a light weight db, it has fewer configuration options.
 The following `auth_opt_` options are supported:
 
-| Option                | default           |  Mandatory  | Meaning                  |
-| --------------------- | ----------------- | :---------: | ------------------------ |
-| sqlite_source         |                   |     Y       | SQLite3 source
-| sqlite_userquery      |                   |     Y       | SQL for users
-| sqlite_superquery     |                   |     N       | SQL for superusers
-| sqlite_aclquery       |                   |     N       | SQL for ACLs
+| Option                	| default           |  Mandatory  | Meaning                  									|
+| ------------------------- | ----------------- | :---------: | ----------------------------------------------------------- |
+| sqlite_source         	|                   |     Y       | SQLite3 source												|
+| sqlite_userquery      	|                   |     Y       | SQL for users												|
+| sqlite_superquery     	|                   |     N       | SQL for superusers											|
+| sqlite_aclquery       	|                   |     N       | SQL for ACLs												|
+| sqlite_connect_tries	    |        -1         |     N       | x < 0: try forever, x > 0: try x times						|
 
 SQLite3 allows to connect to an in-memory db, or a single file one, so source maybe `memory` (not :memory:) or the path to a file db.
 
@@ -744,6 +758,11 @@ sqlite_superquery SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
 
 sqlite_aclquery SELECT topic FROM acl WHERE (username = ?) AND rw >= ?
 ```
+
+**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `sqlite_connect_tries` option.
+By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
+but you may choose to ping a max amount of times by setting any positive number. 
+If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.
 
 #### Password hashing
 

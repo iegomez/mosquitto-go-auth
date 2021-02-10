@@ -1,6 +1,7 @@
 package backends
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -11,20 +12,33 @@ import (
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func OpenDatabase(dsn, engine string) (*sqlx.DB, error) {
+func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open(engine, dsn)
 	if err != nil {
 		return nil, errors.Wrap(err, "database connection error")
 	}
 
-	for {
+	if tries == 0 {
+		tries = 1
+	}
+
+	for tries != 0 {
 		if err = db.Ping(); err != nil {
 			log.Errorf("ping database error, will retry in 2s: %s", err)
 			time.Sleep(2 * time.Second)
 		} else {
 			break
 		}
+
+		// No need to decrease when pinging forever, i.e. when tries < 0.
+		if tries > 0 {
+			tries--
+		}
+	}
+
+	if tries == 0 {
+		return nil, fmt.Errorf("couldn't ping database %s", engine)
 	}
 
 	return db, nil
