@@ -32,7 +32,7 @@ RUN export PATH=$PATH:/usr/local/go/bin && export CGO_CFLAGS="-I/usr/local/inclu
 
 ## Everything above, is the same as Dockerfile
 
-RUN apt-get install --no-install-recommends -y mariadb-server postgresql redis-server sudo
+RUN apt-get update && apt-get install --no-install-recommends -y mariadb-server postgresql redis-server sudo
 
 RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - && \
     echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.4 main" > /etc/apt/sources.list.d/mongodb-org-4.4.list && \
