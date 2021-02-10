@@ -8,6 +8,25 @@ service redis-server start
 
 sudo -u mongodb mongod --config /etc/mongod.conf &
 
+mkdir /tmp/cluster-test
+cd /tmp/cluster-test
+mkdir 7000 7001 7002 7003 7004 7005
+cat > 7000/redis.conf << EOF
+port 7000
+cluster-enabled yes
+cluster-config-file nodes.conf
+cluster-node-timeout 5000
+appendonly yes
+EOF
+
+for i in 7001 7002 7003 7004 7005; do
+    sed s/7000/$i/ < 7000/redis.conf > $i/redis.conf
+done
+
+for i in 7000 7001 7002 7003 7004 7005; do
+    (cd $i; redis-server redis.conf > server.log 2>&1 &)
+done
+
 sudo -u postgres psql << "EOF"
 create user go_auth_test with login password 'go_auth_test';
 create database go_auth_test with owner go_auth_test;
@@ -55,26 +74,6 @@ ON DELETE CASCADE
 ON UPDATE CASCADE
 );
 EOF
-
-
-mkdir /tmp/cluster-test
-cd /tmp/cluster-test
-mkdir 7000 7001 7002 7003 7004 7005
-cat > 7000/redis.conf << EOF
-port 7000
-cluster-enabled yes
-cluster-config-file nodes.conf
-cluster-node-timeout 5000
-appendonly yes
-EOF
-
-for i in 7001 7002 7003 7004 7005; do
-    sed s/7000/$i/ < 7000/redis.conf > $i/redis.conf
-done
-
-for i in 7000 7001 7002 7003 7004 7005; do
-    (cd $i; redis-server redis.conf > server.log 2>&1 &)
-done
 
 yes yes | redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 \
     127.0.0.1:7002 127.0.0.1:7003 127.0.0.1:7004 127.0.0.1:7005 \
