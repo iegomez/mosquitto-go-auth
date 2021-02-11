@@ -577,7 +577,7 @@ auth_opt_pg_aclquery select distinct 'application/' || a.id || '/#' from "user" 
 
 ```
 
-**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `pg_connect_tries` option.
+**DB connect tries**: on startup, depending on `pg_connect_tries` option, the plugin will try to connect and ping the DB a max number of times or forever every 2 seconds.
 By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
 but you may choose to ping a max amount of times by setting any positive number. 
 If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.
@@ -682,7 +682,7 @@ Acl query:
 SELECT topic FROM acl WHERE (username = ?) AND rw = ?
 ```
 
-**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `mysql_connect_tries` option.
+**DB connect tries**: on startup, depending on `mysql_connect_tries` option, the plugin will try to connect and ping the DB a max number of times or forever every 2 seconds.
 By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
 but you may choose to ping a max amount of times by setting any positive number. 
 If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.
@@ -759,7 +759,7 @@ sqlite_superquery SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
 sqlite_aclquery SELECT topic FROM acl WHERE (username = ?) AND rw >= ?
 ```
 
-**DB connect tries**: on startup, the plugin will try to connect and ping the DB a max number of times or forever depending on `sqlite_connect_tries` option.
+**DB connect tries**: on startup, depending on `sqlite_connect_tries` option, the plugin will try to connect and ping the DB a max number of times or forever every 2 seconds.
 By default it will try to reconnect forever to maintain backwards compatibility and avoid issues when `mosquitto` starts before the DB service does, 
 but you may choose to ping a max amount of times by setting any positive number. 
 If given 0, the DB will try to connect only once, which would be the same as setting the option to 1.

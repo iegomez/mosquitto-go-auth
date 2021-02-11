@@ -25,20 +25,20 @@ func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
 
 	for tries != 0 {
 		if err = db.Ping(); err != nil {
-			log.Errorf("ping database error, will retry in 2s: %s", err)
+			log.Errorf("ping database %s error, will retry in 2s: %s", engine, err)
 			time.Sleep(2 * time.Second)
 		} else {
 			break
 		}
 
-		// No need to decrease when pinging forever, i.e. when tries < 0.
 		if tries > 0 {
 			tries--
 		}
 	}
 
+	// Return last ping error when done trying.
 	if tries == 0 {
-		return nil, fmt.Errorf("couldn't ping database %s", engine)
+		return nil, fmt.Errorf("couldn't ping database %s: %s", engine, err)
 	}
 
 	return db, nil
