@@ -14,8 +14,6 @@ I do maintain it still and will try to keep doing so. This is the list of status
 - Feature requests are the lowest priority. Unless they are a super easy win in importance and implementation effort, I'll accept contributions and review 
   PRs before considering implementing them myself.
 
-Sorry for the noise in the readme, I just wanted to make clear that my plan is to tackle that couple of features and then review the current PRs, hopefully during this month, and then defer everything to next year to try and reduce the backlog during January and February. Now you may continue to read relevant information about the plugin.
-
 ### Intro
 
 This is an authentication and authorization plugin for [mosquitto](https://mosquitto.org/), a well known open source MQTT broker. It's written (almost) entirely in Go: it uses `cgo` to expose mosquitto's auth plugin needed functions, but internally just calls Go to get everything done. 
