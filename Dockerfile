@@ -21,8 +21,12 @@ RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_V
 RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install && cd ..
 
 #Get Go.
-RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
-RUN export PATH=$PATH:/usr/local/go/bin && go version && rm go${GO_VERSION}.linux-amd64.tar.gz
+RUN export GO_ARCH=$(uname -m | sed -es/x86_64/amd64/ -es/armv7l/armv6l/ -es/aarch64/arm64/) && \
+    wget https://dl.google.com/go/go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
+    tar -C /usr/local -xzf go${GO_VERSION}.linux-${GO_ARCH}.tar.gz && \
+    export PATH=$PATH:/usr/local/go/bin && \
+    go version && \
+    rm go${GO_VERSION}.linux-${GO_ARCH}.tar.gz
 
 #Build the plugin from local source
 COPY ./ ./

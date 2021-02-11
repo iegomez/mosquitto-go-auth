@@ -2,6 +2,7 @@ package backends
 
 import (
 	"database/sql"
+	"strconv"
 	"strings"
 
 	"github.com/iegomez/mosquitto-go-auth/hashing"
@@ -19,6 +20,8 @@ type Sqlite struct {
 	SuperuserQuery string
 	AclQuery       string
 	hasher         hashing.HashComparer
+
+	connectTries int
 }
 
 func NewSqlite(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Sqlite, error) {
@@ -69,8 +72,18 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level, hasher hashing.Ha
 		connStr = sqlite.Source
 	}
 
+	if tries, ok := authOpts["sqlite_connect_tries"]; ok {
+		connectTries, err := strconv.Atoi(tries)
+
+		if err != nil {
+			log.Warnf("invalid sqlite connect tries options: %s", err)
+		} else {
+			sqlite.connectTries = connectTries
+		}
+	}
+
 	var err error
-	sqlite.DB, err = OpenDatabase(connStr, "sqlite3")
+	sqlite.DB, err = OpenDatabase(connStr, "sqlite3", sqlite.connectTries)
 
 	if err != nil {
 		return sqlite, errors.Errorf("sqlite backend error: couldn't open db %s: %s", connStr, err)

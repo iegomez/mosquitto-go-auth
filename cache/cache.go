@@ -247,7 +247,7 @@ func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, 
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	s.client.Set(record, granted, s.authExpiration)
+	s.client.Set(record, granted, s.aclExpiration)
 
 	return nil
 }
@@ -261,7 +261,7 @@ func (s *redisStore) SetAuthRecord(ctx context.Context, username, password strin
 //SetAclCache sets a mix, granted option and expiration time.
 func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.setRecord(ctx, record, granted, s.authExpiration)
+	return s.setRecord(ctx, record, granted, s.aclExpiration)
 }
 
 func (s *redisStore) setRecord(ctx context.Context, record, granted string, expirationTime time.Duration) error {

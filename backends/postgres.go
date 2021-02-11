@@ -3,6 +3,7 @@ package backends
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/iegomez/mosquitto-go-auth/hashing"
@@ -28,6 +29,8 @@ type Postgres struct {
 	SSLKey         string
 	SSLRootCert    string
 	hasher         hashing.HashComparer
+
+	connectTries int
 }
 
 func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Postgres, error) {
@@ -46,6 +49,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		SuperuserQuery: "",
 		AclQuery:       "",
 		hasher:         hasher,
+		connectTries:   -1,
 	}
 
 	if host, ok := authOpts["pg_host"]; ok {
@@ -128,14 +132,24 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 
 	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
 		connStr = fmt.Sprintf("%s sslmode=verify-ca sslcert=%s sslkey=%s sslrootcert=%s", connStr, postgres.SSLCert, postgres.SSLKey, postgres.SSLRootCert)
-	} else if postgres.SSLMode == "required" {
+	} else if postgres.SSLMode == "require" {
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	} else {
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
+	if tries, ok := authOpts["pg_connect_tries"]; ok {
+		connectTries, err := strconv.Atoi(tries)
+
+		if err != nil {
+			log.Warnf("invalid postgres connect tries options: %s", err)
+		} else {
+			postgres.connectTries = connectTries
+		}
+	}
+
 	var err error
-	postgres.DB, err = OpenDatabase(connStr, "postgres")
+	postgres.DB, err = OpenDatabase(connStr, "postgres", postgres.connectTries)
 
 	if err != nil {
 		return postgres, errors.Errorf("PG backend error: couldn't open db: %s", err)

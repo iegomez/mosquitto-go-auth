@@ -21,7 +21,7 @@ const (
 
 	// hashers
 	Pbkdf2Opt   = "pbkdf2"
-	Argon2IDOpt = "argon2ID"
+	Argon2IDOpt = "argon2id"
 	BcryptOpt   = "bcrypt"
 
 	// defaults
