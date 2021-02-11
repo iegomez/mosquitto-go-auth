@@ -21,22 +21,17 @@ type jsJWTChecker struct {
 	runner *js.Runner
 }
 
-const (
-	defaultStackDepthLimit = 32
-	defaultMsMaxDuration   = 200
-)
-
 func NewJsJWTChecker(authOpts map[string]string, options tokenOptions) (jwtChecker, error) {
 	checker := &jsJWTChecker{
-		stackDepthLimit: defaultStackDepthLimit,
-		msMaxDuration:   defaultMsMaxDuration,
+		stackDepthLimit: js.DefaultStackDepthLimit,
+		msMaxDuration:   js.DefaultMsMaxDuration,
 		options:         options,
 	}
 
 	if stackLimit, ok := authOpts["jwt_js_stack_depth_limit"]; ok {
 		limit, err := strconv.ParseInt(stackLimit, 10, 64)
 		if err != nil {
-			log.Errorf("invalid stack depth limit %s, defaulting to 32", stackLimit)
+			log.Errorf("invalid stack depth limit %s, defaulting to %d", stackLimit, js.DefaultStackDepthLimit)
 		} else {
 			checker.stackDepthLimit = int(limit)
 		}
@@ -45,7 +40,7 @@ func NewJsJWTChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	if maxDuration, ok := authOpts["jwt_js_ms_max_duration"]; ok {
 		duration, err := strconv.ParseInt(maxDuration, 10, 64)
 		if err != nil {
-			log.Errorf("invalid stack depth limit %s, defaulting to 32", maxDuration)
+			log.Errorf("invalid stack depth limit %s, defaulting to %d", maxDuration, js.DefaultMsMaxDuration)
 		} else {
 			checker.msMaxDuration = duration
 		}

@@ -107,9 +107,9 @@ func TestJWTClaims(t *testing.T) {
 func TestJsJWTChecker(t *testing.T) {
 	authOpts := make(map[string]string)
 
-	authOpts["jwt_js_user_script_path"] = "../test-files/js_user_script.js"
-	authOpts["jwt_js_superuser_script_path"] = "../test-files/js_superuser_script.js"
-	authOpts["jwt_js_acl_script_path"] = "../test-files/js_acl_script.js"
+	authOpts["jwt_js_user_script_path"] = "../test-files/jwt/user_script.js"
+	authOpts["jwt_js_superuser_script_path"] = "../test-files/jwt/superuser_script.js"
+	authOpts["jwt_js_acl_script_path"] = "../test-files/jwt/acl_script.js"
 
 	Convey("Creating a js checker should succeed", t, func() {
 		checker, err := NewJsJWTChecker(authOpts, tkOptions)
@@ -149,7 +149,7 @@ func TestJsJWTChecker(t *testing.T) {
 				userField:  "Username",
 			}
 
-			authOpts["jwt_js_user_script_path"] = "../test-files/js_parsed_user_script.js"
+			authOpts["jwt_js_user_script_path"] = "../test-files/jwt/parsed_user_script.js"
 
 			checker, err = NewJsJWTChecker(authOpts, jsTokenOptions)
 			So(err, ShouldBeNil)

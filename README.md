@@ -8,11 +8,10 @@ I don't use Mosquitto or any other MQTT broker and haven't in a very long time, 
 I do maintain it still and will try to keep doing so. This is the list of status, current work and priorities:
 
 - The plugin is up to date and is compatible with the recent [2.0 Mosquitto version](https://mosquitto.org/blog/2020/12/version-2-0-0-released/).
-- Delayed work on JWT enhancements is almost complete.
 - Delayed work on disabling superusers is not yet ready.
 - Bug reports will be attended as they appear and will take priority over any work in progress.
 - Reviewing ongoing PRs is my next priority.
-- Feature enhancements are the lowest priority. Unless they are a super easy win in importance and implementation effort, I'll accept contributions and review 
+- Feature requests are the lowest priority. Unless they are a super easy win in importance and implementation effort, I'll accept contributions and review 
   PRs before considering implementing them myself.
 
 Sorry for the noise in the readme, I just wanted to make clear that my plan is to tackle that couple of features and then review the current PRs, hopefully during this month, and then defer everything to next year to try and reduce the backlog during January and February. Now you may continue to read relevant information about the plugin.
@@ -35,6 +34,7 @@ These are the backends that this plugin implements right now:
 * MongoDB
 * Custom (experimental)
 * gRPC
+* Javascript interpreter
 
 **Every backend offers user, superuser and acl checks, and include proper tests.**
 
@@ -82,6 +82,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 - [gRPC](#grpc)
 	- [Service](#service)
 	- [Testing gRPC](#testing-grpc)
+- [Javascript](#javascript)
+	- [Testing Javascript](#testing-javascript)
 - [Using with LoRa Server](#using-with-lora-server)
 - [Docker](#docker)
 - [License](#license)
@@ -979,7 +981,7 @@ The backend will pass `mosquitto` provided arguments along, that is `token` for 
 Optionally, `username` will be passed as an argument when `auth_opt_jwt_parse_token` option is set. As with remote mode, this will need `auth_opt_jwt_secret` to be set and correct, 
 and `auth_opt_jwt_userfield` to be optionally set.
 
-This is a valid, albeit pretty useless, example script for ACL checks (see `test-files` dir for test scripts):
+This is a valid, albeit pretty useless, example script for ACL checks (see `test-files/jwt` dir for test scripts):
 
 ```
 function checkAcl(token, topic, clientid, acc) {
@@ -1277,7 +1279,7 @@ As this option is custom written by yourself, there are no tests included in the
 
 ### gRPC
 
-The `grpc` allows to check for user auth, superuser and acls against a gRPC service.
+The `grpc` backend allows to check for user auth, superuser and acls against a gRPC service.
 
 The following `auth_opt_` options are supported:
 
@@ -1362,6 +1364,61 @@ message NameResponse {
 #### Testing gRPC
 
 This backend has no special requirements as a gRPC server is mocked to test different scenarios.
+
+### Javascript
+
+The `javascript` backend allows to run a JavaScript interpreter VM to conduct checks. Options for this mode are:
+
+| Option           			| default         |  Mandatory  | Meaning					  							|
+| --------------------------| --------------- | :---------: | ----------------------------------------------------- |
+| js_stack_depth_limit  	|   	32        |     N       | Max stack depth for the interpreter  					|
+| js_ms_max_duration	  	|    	200       |     N       | Max execution time for a hceck in milliseconds		|
+| js_user_script_path 		|				  |		Y		| Relative or absolute path to user check script		|
+| js_superuser_script_path	|				  |		Y		| Relative or absolute path to superuser check script	|
+| js_acl_script_path 		|				  |		Y		| Relative or absolute path to ACL check script			|
+
+This backend expects the user to define JS scripts that return a boolean result to the check in question. 
+
+The backend will pass `mosquitto` provided arguments along, that is:
+- `username`, `password` and `clientid` for `user` checks.
+- `username` for `superuser` checks.
+- `username`, `topic`, `clientid` and `acc` for `ACL` checks.
+
+
+This is a valid, albeit pretty useless, example script for ACL checks (see `test-files/jwt` dir for test scripts):
+
+```
+function checkAcl(username, topic, clientid, acc) {
+    if(username != "correct") {
+        return false;
+    }
+
+    if(topic != "test/topic") {
+        return false;
+    }
+
+    if(clientid != "id") {
+        return false;
+    }
+
+    if(acc != 1) {
+        return false;
+    }
+
+    return true;
+}
+
+checkAcl(username, topic, clientid, acc);
+```
+
+#### Password hashing
+
+Notice the `password` will be passed to the script as given by `mosquitto`, leaving any hashing to the script.
+
+
+#### Testing Javascript
+
+This backend has no special requirements as `javascript` test files are provided to test different scenarios.
 
 
 ### Using with LoRa Server

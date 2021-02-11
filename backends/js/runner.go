@@ -8,6 +8,12 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
+// Default conf values for runner.
+const (
+	DefaultStackDepthLimit = 32
+	DefaultMsMaxDuration   = 200
+)
+
 type Runner struct {
 	StackDepthLimit int
 	MsMaxDuration   int64
