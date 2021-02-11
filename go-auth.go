@@ -10,10 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/iegomez/mosquitto-go-auth/hashing"
-
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
 	"github.com/iegomez/mosquitto-go-auth/cache"
+	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -58,6 +57,7 @@ const (
 	mongoBackend    = "mongo"
 	pluginBackend   = "plugin"
 	grpcBackend     = "grpc"
+	jsBackend       = "js"
 )
 
 // Serves s a check for allowed backends and a map from backend to expected opts prefix.
@@ -72,6 +72,7 @@ var allowedBackendsOptsPrefix = map[string]string{
 	mongoBackend:    "mongo",
 	pluginBackend:   "plugin",
 	grpcBackend:     "grpc",
+	jsBackend:       "js",
 }
 
 var backends []string          //List of selected backends.
@@ -270,7 +271,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmBackends[jwtBackend] = beIface.(bes.JWT)
+					cmBackends[jwtBackend] = beIface.(*bes.JWT)
 				}
 			case filesBackend:
 				beIface, err = bes.NewFiles(authOpts, authPlugin.logLevel, hasher)
@@ -327,6 +328,14 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
 					cmBackends[grpcBackend] = beIface.(bes.GRPC)
+				}
+			case jsBackend:
+				beIface, err = bes.NewJavascript(authOpts, authPlugin.logLevel)
+				if err != nil {
+					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
+				} else {
+					log.Infof("Backend registered: %s", beIface.GetName())
+					cmBackends[jsBackend] = beIface.(*bes.Javascript)
 				}
 			}
 		}

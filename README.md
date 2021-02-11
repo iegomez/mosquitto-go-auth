@@ -4,9 +4,15 @@ Mosquitto Go Auth is an authentication and authorization plugin for the Mosquitt
 
 # Current state
 
-**4, Dec, 2020**: The plugin is up to date and is compatible with the recent [2.0 Mosquitto version](https://mosquitto.org/blog/2020/12/version-2-0-0-released/) that was released just yesterday, while it maintains compatibility with older versions. That said, I've been working on a couple of requested features but haven't been able to do much progress in the past couple of weeks because of lack of time. There are also some other requested enhancements in line, as well as a bunch of PRs waiting for review.
+I don't use Mosquitto or any other MQTT broker and haven't in a very long time, nor do I have a need for them or this plugin. 
+I do maintain it still and will try to keep doing so. This is the list of status, current work and priorities:
 
-Though I've received some contributions and am very thankful and really, really appreciate them, this is still very much a _single-person-effort_ project, while at the same time I haven't had a use case for Mosquitto or any other MQTT broker for almost a year and a half now, making it a hard self for myself to prioritize it over other things going on. Don't read this as an alarm though, I'll surely keep maintaining it and will try to implement any request that gets some traction or I deem good enough/necessary, and fix any evident bug. But please consider that it'll take time, i.e. don't expect a high pace attending issues (though I'll try to respond as quickly as possible, even when deferring them).
+- The plugin is up to date and is compatible with the recent [2.0 Mosquitto version](https://mosquitto.org/blog/2020/12/version-2-0-0-released/).
+- Delayed work on disabling superusers is not yet ready.
+- Bug reports will be attended as they appear and will take priority over any work in progress.
+- Reviewing ongoing PRs is my next priority.
+- Feature requests are the lowest priority. Unless they are a super easy win in importance and implementation effort, I'll accept contributions and review 
+  PRs before considering implementing them myself.
 
 Sorry for the noise in the readme, I just wanted to make clear that my plan is to tackle that couple of features and then review the current PRs, hopefully during this month, and then defer everything to next year to try and reduce the backlog during January and February. Now you may continue to read relevant information about the plugin.
 
@@ -28,6 +34,7 @@ These are the backends that this plugin implements right now:
 * MongoDB
 * Custom (experimental)
 * gRPC
+* Javascript interpreter
 
 **Every backend offers user, superuser and acl checks, and include proper tests.**
 
@@ -60,6 +67,7 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 - [JWT](#jwt)
 	- [Remote mode](#remote-mode)
 	- [Local mode](#local-mode)
+	- [JS mode](#js-mode)
 	- [Testing JWT](#testing-jwt)
 - [HTTP](#http)
 	- [Response mode](#response-mode)
@@ -74,6 +82,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 - [gRPC](#grpc)
 	- [Service](#service)
 	- [Testing gRPC](#testing-grpc)
+- [Javascript](#javascript)
+	- [Testing Javascript](#testing-javascript)
 - [Using with LoRa Server](#using-with-lora-server)
 - [Docker](#docker)
 - [License](#license)
@@ -776,11 +786,16 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 ### JWT
 
-The `jwt` backend is for auth with a JWT remote API or a local DB. The option jwt_remote sets the nature of the plugin:
+The `jwt` backend is for auth with a JWT remote API, a local DB or a JavaScript VM interpreter. Global otions for JWT are:
 
-```
-auth_opt_jwt_remote true
-```
+| Option                    | default           |  Mandatory  | Meaning                                     			|
+| ------------------------- | ----------------- | :---------: | -------------------------------------------------------	|
+| jwt_mode                  |                   |      Y      | local, remote, js		                    			|
+| jwt_parse_token           | false             |      N      | Parse token in remote/js modes              			|
+| jwt_secret	            |                   |     Y/N     | JWT secret, required for local mode, optional otherwise	|
+| jwt_userfield		        |                   |      N      | When `Username`, expect `username` as part of claims	|
+| jwt_skip_user_expiration	| false             |      N      | Skip token expiration in user/superuser checks			|
+| jwt_skip_acl_expiration	| false             |      N      | Skip token expiration in ACL checks						|
 
 
 #### Remote mode
@@ -796,8 +811,6 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 | jwt_aclcheck_uri          |                   |      Y      | URI for check acl                           |
 | jwt_with_tls              | false             |      N      | Use TLS on connect                          |
 | jwt_verify_peer           | false             |      N      | Whether to verify peer for tls              |
-| jwt_skip_user_expiration  | false             |      N      | Skip token expiration: (super)user check)   |
-| jwt_skip_acl_expiration   | false             |      N      | Skip token expiration: acl check            |
 | jwt_response_mode         | status            |      N      | Response type (status, json, text)          |
 | jwt_params_mode           | json              |      N      | Data type (json, form)                      |
 
@@ -807,6 +820,11 @@ URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example,
 If the option `jwt_superuser_uri` is not set then `superuser` checks are disabled for this mode.
 
 For all URIs, the backend will send a request with the `Authorization` header set to `Bearer token`, where token should be a correct JWT token and corresponds to the `username` received from Mosquitto.
+
+When `jwt_parse_token` is set, the backend will parse the token using `jwt_secret` and extract the username from either the claim's `Subject` (`sub` field), or from the `username` field when `jwt_userfield` is set to `Username`. This `username` will be sent along other params in all requests, and the `Authorization` header will be set to `Bearer token` as usual.
+
+Notice that failing to provide `jwt_secret` or passing a wrong one will result in an error when parsing the token and the request will not be made. 
+Set these options only if you intend to keep the plugin synced with your JWT service and wish for the former to pre-parse the token.
 
 ##### Response mode
 
@@ -894,58 +912,35 @@ initMqttClient(applicationID, mode, devEUI) {
 
 #### Local mode
 
-*Update: this backend will assume that the username is contained on StandardClaim's Subject field unless told otherwise with the option jwt_userfield. The alternative (which works with `loraserver/chirpstack`) is to set it to Username.*
+When set to `local` mode, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the `jwt_db option`. 
+Options for the DB connection are the almost the same as the ones given in the Postgres and Mysql backends but prefixed with `jwt_`, e.g.:
 
 ```
-auth_opt_jwt_userfield Username
+auth_opt_jwt_pg_host localhost
 ```
 
-When set as remote false, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the jwt_db option. Options for the DB connection are the same as the ones given in the Postgres and Mysql backends, but include one new option and 3 options that will override Postgres' or Mysql's ones only for JWT cases (in case both backends are needed). Note that these options will be mandatory (except for jwt_db) only if remote is false.
+The difference is that a specific `jwt_userquery` returning a count must be given since JWT backend won't use the `password` passed along by `mosquitto`,
+but instead should only use the `username` derived from the JWT token, e.g.:
 
-The following `auth_opt_` options are supported:
+```
+auth_opt_jwt_userquery select count(*) from test_user where username = $1 limit 1
+```
 
-
-| Option           | default           |  Mandatory  | Meaning     |
-| -----------------| ----------------- | :---------: | ----------  |
-| jwt_db           |   postgres        |     N       | The DB backend to be used  |
-| jwt_secret       |                   |     Y       | JWT secret to check tokens |
-| jwt_userquery    |                   |     Y       | SQL for users              |
-| jwt_superquery   |                   |     N       | SQL for superusers         |
-| jwt_aclquery     |                   |     N       | SQL for ACLs               |
-| jwt_userfield    |   Subject         |     N       | Field to be used for username (Subject or Username)   |
+Thus, the following specific JWT local `auth_opt_` options are supported:
 
 
-Also, as it uses the DB backend for local auth, the following DB backend options must be set, though queries (pg_userquery, pg_superquery and pg_aclquery, or mysql_userquery, mysql_superquery and mysql_aclquery) need not to be correct if the backend is not used as they'll be over overridden by the jwt queries when jwt is used for auth:
-
-If jwt is used with postgres, these options are needed:
-
-| Option         		| default           |  Mandatory  | Meaning                  |
-| -------------- 		| ----------------- | :---------: | ------------------------ |
-| pg_host           | localhost         |             | hostname/address
-| pg_port           | 5432              |             | TCP port
-| pg_user           |                   |     Y       | username
-| pg_password       |                   |     Y       | password
-| pg_dbname         |                   |     Y       | database name
-| pg_userquery      |                   |     Y       | SQL for users
-| pg_superquery     |                   |     N       | SQL for superusers
-| pg_aclquery       |                   |     N       | SQL for ACLs
+| Option           | default           |  Mandatory  | Meaning					  								|
+| -----------------| ----------------- | :---------: | -------------------------------------------------------- |
+| jwt_db           |   postgres        |     N       | The DB backend to be used, either `postgres` or `mysql`  |
+| jwt_userquery    |                   |     Y       | SQL query for users              						|
 
 
-If, instead, jwt is used with mysql, these options are needed:
+Notice that general `jwt_secret` is mandatory when using this mode.
+`jwt_userfield` is still optional and serves as a mean to extract the username from either the claim's `Subject` (`sub` field),
+ or from the `username` field when `jwt_userfield` is set to `Username`
 
-| Option         		   | default           |  Mandatory  | Meaning                  |
-| -------------------- | ----------------- | :---------: | ------------------------ |
-| mysql_host           | localhost         |             | hostname/address
-| mysql_port           | 3306              |             | TCP port
-| mysql_user           |                   |     Y       | username
-| mysql_password       |                   |     Y       | password
-| mysql_dbname         |                   |     Y       | database name
-| mysql_userquery      |                   |     Y       | SQL for users
-| mysql_superquery     |                   |     N       | SQL for superusers
-| mysql_aclquery       |                   |     N       | SQL for ACLs
-
-
-Options for the overridden queries are the same except for the user query, which now expects an integer result instead of a password hash, as the JWT token needs no password checking. An example of a different query using the same DB is given for the user query.
+As mentioned, only the `userquery` must not be prefixed by the underlying DB, and now expects an integer result instead of a password hash, as the JWT token needs no password checking. 
+An example of a different query using either DB is given for the user query.
 
 For postgres:
 
@@ -959,16 +954,66 @@ For mysql:
 auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_active = true limit 1
 ```
 
-
 *Important note:*
 
-When option jwt_superquery is not present, Superuser check will always return false, hence there'll be no superusers.
+Since local JWT follows the underlying DB backend's way of working, both of these hold true: 
 
-When option jwt_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
+- When option jwt_superquery is not present, Superuser check will always return false, hence there'll be no superusers.
+- When option jwt_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
+
+
+#### JS mode
+
+The last mode for this backend is JS mode, which allows to run a JavaScript interpreter VM to conduct checks. Options for this mode are:
+
+| Option           				| default         |  Mandatory  | Meaning					  							|
+| ------------------------------| --------------- | :---------: | ----------------------------------------------------- |
+| jwt_js_stack_depth_limit  	|   	32        |     N       | Max stack depth for the interpreter  					|
+| jwt_js_ms_max_duration	  	|    	200       |     N       | Max execution time for a hceck in milliseconds		|
+| jwt_js_user_script_path 		|				  |		Y		| Relative or absolute path to user check script		|
+| jwt_js_superuser_script_path	|				  |		Y		| Relative or absolute path to superuser check script	|
+| jwt_js_acl_script_path 		|				  |		Y		| Relative or absolute path to ACL check script			|
+
+This mode expects the user to define JS scripts that return a boolean result to the check in question. 
+
+The backend will pass `mosquitto` provided arguments along, that is `token` for both `user` and `superuser` check; `token`, `topic`, `clientid` and `acc` for `ACL` checks.
+
+Optionally, `username` will be passed as an argument when `auth_opt_jwt_parse_token` option is set. As with remote mode, this will need `auth_opt_jwt_secret` to be set and correct, 
+and `auth_opt_jwt_userfield` to be optionally set.
+
+This is a valid, albeit pretty useless, example script for ACL checks (see `test-files/jwt` dir for test scripts):
+
+```
+function checkAcl(token, topic, clientid, acc) {
+    if(token != "correct") {
+        return false;
+    }
+
+    if(topic != "test/topic") {
+        return false;
+    }
+
+    if(clientid != "id") {
+        return false;
+    }
+
+    if(acc != 1) {
+        return false;
+    }
+
+    return true;
+}
+
+checkAcl(token, topic, clientid, acc);
+```
+
+With `auth_opt_jwt_parse_token` the signature would be `function checkAcl(token, topic, clientid, acc, username)` instead.
+
+Finally, this mode uses [otto](https://github.com/robertkrimen/otto) under the hood to run the scripts. Please check their documentation for supported features and known limitations.
 
 #### Password hashing
 
-When using local mode, a hasher is expected. For instructions on how to set a backend specific hasher or use the general one, see [Hashing](#hashing).
+Since JWT needs not to check passwords, there's no need to configure a `hasher`.
 
 #### Prefixes
 
@@ -1234,7 +1279,7 @@ As this option is custom written by yourself, there are no tests included in the
 
 ### gRPC
 
-The `grpc` allows to check for user auth, superuser and acls against a gRPC service.
+The `grpc` backend allows to check for user auth, superuser and acls against a gRPC service.
 
 The following `auth_opt_` options are supported:
 
@@ -1319,6 +1364,61 @@ message NameResponse {
 #### Testing gRPC
 
 This backend has no special requirements as a gRPC server is mocked to test different scenarios.
+
+### Javascript
+
+The `javascript` backend allows to run a JavaScript interpreter VM to conduct checks. Options for this mode are:
+
+| Option           			| default         |  Mandatory  | Meaning					  							|
+| --------------------------| --------------- | :---------: | ----------------------------------------------------- |
+| js_stack_depth_limit  	|   	32        |     N       | Max stack depth for the interpreter  					|
+| js_ms_max_duration	  	|    	200       |     N       | Max execution time for a hceck in milliseconds		|
+| js_user_script_path 		|				  |		Y		| Relative or absolute path to user check script		|
+| js_superuser_script_path	|				  |		Y		| Relative or absolute path to superuser check script	|
+| js_acl_script_path 		|				  |		Y		| Relative or absolute path to ACL check script			|
+
+This backend expects the user to define JS scripts that return a boolean result to the check in question. 
+
+The backend will pass `mosquitto` provided arguments along, that is:
+- `username`, `password` and `clientid` for `user` checks.
+- `username` for `superuser` checks.
+- `username`, `topic`, `clientid` and `acc` for `ACL` checks.
+
+
+This is a valid, albeit pretty useless, example script for ACL checks (see `test-files/jwt` dir for test scripts):
+
+```
+function checkAcl(username, topic, clientid, acc) {
+    if(username != "correct") {
+        return false;
+    }
+
+    if(topic != "test/topic") {
+        return false;
+    }
+
+    if(clientid != "id") {
+        return false;
+    }
+
+    if(acc != 1) {
+        return false;
+    }
+
+    return true;
+}
+
+checkAcl(username, topic, clientid, acc);
+```
+
+#### Password hashing
+
+Notice the `password` will be passed to the script as given by `mosquitto`, leaving any hashing to the script.
+
+
+#### Testing Javascript
+
+This backend has no special requirements as `javascript` test files are provided to test different scenarios.
 
 
 ### Using with LoRa Server
