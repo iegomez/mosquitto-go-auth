@@ -279,7 +279,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 					log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 				} else {
 					log.Infof("Backend registered: %s", beIface.GetName())
-					cmBackends[filesBackend] = beIface.(bes.Files)
+					cmBackends[filesBackend] = beIface.(*bes.Files)
 				}
 			case redisBackend:
 				beIface, err = bes.NewRedis(authOpts, authPlugin.logLevel, hasher)
