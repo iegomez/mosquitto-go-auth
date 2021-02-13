@@ -537,7 +537,7 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 	var authenticated bool
 	var cached bool
 	var granted bool
-	var firstError error
+	var err error
 	if authPlugin.useCache {
 		log.Debugf("checking auth cache for %s", username)
 		cached, granted = authPlugin.cache.CheckAuthRecord(authPlugin.ctx, username, password)
@@ -552,7 +552,7 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 			if bename == pluginBackend {
-				authenticated, firstError = CheckPluginAuth(username, password, clientid)
+				authenticated, err = CheckPluginAuth(username, password, clientid)
 			} else {
 				// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix it will be handled in the common case.
 				if bename == jwtBackend {
@@ -561,49 +561,49 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 				}
 				var backend = authPlugin.backends[bename]
 
-				authenticated, firstError = backend.GetUser(username, password, clientid)
-				if authenticated && firstError == nil {
+				authenticated, err = backend.GetUser(username, password, clientid)
+				if authenticated && err == nil {
 					log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 				}
 			}
 		} else {
 			//If there's no valid prefix, check all backends.
-			authenticated, firstError = CheckBackendsAuth(username, password, clientid)
+			authenticated, err = CheckBackendsAuth(username, password, clientid)
 			//If not authenticated, check for a present plugin
 			if !authenticated {
-				if ok, err := CheckPluginAuth(username, password, clientid); ok && err == nil {
+				if ok, checkAuthErr := CheckPluginAuth(username, password, clientid); ok && checkAuthErr == nil {
 					authenticated = true
-					firstError = nil
-				} else if err != nil && firstError == nil {
-					firstError = err
+					err = nil
+				} else if checkAuthErr != nil && err == nil {
+					err = checkAuthErr
 				}
 			}
 		}
 	} else {
-		authenticated, firstError = CheckBackendsAuth(username, password, clientid)
+		authenticated, err = CheckBackendsAuth(username, password, clientid)
 		//If not authenticated, check for a present plugin
 		if !authenticated {
-			if ok, err := CheckPluginAuth(username, password, clientid); ok && err == nil {
+			if ok, checkAuthErr := CheckPluginAuth(username, password, clientid); ok && checkAuthErr == nil {
 				authenticated = true
-				firstError = nil
-			} else if err != nil && firstError == nil {
-				firstError = err
+				err = nil
+			} else if checkAuthErr != nil && err == nil {
+				err = checkAuthErr
 			}
 		}
 	}
 
-	if authPlugin.useCache && firstError == nil {
+	if authPlugin.useCache && err == nil {
 		authGranted := "false"
 		if authenticated {
 			authGranted = "true"
 		}
 		log.Debugf("setting auth cache for %s", username)
-		if err := authPlugin.cache.SetAuthRecord(authPlugin.ctx, username, password, authGranted); err != nil {
-			log.Errorf("set auth cache: %s", err)
-			return false, err
+		if setAuthErr := authPlugin.cache.SetAuthRecord(authPlugin.ctx, username, password, authGranted); setAuthErr != nil {
+			log.Errorf("set auth cache: %s", setAuthErr)
+			return false, setAuthErr
 		}
 	}
-	return authenticated, firstError
+	return authenticated, err
 }
 
 //export AuthAclCheck
@@ -625,7 +625,7 @@ func authAclCheck(clientid, username, topic string, acc int) (bool, error) {
 	var aclCheck bool
 	var cached bool
 	var granted bool
-	var firstError error
+	var err error
 	if authPlugin.useCache {
 		log.Debugf("checking acl cache for %s", username)
 		cached, granted = authPlugin.cache.CheckACLRecord(authPlugin.ctx, username, topic, clientid, acc)
@@ -640,7 +640,7 @@ func authAclCheck(clientid, username, topic string, acc int) (bool, error) {
 		validPrefix, bename := CheckPrefix(username)
 		if validPrefix {
 			if bename == pluginBackend {
-				aclCheck, firstError = CheckPluginAcl(username, topic, clientid, acc)
+				aclCheck, err = CheckPluginAcl(username, topic, clientid, acc)
 			} else {
 				// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then it be handled in the common case.
 				if bename == jwtBackend {
@@ -651,61 +651,61 @@ func authAclCheck(clientid, username, topic string, acc int) (bool, error) {
 				log.Debugf("Superuser check with backend %s", backend.GetName())
 				// Short circuit checks when superusers are disabled.
 				if !authPlugin.disableSuperuser {
-					aclCheck, firstError = backend.GetSuperuser(username)
+					aclCheck, err = backend.GetSuperuser(username)
 
-					if aclCheck && firstError == nil {
+					if aclCheck && err == nil {
 						log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
 					}
 				}
 				//If not superuser, check acl.
 				if !aclCheck {
 					log.Debugf("Acl check with backend %s", backend.GetName())
-					if ok, err := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && err == nil {
+					if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
 						aclCheck = true
 						log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
-					} else if err != nil && firstError == nil {
-						firstError = err
+					} else if checkACLErr != nil && err == nil {
+						err = checkACLErr
 					}
 				}
 			}
 		} else {
 			//If there's no valid prefix, check all backends.
-			aclCheck, firstError = CheckBackendsAcl(username, topic, clientid, acc)
+			aclCheck, err = CheckBackendsAcl(username, topic, clientid, acc)
 			//If acl hasn't passed, check for plugin.
 			if !aclCheck {
-				if ok, err := CheckPluginAcl(username, topic, clientid, acc); ok && err == nil {
+				if ok, checkACLErr := CheckPluginAcl(username, topic, clientid, acc); ok && checkACLErr == nil {
 					aclCheck = true
-				} else if err != nil && firstError == nil {
-					firstError = err
+				} else if checkACLErr != nil && err == nil {
+					err = checkACLErr
 				}
 			}
 		}
 	} else {
-		aclCheck, firstError = CheckBackendsAcl(username, topic, clientid, acc)
+		aclCheck, err = CheckBackendsAcl(username, topic, clientid, acc)
 		//If acl hasn't passed, check for plugin.
 		if !aclCheck {
-			if ok, err := CheckPluginAcl(username, topic, clientid, acc); ok && err == nil {
+			if ok, checkACLErr := CheckPluginAcl(username, topic, clientid, acc); ok && checkACLErr == nil {
 				aclCheck = true
-			} else if err != nil && firstError == nil {
-				firstError = err
+			} else if checkACLErr != nil && err == nil {
+				err = checkACLErr
 			}
 		}
 	}
 
-	if authPlugin.useCache && firstError == nil {
+	if authPlugin.useCache && err == nil {
 		authGranted := "false"
 		if aclCheck {
 			authGranted = "true"
 		}
 		log.Debugf("setting acl cache (granted = %s) for %s", authGranted, username)
-		if err := authPlugin.cache.SetACLRecord(authPlugin.ctx, username, topic, clientid, acc, authGranted); err != nil {
-			log.Errorf("set acl cache: %s", err)
-			return false, err
+		if setACLErr := authPlugin.cache.SetACLRecord(authPlugin.ctx, username, topic, clientid, acc, authGranted); setACLErr != nil {
+			log.Errorf("set acl cache: %s", setACLErr)
+			return false, setACLErr
 		}
 	}
 
 	log.Debugf("Acl is %t for user %s", aclCheck, username)
-	return aclCheck, firstError
+	return aclCheck, err
 }
 
 //export AuthPskKeyGet
@@ -737,7 +737,7 @@ func getPrefixForBackend(backend string) string {
 
 //CheckBackendsAuth checks for all backends if a username is authenticated and sets the authenticated param.
 func CheckBackendsAuth(username, password, clientid string) (bool, error) {
-	var firstError error
+	var err error
 	authenticated := false
 
 	for _, bename := range backends {
@@ -750,29 +750,29 @@ func CheckBackendsAuth(username, password, clientid string) (bool, error) {
 
 		log.Debugf("checking user %s with backend %s", username, backend.GetName())
 
-		if ok, err := backend.GetUser(username, password, clientid); ok && err == nil {
+		if ok, getUserErr := backend.GetUser(username, password, clientid); ok && getUserErr == nil {
 			authenticated = true
 			log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 			break
-		} else if err != nil && firstError == nil {
-			firstError = err
+		} else if getUserErr != nil && err == nil {
+			err = getUserErr
 		}
 	}
 
 	// If authenticated is true, it means at least one backend didn't failed and
 	// accepted the user. In this case trust this backend and clear the error.
 	if authenticated {
-		firstError = nil
+		err = nil
 	}
 
-	return authenticated, firstError
+	return authenticated, err
 
 }
 
 //CheckBackendsAcl  checks for all backends if a username is superuser or has acl rights and sets the aclCheck param.
 func CheckBackendsAcl(username, topic, clientid string, acc int) (bool, error) {
 	//Check superusers first
-	var firstError error
+	var err error
 	aclCheck := false
 	if !authPlugin.disableSuperuser {
 		for _, bename := range backends {
@@ -781,12 +781,12 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) (bool, error) {
 			}
 			var backend = authPlugin.backends[bename]
 			log.Debugf("Superuser check with backend %s", backend.GetName())
-			if ok, err := backend.GetSuperuser(username); ok && err == nil {
+			if ok, getSuperuserErr := backend.GetSuperuser(username); ok && getSuperuserErr == nil {
 				log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
 				aclCheck = true
 				break
-			} else if err != nil && firstError == nil {
-				firstError = err
+			} else if getSuperuserErr != nil && err == nil {
+				err = getSuperuserErr
 			}
 		}
 	}
@@ -798,12 +798,12 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) (bool, error) {
 			}
 			var backend = authPlugin.backends[bename]
 			log.Debugf("Acl check with backend %s", backend.GetName())
-			if ok, err := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && err == nil {
+			if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
 				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
 				aclCheck = true
 				break
-			} else if err != nil && firstError == nil {
-				firstError = err
+			} else if checkACLErr != nil && err == nil {
+				err = checkACLErr
 			}
 		}
 	}
@@ -811,10 +811,10 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) (bool, error) {
 	// If aclCheck is true, it means at least one backend didn't failed and
 	// accepted the access. In this case trust this backend and clear the error.
 	if aclCheck {
-		firstError = nil
+		err = nil
 	}
 
-	return aclCheck, firstError
+	return aclCheck, err
 }
 
 //CheckPluginAuth checks that the plugin is not nil and returns the plugins auth response.
