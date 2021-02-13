@@ -221,6 +221,11 @@ func (o Mysql) GetUser(username, password, clientid string) (bool, error) {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("MySql get user error: %s", err)
 		return false, err
 	}
@@ -250,6 +255,11 @@ func (o Mysql) GetSuperuser(username string) (bool, error) {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("MySql get superuser error: %s", err)
 		return false, err
 	}

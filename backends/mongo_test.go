@@ -32,6 +32,7 @@ func TestMongoRaw(t *testing.T) {
 	const username2 = "test2"
 	const userPass2 = "testpw"
 	const userPassHash2 = "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$dEOwgFUoMNt+Q8FHWXl03pZTg/RY47JdSTAx/KjhYKpbugOYg1WWG0tW0V2aqBnSCDLYJdRrkNf3p/PUoKLvkA=="
+	const wrongUsername = "not_present"
 
 	//Define Common Mongo Configuration
 	var authOpts = make(map[string]string)
@@ -90,6 +91,11 @@ func TestMongoRaw(t *testing.T) {
 			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 		})
+		Convey("Given wrongusername, it should not authenticate it and don't return error", func() {
+			authenticated, err := mongo.GetUser(wrongUsername, "whatever_password", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
 		Convey("Given username1 that is superuser, super user check should pass", func() {
 			superuser, err := mongo.GetSuperuser(username1)
 			So(err, ShouldBeNil)
@@ -100,6 +106,11 @@ func TestMongoRaw(t *testing.T) {
 				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
+		})
+		Convey("Given wrongusername, super check should no pass and don't return error", func() {
+			authenticated, err := mongo.GetSuperuser(wrongUsername)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
 		})
 		Convey("Given correct username2 password, but using wrong salt format, user should not authenticate", func() {
 			authenticated, err := mongo.GetUser(username2, userPass2, "")
@@ -178,6 +189,12 @@ func TestMongoRaw(t *testing.T) {
 			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
+		})
+		Convey("Given a bad username, acl check should not return error", func() {
+			testTopic1 := `test/topic/1`
+			tt1, err1 := mongo.CheckAcl(wrongUsername, testTopic1, clientID, MOSQ_ACL_READ)
+			So(err1, ShouldBeNil)
+			So(tt1, ShouldBeFalse)
 		})
 
 		mongoDb.Drop(context.TODO())

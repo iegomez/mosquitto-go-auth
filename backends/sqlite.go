@@ -100,6 +100,11 @@ func (o Sqlite) GetUser(username, password, clientid string) (bool, error) {
 	err := o.DB.Get(&pwHash, o.UserQuery, username)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("SQlite get user error: %s", err)
 		return false, err
 	}
@@ -129,6 +134,11 @@ func (o Sqlite) GetSuperuser(username string) (bool, error) {
 	err := o.DB.Get(&count, o.SuperuserQuery, username)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("sqlite get superuser error: %s", err)
 		return false, err
 	}

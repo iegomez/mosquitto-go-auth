@@ -88,11 +88,23 @@ func TestFiles(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 		})
 
+		Convey("Given a wrong username, it should not authenticate it and not return error", func() {
+			authenticated, err := files.GetUser(user4, "whatever_password", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
 		//There are no superusers for files
 		Convey("For any user superuser should return false", func() {
 			superuser, err := files.GetSuperuser(user1)
 			So(err, ShouldBeNil)
 			So(superuser, ShouldBeFalse)
+
+			Convey("Including non-present username", func() {
+				superuser, err := files.GetSuperuser(user4)
+				So(err, ShouldBeNil)
+				So(superuser, ShouldBeFalse)
+			})
 		})
 
 		testTopic1 := `test/topic/1`

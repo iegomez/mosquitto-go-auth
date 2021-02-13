@@ -136,6 +136,11 @@ func (o Mongo) GetUser(username, password, clientid string) (bool, error) {
 
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("Mongo get user error: %s", err)
 		return false, err
 	}
@@ -161,6 +166,11 @@ func (o Mongo) GetSuperuser(username string) (bool, error) {
 
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("Mongo get superuser error: %s", err)
 		return false, err
 	}
@@ -179,6 +189,11 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) (bool, erro
 
 	err := uc.FindOne(context.TODO(), bson.M{"username": username}).Decode(&user)
 	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			// avoid leaking the fact that user exists or not though error.
+			return false, nil
+		}
+
 		log.Debugf("Mongo get superuser error: %s", err)
 		return false, err
 	}
