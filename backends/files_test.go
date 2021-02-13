@@ -1,8 +1,12 @@
 package backends
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
@@ -14,8 +18,10 @@ func TestFiles(t *testing.T) {
 	authOpts := make(map[string]string)
 
 	Convey("Given empty opts NewFiles should fail", t, func() {
-		_, err := NewFiles(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "files"))
+		files, err := NewFiles(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "files"))
 		So(err, ShouldBeError)
+
+		files.Halt()
 	})
 
 	pwPath, _ := filepath.Abs("../test-files/passwords")
@@ -172,5 +178,67 @@ func TestFiles(t *testing.T) {
 
 		//Halt files
 		files.Halt()
+	})
+
+	Convey("On SIGHUP files should be reloaded", t, func() {
+		pwFile, err := os.Create("../test-files/test-passwords")
+		So(err, ShouldBeNil)
+		aclFile, err := os.Create("../test-files/test-acls")
+		So(err, ShouldBeNil)
+
+		defer os.Remove(pwFile.Name())
+		defer os.Remove(aclFile.Name())
+
+		hasher := hashing.NewHasher(authOpts, "files")
+
+		user1 := "test1"
+		user2 := "test2"
+
+		pw1, err := hasher.Hash(user1)
+		So(err, ShouldBeNil)
+
+		pw2, err := hasher.Hash(user2)
+		So(err, ShouldBeNil)
+
+		pwFile.WriteString(fmt.Sprintf("\n%s:%s\n", user1, pw1))
+
+		aclFile.WriteString("\nuser test1")
+		aclFile.WriteString("\ntopic read test/#")
+
+		pwFile.Sync()
+		aclFile.Sync()
+
+		authOpts["password_path"] = pwFile.Name()
+		authOpts["acl_path"] = aclFile.Name()
+
+		files, err := NewFiles(authOpts, log.DebugLevel, hasher)
+		So(err, ShouldBeNil)
+
+		user, ok := files.Users[user1]
+		So(ok, ShouldBeTrue)
+
+		record := user.AclRecords[0]
+		So(record.Acc, ShouldEqual, MOSQ_ACL_READ)
+		So(record.Topic, ShouldEqual, "test/#")
+
+		_, ok = files.Users[user2]
+		So(ok, ShouldBeFalse)
+
+		// Now add second user and reload.
+		pwFile.WriteString(fmt.Sprintf("\n%s:%s\n", user2, pw2))
+
+		aclFile.WriteString("\nuser test2")
+		aclFile.WriteString("\ntopic write test/#")
+
+		files.signals <- syscall.SIGHUP
+
+		time.Sleep(200 * time.Millisecond)
+
+		user, ok = files.Users[user2]
+		So(ok, ShouldBeTrue)
+
+		record = user.AclRecords[0]
+		So(record.Acc, ShouldEqual, MOSQ_ACL_WRITE)
+		So(record.Topic, ShouldEqual, "test/#")
 	})
 }

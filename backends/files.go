@@ -4,7 +4,10 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
@@ -25,6 +28,7 @@ type AclRecord struct {
 
 //FileBE holds paths to files, list of file users and general (no user or pattern) acl records.
 type Files struct {
+	sync.Mutex
 	PasswordPath string
 	AclPath      string
 	CheckAcls    bool
@@ -32,14 +36,15 @@ type Files struct {
 	AclRecords   []AclRecord
 	filesOnly    bool
 	hasher       hashing.HashComparer
+	signals      chan os.Signal
 }
 
 //NewFiles initializes a files backend.
-func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (Files, error) {
+func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (*Files, error) {
 
 	log.SetLevel(logLevel)
 
-	var files = Files{
+	var files = &Files{
 		PasswordPath: "",
 		AclPath:      "",
 		CheckAcls:    false,
@@ -47,6 +52,7 @@ func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		AclRecords:   make([]AclRecord, 0),
 		filesOnly:    true,
 		hasher:       hasher,
+		signals:      make(chan os.Signal, 1),
 	}
 
 	if len(strings.Split(strings.Replace(authOpts["backends"], " ", "", -1), ",")) > 1 {
@@ -56,7 +62,7 @@ func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	if passwordPath, ok := authOpts["password_path"]; ok {
 		files.PasswordPath = passwordPath
 	} else {
-		return files, errors.New("Files backend error: no password path given")
+		return nil, errors.New("Files backend error: no password path given")
 	}
 
 	if aclPath, ok := authOpts["acl_path"]; ok {
@@ -67,30 +73,58 @@ func NewFiles(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		log.Info("Acls won't be checked")
 	}
 
-	//Now initialize FileUsers by reading from password and acl files.
-	uCount, err := files.readPasswords()
+	err := files.loadFiles()
 	if err != nil {
-		return files, errors.Errorf("read passwords: %s", err)
-	} else {
-		log.Debugf("got %d users from passwords file", uCount)
+		return nil, err
 	}
 
-	//Only read acls if path was given.
-	if files.CheckAcls {
-		aclCount, err := files.readAcls()
-		if err != nil {
-			return files, errors.Errorf("read acls: %s", err)
-		} else {
-			log.Infof("got %d lines from acl file", aclCount)
-		}
-	}
+	go files.watchSignals()
 
 	return files, nil
+}
 
+func (o *Files) watchSignals() {
+	signal.Notify(o.signals, syscall.SIGHUP)
+
+	for {
+		select {
+		case sig := <-o.signals:
+			if sig == syscall.SIGHUP {
+				log.Debugln("Got SIGHUP, reloading files.")
+				o.loadFiles()
+			}
+		default:
+			// NO-OP
+		}
+	}
+}
+
+func (o *Files) loadFiles() error {
+	o.Lock()
+	defer o.Unlock()
+
+	count, err := o.readPasswords()
+	if err != nil {
+		return errors.Errorf("read passwords: %s", err)
+	}
+
+	log.Debugf("got %d users from passwords file", count)
+
+	//Only read acls if path was given.
+	if o.CheckAcls {
+		count, err := o.readAcls()
+		if err != nil {
+			return errors.Errorf("read acls: %s", err)
+		}
+
+		log.Debugf("got %d lines from acl file", count)
+	}
+
+	return nil
 }
 
 //ReadPasswords read file and populates FileUsers. Return amount of users seen and possile error.
-func (o Files) readPasswords() (int, error) {
+func (o *Files) readPasswords() (int, error) {
 
 	usersCount := 0
 
@@ -285,7 +319,7 @@ func checkCommentOrEmpty(line string) bool {
 }
 
 //GetUser checks that user exists and password is correct.
-func (o Files) GetUser(username, password, clientid string) (bool, error) {
+func (o *Files) GetUser(username, password, clientid string) (bool, error) {
 
 	fileUser, ok := o.Users[username]
 	if !ok {
@@ -303,12 +337,12 @@ func (o Files) GetUser(username, password, clientid string) (bool, error) {
 }
 
 //GetSuperuser returns false for files backend.
-func (o Files) GetSuperuser(username string) (bool, error) {
+func (o *Files) GetSuperuser(username string) (bool, error) {
 	return false, nil
 }
 
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
-func (o Files) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
+func (o *Files) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	//If there are no acls and Files is the only backend, all access is allowed.
 	//If there are other backends, then we can't blindly grant access.
 	if !o.CheckAcls {
@@ -339,11 +373,11 @@ func (o Files) CheckAcl(username, topic, clientid string, acc int32) (bool, erro
 }
 
 //GetName returns the backend's name
-func (o Files) GetName() string {
+func (o *Files) GetName() string {
 	return "Files"
 }
 
 //Halt does nothing for files as there's no cleanup needed.
-func (o Files) Halt() {
+func (o *Files) Halt() {
 	//Do nothing
 }
