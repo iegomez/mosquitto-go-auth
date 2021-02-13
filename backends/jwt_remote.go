@@ -205,7 +205,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 	// Don't do the request if the client is nil.
 	if o.client == nil {
-		return false, errors.New("client not initilized")
+		return false, errors.New("jwt http client not initialized")
 	}
 
 	tlsStr := "http://"
