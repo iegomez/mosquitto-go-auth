@@ -81,4 +81,11 @@ yes yes | redis-cli --cluster create 127.0.0.1:7000 127.0.0.1:7001 \
 
 cd /app
 export PATH=$PATH:/usr/local/go/bin
-make test
+
+set -x
+
+if [ "$#" -eq 0 ]; then
+    make test
+else
+    exec "$@"
+fi

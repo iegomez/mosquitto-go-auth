@@ -1347,6 +1347,14 @@ Or using local source (avoid the need to rebuild image):
 docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh
 ```
 
+You may even specify the command to run after backends are started, which allow
+to run only some tests or even get a shell inside the containers:
+```
+docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh make test-backends
+
+docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh bash
+```
+
 ### License
 
 mosquitto-go-auth is distributed under the MIT license. See also [LICENSE](LICENSE).
