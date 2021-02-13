@@ -94,15 +94,21 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
 
   GoUint8 ret = AuthUnpwdCheck(go_username, go_password, go_clientid);
 
-  if(ret == AuthGranted){
+  switch (ret)
+  {
+  case AuthGranted:
     return MOSQ_ERR_SUCCESS;
-  }
-
-  if (ret == AuthError){
+    break;
+  case AuthRejected:
+    return MOSQ_ERR_AUTH;
+    break;
+  case AuthError:
+    return MOSQ_ERR_UNKNOWN;
+    break;
+  default:
+    fprintf(stderr, "unknown plugin error: %d\n", ret);
     return MOSQ_ERR_UNKNOWN;
   }
-
-  return MOSQ_ERR_AUTH;
 }
 
 #if MOSQ_AUTH_PLUGIN_VERSION >= 4
@@ -131,15 +137,21 @@ int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *u
 
   GoUint8 ret = AuthAclCheck(go_clientid, go_username, go_topic, go_access);
 
-  if(ret == AuthGranted){
+  switch (ret)
+  {
+  case AuthGranted:
     return MOSQ_ERR_SUCCESS;
-  }
-
-  if(ret == AuthError){
+    break;
+  case AuthRejected:
+    return MOSQ_ERR_ACL_DENIED;
+    break;
+  case AuthError:
+    return MOSQ_ERR_UNKNOWN;
+    break;
+  default:
+    fprintf(stderr, "unknown plugin error: %d\n", ret);
     return MOSQ_ERR_UNKNOWN;
   }
-
-  return MOSQ_ERR_ACL_DENIED;
 }
 
 #if MOSQ_AUTH_PLUGIN_VERSION >= 4
