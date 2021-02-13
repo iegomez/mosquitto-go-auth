@@ -93,8 +93,6 @@ func (o *Files) watchSignals() {
 				log.Debugln("Got SIGHUP, reloading files.")
 				o.loadFiles()
 			}
-		default:
-			// NO-OP
 		}
 	}
 }
