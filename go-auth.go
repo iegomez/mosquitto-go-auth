@@ -808,7 +808,7 @@ func CheckBackendsAcl(username, topic, clientid string, acc int) (bool, error) {
 		}
 	}
 
-	// If aclCheck is true, it means at least one backend didn't failed and
+	// If aclCheck is true, it means at least one backend didn't fail and
 	// accepted the access. In this case trust this backend and clear the error.
 	if aclCheck {
 		err = nil
