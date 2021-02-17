@@ -118,7 +118,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions) (jwtC
 	return checker, nil
 }
 
-func (o *remoteJWTChecker) GetUser(token string) bool {
+func (o *remoteJWTChecker) GetUser(token string) (bool, error) {
 	var dataMap map[string]interface{}
 	var urlValues url.Values
 
@@ -127,7 +127,7 @@ func (o *remoteJWTChecker) GetUser(token string) bool {
 
 		if err != nil {
 			log.Printf("jwt remote get user error: %s", err)
-			return false
+			return false, err
 		}
 
 		dataMap = map[string]interface{}{
@@ -142,9 +142,9 @@ func (o *remoteJWTChecker) GetUser(token string) bool {
 	return o.jwtRequest(o.host, o.userUri, token, dataMap, urlValues)
 }
 
-func (o *remoteJWTChecker) GetSuperuser(token string) bool {
+func (o *remoteJWTChecker) GetSuperuser(token string) (bool, error) {
 	if o.superuserUri == "" {
-		return false
+		return false, nil
 	}
 	var dataMap map[string]interface{}
 	var urlValues = url.Values{}
@@ -154,7 +154,7 @@ func (o *remoteJWTChecker) GetSuperuser(token string) bool {
 
 		if err != nil {
 			log.Printf("jwt remote get superuser error: %s", err)
-			return false
+			return false, err
 		}
 
 		dataMap = map[string]interface{}{
@@ -169,7 +169,7 @@ func (o *remoteJWTChecker) GetSuperuser(token string) bool {
 	return o.jwtRequest(o.host, o.superuserUri, token, dataMap, urlValues)
 }
 
-func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bool {
+func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	dataMap := map[string]interface{}{
 		"clientid": clientid,
 		"topic":    topic,
@@ -186,7 +186,7 @@ func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bo
 
 		if err != nil {
 			log.Printf("jwt remote check acl error: %s", err)
-			return false
+			return false, err
 		}
 
 		dataMap["username"] = username
@@ -201,11 +201,11 @@ func (o *remoteJWTChecker) Halt() {
 	// NO-OP
 }
 
-func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[string]interface{}, urlValues url.Values) bool {
+func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[string]interface{}, urlValues url.Values) (bool, error) {
 
 	// Don't do the request if the client is nil.
 	if o.client == nil {
-		return false
+		return false, errors.New("jwt http client not initialized")
 	}
 
 	tlsStr := "http://"
@@ -229,7 +229,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 		if err != nil {
 			log.Errorf("marshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		contentReader := bytes.NewReader(dataJSON)
@@ -237,7 +237,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
-			return false
+			return false, err
 		}
 		req.Header.Set("Content-Type", "application/json")
 	default:
@@ -247,7 +247,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
-			return false
+			return false, err
 		}
 	}
 
@@ -257,21 +257,24 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 	if err != nil {
 		log.Errorf("error: %v", err)
-		return false
+		return false, err
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
 
 	if err != nil {
 		log.Errorf("read error: %s", err)
-		return false
+		return false, err
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Infof("error code: %d", resp.StatusCode)
-		return false
+		if resp.StatusCode >= 500 {
+			err = fmt.Errorf("error code: %d", resp.StatusCode)
+		}
+		return false, err
 	}
 
 	if o.responseMode == "text" {
@@ -279,7 +282,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 		//For test response, we expect "ok" or an error message.
 		if string(body) != "ok" {
 			log.Infof("api error: %s", string(body))
-			return false
+			return false, nil
 		}
 
 	} else if o.responseMode == "json" {
@@ -290,16 +293,16 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 		if err != nil {
 			log.Errorf("unmarshal error: %s", err)
-			return false
+			return false, err
 		}
 
 		if !response.Ok {
 			log.Infof("api error: %s", response.Error)
-			return false
+			return false, nil
 		}
 
 	}
 
 	log.Debugf("jwt request approved for %s", token)
-	return true
+	return true, nil
 }

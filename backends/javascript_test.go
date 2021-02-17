@@ -40,38 +40,48 @@ func TestJavascript(t *testing.T) {
 		So(err, ShouldBeNil)
 
 		Convey("User checks should work", func() {
-			userResponse := javascript.GetUser("correct", "good", "some-id")
+			userResponse, err := javascript.GetUser("correct", "good", "some-id")
+			So(err, ShouldBeNil)
 			So(userResponse, ShouldBeTrue)
 
-			userResponse = javascript.GetUser("correct", "bad", "some-id")
+			userResponse, err = javascript.GetUser("correct", "bad", "some-id")
+			So(err, ShouldBeNil)
 			So(userResponse, ShouldBeFalse)
 
-			userResponse = javascript.GetUser("wrong", "good", "some-id")
+			userResponse, err = javascript.GetUser("wrong", "good", "some-id")
+			So(err, ShouldBeNil)
 			So(userResponse, ShouldBeFalse)
 		})
 
 		Convey("Superuser checks should work", func() {
-			superuserResponse := javascript.GetSuperuser("admin")
+			superuserResponse, err := javascript.GetSuperuser("admin")
+			So(err, ShouldBeNil)
 			So(superuserResponse, ShouldBeTrue)
 
-			superuserResponse = javascript.GetSuperuser("non-admin")
+			superuserResponse, err = javascript.GetSuperuser("non-admin")
+			So(err, ShouldBeNil)
 			So(superuserResponse, ShouldBeFalse)
 		})
 
 		Convey("ACL checks should work", func() {
-			aclResponse := javascript.CheckAcl("correct", "test/topic", "id", 1)
+			aclResponse, err := javascript.CheckAcl("correct", "test/topic", "id", 1)
+			So(err, ShouldBeNil)
 			So(aclResponse, ShouldBeTrue)
 
-			aclResponse = javascript.CheckAcl("incorrect", "test/topic", "id", 1)
+			aclResponse, err = javascript.CheckAcl("incorrect", "test/topic", "id", 1)
+			So(err, ShouldBeNil)
 			So(aclResponse, ShouldBeFalse)
 
-			aclResponse = javascript.CheckAcl("correct", "bad/topic", "id", 1)
+			aclResponse, err = javascript.CheckAcl("correct", "bad/topic", "id", 1)
+			So(err, ShouldBeNil)
 			So(aclResponse, ShouldBeFalse)
 
-			aclResponse = javascript.CheckAcl("correct", "test/topic", "wrong-id", 1)
+			aclResponse, err = javascript.CheckAcl("correct", "test/topic", "wrong-id", 1)
+			So(err, ShouldBeNil)
 			So(aclResponse, ShouldBeFalse)
 
-			aclResponse = javascript.CheckAcl("correct", "test/topic", "id", 2)
+			aclResponse, err = javascript.CheckAcl("correct", "test/topic", "id", 2)
+			So(err, ShouldBeNil)
 			So(aclResponse, ShouldBeFalse)
 		})
 	})

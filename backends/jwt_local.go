@@ -77,23 +77,23 @@ func NewLocalJWTChecker(authOpts map[string]string, logLevel log.Level, hasher h
 	return checker, nil
 }
 
-func (o *localJWTChecker) GetUser(token string) bool {
+func (o *localJWTChecker) GetUser(token string) (bool, error) {
 	username, err := getUsernameForToken(o.options, token, o.options.skipUserExpiration)
 
 	if err != nil {
 		log.Printf("jwt local get user error: %s", err)
-		return false
+		return false, err
 	}
 
 	return o.getLocalUser(username)
 }
 
-func (o *localJWTChecker) GetSuperuser(token string) bool {
+func (o *localJWTChecker) GetSuperuser(token string) (bool, error) {
 	username, err := getUsernameForToken(o.options, token, o.options.skipUserExpiration)
 
 	if err != nil {
 		log.Printf("jwt local get superuser error: %s", err)
-		return false
+		return false, err
 	}
 
 	if o.db == mysqlDB {
@@ -103,12 +103,12 @@ func (o *localJWTChecker) GetSuperuser(token string) bool {
 	return o.postgres.GetSuperuser(username)
 }
 
-func (o *localJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bool {
+func (o *localJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	username, err := getUsernameForToken(o.options, token, o.options.skipACLExpiration)
 
 	if err != nil {
 		log.Printf("jwt local check acl error: %s", err)
-		return false
+		return false, err
 	}
 
 	if o.db == mysqlDB {
@@ -132,9 +132,9 @@ func (o *localJWTChecker) Halt() {
 	}
 }
 
-func (o *localJWTChecker) getLocalUser(username string) bool {
+func (o *localJWTChecker) getLocalUser(username string) (bool, error) {
 	if o.userQuery == "" {
-		return false
+		return false, nil
 	}
 
 	var count sql.NullInt64
@@ -147,19 +147,19 @@ func (o *localJWTChecker) getLocalUser(username string) bool {
 
 	if err != nil {
 		log.Debugf("local JWT get user error: %s", err)
-		return false
+		return false, err
 	}
 
 	if !count.Valid {
 		log.Debugf("local JWT get user error: user %s not found", username)
-		return false
+		return false, nil
 	}
 
 	if count.Int64 > 0 {
-		return true
+		return true, nil
 	}
 
-	return false
+	return false, nil
 }
 
 func extractOpts(authOpts map[string]string, db string) map[string]string {

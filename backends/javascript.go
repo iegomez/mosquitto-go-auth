@@ -95,7 +95,7 @@ func NewJavascript(authOpts map[string]string, logLevel log.Level) (*Javascript,
 	return javascript, nil
 }
 
-func (o *Javascript) GetUser(username, password, clientid string) bool {
+func (o *Javascript) GetUser(username, password, clientid string) (bool, error) {
 	params := map[string]interface{}{
 		"username": username,
 		"password": password,
@@ -107,10 +107,10 @@ func (o *Javascript) GetUser(username, password, clientid string) bool {
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
-func (o *Javascript) GetSuperuser(username string) bool {
+func (o *Javascript) GetSuperuser(username string) (bool, error) {
 	params := map[string]interface{}{
 		"username": username,
 	}
@@ -120,10 +120,10 @@ func (o *Javascript) GetSuperuser(username string) bool {
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
-func (o *Javascript) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o *Javascript) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	params := map[string]interface{}{
 		"username": username,
 		"topic":    topic,
@@ -136,7 +136,7 @@ func (o *Javascript) CheckAcl(username, topic, clientid string, acc int32) bool 
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
 //GetName returns the backend's name

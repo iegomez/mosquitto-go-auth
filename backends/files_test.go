@@ -77,19 +77,34 @@ func TestFiles(t *testing.T) {
 		})
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
-			authenticated := files.GetUser(user1, user1, clientID)
+			authenticated, err := files.GetUser(user1, user1, clientID)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
-			authenticated := files.GetUser(user1, user2, clientID)
+			authenticated, err := files.GetUser(user1, user2, clientID)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
+		Convey("Given a wrong username, it should not authenticate it and not return error", func() {
+			authenticated, err := files.GetUser(user4, "whatever_password", "")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 		})
 
 		//There are no superusers for files
 		Convey("For any user superuser should return false", func() {
-			superuser := files.GetSuperuser(user1)
+			superuser, err := files.GetSuperuser(user1)
+			So(err, ShouldBeNil)
 			So(superuser, ShouldBeFalse)
+
+			Convey("Including non-present username", func() {
+				superuser, err := files.GetSuperuser(user4)
+				So(err, ShouldBeNil)
+				So(superuser, ShouldBeFalse)
+			})
 		})
 
 		testTopic1 := `test/topic/1`
@@ -99,11 +114,15 @@ func TestFiles(t *testing.T) {
 		readWriteTopic := "readwrite/topic"
 
 		Convey("User 1 should be able to publish and not subscribe to test topic 1, and only subscribe but not publish to topic 2", func() {
-			tt1 := files.CheckAcl(user1, testTopic1, clientID, 2)
-			tt2 := files.CheckAcl(user1, testTopic1, clientID, 1)
-			tt3 := files.CheckAcl(user1, testTopic2, clientID, 2)
-			tt4 := files.CheckAcl(user1, testTopic2, clientID, 1)
+			tt1, err1 := files.CheckAcl(user1, testTopic1, clientID, 2)
+			tt2, err2 := files.CheckAcl(user1, testTopic1, clientID, 1)
+			tt3, err3 := files.CheckAcl(user1, testTopic2, clientID, 2)
+			tt4, err4 := files.CheckAcl(user1, testTopic2, clientID, 1)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(err3, ShouldBeNil)
+			So(err4, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeFalse)
 			So(tt3, ShouldBeFalse)
@@ -111,28 +130,37 @@ func TestFiles(t *testing.T) {
 		})
 
 		Convey("User 1 should be able to subscribe or publish to a readwrite topic rule", func() {
-			tt1 := files.CheckAcl(user1, readWriteTopic, clientID, 2)
-			tt2 := files.CheckAcl(user1, readWriteTopic, clientID, 1)
+			tt1, err1 := files.CheckAcl(user1, readWriteTopic, clientID, 2)
+			tt2, err2 := files.CheckAcl(user1, readWriteTopic, clientID, 1)
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 		})
 
 		Convey("User 2 should be able to read any test/topic/X but not any/other", func() {
-			tt1 := files.CheckAcl(user2, testTopic1, clientID, 1)
-			tt2 := files.CheckAcl(user2, testTopic2, clientID, 1)
-			tt3 := files.CheckAcl(user2, testTopic3, clientID, 1)
+			tt1, err1 := files.CheckAcl(user2, testTopic1, clientID, 1)
+			tt2, err2 := files.CheckAcl(user2, testTopic2, clientID, 1)
+			tt3, err3 := files.CheckAcl(user2, testTopic3, clientID, 1)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(err3, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 			So(tt3, ShouldBeFalse)
 		})
 
 		Convey("User 3 should be able to read any test/X but not other/...", func() {
-			tt1 := files.CheckAcl(user3, testTopic1, clientID, 1)
-			tt2 := files.CheckAcl(user3, testTopic2, clientID, 1)
-			tt3 := files.CheckAcl(user3, testTopic3, clientID, 1)
-			tt4 := files.CheckAcl(user3, testTopic4, clientID, 1)
+			tt1, err1 := files.CheckAcl(user3, testTopic1, clientID, 1)
+			tt2, err2 := files.CheckAcl(user3, testTopic2, clientID, 1)
+			tt3, err3 := files.CheckAcl(user3, testTopic3, clientID, 1)
+			tt4, err4 := files.CheckAcl(user3, testTopic4, clientID, 1)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(err3, ShouldBeNil)
+			So(err4, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 			So(tt3, ShouldBeTrue)
@@ -140,20 +168,23 @@ func TestFiles(t *testing.T) {
 		})
 
 		Convey("User 4 should not be able to read since it's not in the passwords file", func() {
-			tt1 := files.CheckAcl(user4, testTopic1, clientID, 1)
+			tt1, err1 := files.CheckAcl(user4, testTopic1, clientID, 1)
 
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeFalse)
 		})
 
 		//Now check against patterns.
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
-			tt1 := files.CheckAcl(user1, "test/test1", clientID, 1)
+			tt1, err1 := files.CheckAcl(user1, "test/test1", clientID, 1)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
-			tt1 := files.CheckAcl(user1, "test/test_client", clientID, 1)
+			tt1, err1 := files.CheckAcl(user1, "test/test_client", clientID, 1)
+			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 		})
 

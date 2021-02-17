@@ -21,9 +21,9 @@ type tokenOptions struct {
 }
 
 type jwtChecker interface {
-	GetUser(username string) bool
-	GetSuperuser(username string) bool
-	CheckAcl(username, topic, clientid string, acc int32) bool
+	GetUser(username string) (bool, error)
+	GetSuperuser(username string) (bool, error)
+	CheckAcl(username, topic, clientid string, acc int32) (bool, error)
 	Halt()
 }
 
@@ -97,17 +97,17 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 }
 
 //GetUser authenticates a given user.
-func (o *JWT) GetUser(token, password, clientid string) bool {
+func (o *JWT) GetUser(token, password, clientid string) (bool, error) {
 	return o.checker.GetUser(token)
 }
 
 //GetSuperuser checks if the given user is a superuser.
-func (o *JWT) GetSuperuser(token string) bool {
+func (o *JWT) GetSuperuser(token string) (bool, error) {
 	return o.checker.GetSuperuser(token)
 }
 
 //CheckAcl checks user authorization.
-func (o *JWT) CheckAcl(token, topic, clientid string, acc int32) bool {
+func (o *JWT) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	return o.checker.CheckAcl(token, topic, clientid, acc)
 }
 

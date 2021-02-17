@@ -102,26 +102,30 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -129,35 +133,40 @@ func TestHTTPAllJsonServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -236,26 +245,30 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -263,35 +276,40 @@ func TestHTTPJsonStatusOnlyServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -374,26 +392,30 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -401,35 +423,40 @@ func TestHTTPJsonTextResponseServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -521,26 +548,30 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -548,35 +579,40 @@ func TestHTTPFormJsonResponseServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -646,26 +682,30 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -673,35 +713,40 @@ func TestHTTPFormStatusOnlyServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
@@ -776,26 +821,30 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 		Convey("Given correct password/username, get user should return true", func() {
 
-			authenticated := hb.GetUser(username, password, clientId)
+			authenticated, err := hb.GetUser(username, password, clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given incorrect password/username, get user should return false", func() {
 
-			authenticated := hb.GetUser(username, "wrong_password", clientId)
+			authenticated, err := hb.GetUser(username, "wrong_password", clientId)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct username, get superuser should return true", func() {
 
-			authenticated := hb.GetSuperuser(username)
+			authenticated, err := hb.GetSuperuser(username)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 			Convey("But disabling superusers by removing superuri should now return false", func() {
 				hb.SuperuserUri = ""
-				superuser := hb.GetSuperuser(username)
+				superuser, err := hb.GetSuperuser(username)
+				So(err, ShouldBeNil)
 				So(superuser, ShouldBeFalse)
 			})
 
@@ -803,35 +852,40 @@ func TestHTTPFormTextResponseServer(t *testing.T) {
 
 		Convey("Given incorrect username, get superuser should return false", func() {
 
-			authenticated := hb.GetSuperuser("not_admin")
+			authenticated, err := hb.GetSuperuser("not_admin")
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given correct topic, username, client id and acc, acl check should return true", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
 
 		})
 
 		Convey("Given an acc that requires more privileges than the user has, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			authenticated, err := hb.CheckAcl(username, topic, clientId, MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a topic not present in acls, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, "fake/topic", clientId, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})
 
 		Convey("Given a clientId that doesn't match, check acl should return false", func() {
 
-			authenticated := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			authenticated, err := hb.CheckAcl(username, topic, "fake_client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeFalse)
 
 		})

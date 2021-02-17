@@ -49,18 +49,22 @@ func testRedis(ctx context.Context, t *testing.T, authOpts map[string]string) {
 	userPassHash := "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw=="
 	redis.conn.Set(ctx, username, userPassHash, 0)
 
-	authenticated := redis.GetUser(username, userPass, "")
+	authenticated, err := redis.GetUser(username, userPass, "")
+	assert.Nil(t, err)
 	assert.True(t, authenticated)
 
-	authenticated = redis.GetUser(username, "wrong_password", "")
+	authenticated, err = redis.GetUser(username, "wrong_password", "")
+	assert.Nil(t, err)
 	assert.False(t, authenticated)
 
 	redis.conn.Set(ctx, username+":su", "true", 0)
-	superuser := redis.GetSuperuser(username)
+	superuser, err := redis.GetSuperuser(username)
+	assert.Nil(t, err)
 	assert.True(t, superuser)
 
 	redis.disableSuperuser = true
-	superuser = redis.GetSuperuser(username)
+	superuser, err = redis.GetSuperuser(username)
+	assert.Nil(t, err)
 	assert.False(t, superuser)
 
 	redis.disableSuperuser = false
@@ -82,79 +86,99 @@ func testRedis(ctx context.Context, t *testing.T, authOpts map[string]string) {
 	testTopic1 := `test/topic/1`
 	testTopic2 := `test/topic/2`
 
-	tt1 := redis.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
-	tt2 := redis.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
+	tt1, err1 := redis.CheckAcl(username, testTopic1, clientID, MOSQ_ACL_READ)
+	tt2, err2 := redis.CheckAcl(username, testTopic2, clientID, MOSQ_ACL_READ)
 
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.True(t, tt1)
 	assert.False(t, tt2)
 
-	tt1 = redis.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
-	tt2 = redis.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, singleLevelAcl, clientID, MOSQ_ACL_READ)
+	tt2, err2 = redis.CheckAcl(username, hierarchyAcl, clientID, MOSQ_ACL_READ)
 
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.False(t, tt1)
 	assert.False(t, tt2)
 
 	//Now check against common patterns.
 	redis.conn.SAdd(ctx, "common:racls", userPattern)
-	tt1 = redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
 	assert.True(t, tt1)
 
 	redis.conn.SAdd(ctx, "common:racls", clientPattern)
 
-	tt1 = redis.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, "test/test_client", clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
 	assert.True(t, tt1)
 
 	redis.conn.SAdd(ctx, username+":racls", singleLevelAcl)
-	tt1 = redis.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, "test/topic/whatever", clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
 	assert.True(t, tt1)
 
 	redis.conn.SAdd(ctx, username+":racls", hierarchyAcl)
 
-	tt1 = redis.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, "test/what/ever", clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
 	assert.True(t, tt1)
 
-	tt1 = redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_WRITE)
+	tt1, err1 = redis.CheckAcl(username, "test/test", clientID, MOSQ_ACL_WRITE)
+	assert.Nil(t, err1)
 	assert.False(t, tt1)
 
 	//Add a write only acl and check for subscription.
 	redis.conn.SAdd(ctx, username+":wacls", writeAcl)
-	tt1 = redis.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_READ)
-	tt2 = redis.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_WRITE)
+	tt1, err1 = redis.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_READ)
+	tt2, err2 = redis.CheckAcl(username, writeAcl, clientID, MOSQ_ACL_WRITE)
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.False(t, tt1)
 	assert.True(t, tt2)
 
 	//Add a readwrite acl and check for subscription.
 	redis.conn.SAdd(ctx, username+":rwacls", readWriteAcl)
-	tt1 = redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_READ)
-	tt2 = redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_WRITE)
+	tt1, err1 = redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_READ)
+	tt2, err2 = redis.CheckAcl(username, readWriteAcl, clientID, MOSQ_ACL_WRITE)
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.True(t, tt1)
 	assert.True(t, tt2)
 
 	//Now add a common read acl to check against.
 	redis.conn.SAdd(ctx, "common:racls", commonTopic)
-	tt1 = redis.CheckAcl("unknown", commonTopic, clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl("unknown", commonTopic, clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
 	assert.True(t, tt1)
 
 	// Assert that only read works for a given topic in racls.
 	topic := "readable/topic"
 	redis.conn.SAdd(ctx, username+":racls", topic)
-	tt1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
-	tt2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+	tt2, err2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.False(t, tt1)
 	assert.True(t, tt2)
 
 	// Assert that only subscribe works for a given topic in sacls.
 	topic = "subscribable/topic"
 	redis.conn.SAdd(ctx, username+":sacls", topic)
-	tt1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
-	tt2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+	tt2, err2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.True(t, tt1)
 	assert.False(t, tt2)
 
 	topic = "commonsubscribable/topic"
 	redis.conn.SAdd(ctx, "common:sacls", topic)
-	tt1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
-	tt2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	tt1, err1 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_SUBSCRIBE)
+	tt2, err2 = redis.CheckAcl(username, topic, clientID, MOSQ_ACL_READ)
+	assert.Nil(t, err1)
+	assert.Nil(t, err2)
 	assert.True(t, tt1)
 	assert.False(t, tt2)
 

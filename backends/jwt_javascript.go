@@ -84,7 +84,7 @@ func NewJsJWTChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	return checker, nil
 }
 
-func (o *jsJWTChecker) GetUser(token string) bool {
+func (o *jsJWTChecker) GetUser(token string) (bool, error) {
 	params := map[string]interface{}{
 		"token": token,
 	}
@@ -94,7 +94,7 @@ func (o *jsJWTChecker) GetUser(token string) bool {
 
 		if err != nil {
 			log.Printf("jwt get user error: %s", err)
-			return false
+			return false, err
 		}
 
 		params["username"] = username
@@ -105,10 +105,10 @@ func (o *jsJWTChecker) GetUser(token string) bool {
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
-func (o *jsJWTChecker) GetSuperuser(token string) bool {
+func (o *jsJWTChecker) GetSuperuser(token string) (bool, error) {
 	params := map[string]interface{}{
 		"token": token,
 	}
@@ -118,7 +118,7 @@ func (o *jsJWTChecker) GetSuperuser(token string) bool {
 
 		if err != nil {
 			log.Printf("jwt get user error: %s", err)
-			return false
+			return false, err
 		}
 
 		params["username"] = username
@@ -129,10 +129,10 @@ func (o *jsJWTChecker) GetSuperuser(token string) bool {
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
-func (o *jsJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bool {
+func (o *jsJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	params := map[string]interface{}{
 		"token":    token,
 		"topic":    topic,
@@ -145,7 +145,7 @@ func (o *jsJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bool {
 
 		if err != nil {
 			log.Printf("jwt get user error: %s", err)
-			return false
+			return false, err
 		}
 
 		params["username"] = username
@@ -156,7 +156,7 @@ func (o *jsJWTChecker) CheckAcl(token, topic, clientid string, acc int32) bool {
 		log.Errorf("js error: %s", err)
 	}
 
-	return granted
+	return granted, err
 }
 
 func (o *jsJWTChecker) Halt() {

@@ -317,34 +317,34 @@ func checkCommentOrEmpty(line string) bool {
 }
 
 //GetUser checks that user exists and password is correct.
-func (o *Files) GetUser(username, password, clientid string) bool {
+func (o *Files) GetUser(username, password, clientid string) (bool, error) {
 
 	fileUser, ok := o.Users[username]
 	if !ok {
-		return false
+		return false, nil
 	}
 
 	if o.hasher.Compare(password, fileUser.Password) {
-		return true
+		return true, nil
 	}
 
 	log.Warnf("wrong password for user %s", username)
 
-	return false
+	return false, nil
 
 }
 
 //GetSuperuser returns false for files backend.
-func (o *Files) GetSuperuser(username string) bool {
-	return false
+func (o *Files) GetSuperuser(username string) (bool, error) {
+	return false, nil
 }
 
 //CheckAcl checks that the topic may be read/written by the given user/clientid.
-func (o *Files) CheckAcl(username, topic, clientid string, acc int32) bool {
+func (o *Files) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	//If there are no acls and Files is the only backend, all access is allowed.
 	//If there are other backends, then we can't blindly grant access.
 	if !o.CheckAcls {
-		return o.filesOnly
+		return o.filesOnly, nil
 	}
 
 	fileUser, ok := o.Users[username]
@@ -353,7 +353,7 @@ func (o *Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
 			if TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
-				return true
+				return true, nil
 			}
 		}
 	}
@@ -362,11 +362,11 @@ func (o *Files) CheckAcl(username, topic, clientid string, acc int32) bool {
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
 		if TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 
 }
 
