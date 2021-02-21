@@ -195,32 +195,29 @@ func (o *Files) readAcls() (int, error) {
 			continue
 		}
 
-		//If we see a user line, change the current user.
-		if strings.Contains(line, "user") {
-			//Try to get username
-			lineArr := strings.Fields(line)
+		lineArr := strings.Fields(line)
 
+		switch lineArr[0] {
+		//If we see a user line, change the current user.
+		case "user":
 			//Check format
-			if len(lineArr) == 2 && lineArr[0] == "user" {
-				_, ok := o.Users[lineArr[1]]
+			if len(lineArr) >= 2 {
+				userName := strings.Join(lineArr[1:], " ")
+				_, ok := o.Users[userName]
 
 				//Check that user exists
 				if !ok {
-					log.Warnf("user %s doesn't exist, skipping acl", lineArr[1])
+					log.Warnf("user %s doesn't exist, skipping acl", userName)
 					continue
 				}
 
-				currentUser = lineArr[1]
+				currentUser = userName
 
 			} else {
 				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
-		} else if strings.Contains(line, "topic") {
-
-			//Split and check for read, write or empty (readwwrite) privileges.
-			lineArr := strings.Fields(line)
-
-			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "topic" {
+		case "topic":
+			if len(lineArr) >= 2 {
 
 				var aclRecord = AclRecord{
 					Topic: "",
@@ -232,7 +229,7 @@ func (o *Files) readAcls() (int, error) {
 					aclRecord.Topic = lineArr[1]
 					aclRecord.Acc = MOSQ_ACL_READWRITE
 				} else {
-					aclRecord.Topic = lineArr[2]
+					aclRecord.Topic = strings.Join(lineArr[2:], " ")
 					if lineArr[1] == "read" {
 						aclRecord.Acc = MOSQ_ACL_READ
 					} else if lineArr[1] == "write" {
@@ -263,12 +260,8 @@ func (o *Files) readAcls() (int, error) {
 				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
 
-		} else if strings.Contains(line, "pattern") {
-
-			//Split and check for read, write or empty (readwwrite) privileges.
-			lineArr := strings.Fields(line)
-
-			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "pattern" {
+		case "pattern":
+			if len(lineArr) >= 2 {
 
 				var aclRecord = AclRecord{
 					Topic: "",
@@ -280,7 +273,7 @@ func (o *Files) readAcls() (int, error) {
 					aclRecord.Topic = lineArr[1]
 					aclRecord.Acc = MOSQ_ACL_READWRITE
 				} else {
-					aclRecord.Topic = lineArr[2]
+					aclRecord.Topic = strings.Join(lineArr[2:], " ")
 					if lineArr[1] == "read" {
 						aclRecord.Acc = MOSQ_ACL_READ
 					} else if lineArr[1] == "write" {

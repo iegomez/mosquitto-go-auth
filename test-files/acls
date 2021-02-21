@@ -2,6 +2,9 @@ user test1
 topic write test/topic/1
 topic read test/topic/2
 topic readwrite readwrite/topic
+# topic read test/comment-are-ignored
+topic write test/user/topic/1
+topic implicit-readwrite/topic
 
 user test2
 topic read test/topic/+
@@ -9,8 +12,16 @@ topic read test/topic/+
 user test3
 topic read test/#
 
+# Username with whitespace are allowed.
+user    name with whitespace@and/other.charcater
+topic   read    test/whitespace in the topic
+
 user not_present
 topic read test/#
 
 pattern read test/%u
 pattern read test/%c
+pattern read test/pattern with whitespace/%u
+
+# It's not a typo to have line with only whitespace. It's to ensure parser ignore the line as empty
+     

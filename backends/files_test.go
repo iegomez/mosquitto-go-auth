@@ -61,6 +61,7 @@ func TestFiles(t *testing.T) {
 		user2 := "test2"
 		user3 := "test3"
 		user4 := "not_present"
+		userWhitespace := "name with whitespace@and/other.charcater"
 
 		Convey("All users but not present ones should have a record", func() {
 			_, ok := files.Users[user1]
@@ -70,6 +71,9 @@ func TestFiles(t *testing.T) {
 			So(ok, ShouldBeTrue)
 
 			_, ok = files.Users[user3]
+			So(ok, ShouldBeTrue)
+
+			_, ok = files.Users[userWhitespace]
 			So(ok, ShouldBeTrue)
 
 			_, ok = files.Users[user4]
@@ -94,6 +98,12 @@ func TestFiles(t *testing.T) {
 			So(authenticated, ShouldBeFalse)
 		})
 
+		Convey("Given a username with whitespace and a correct password, it should correctly authenticate it", func() {
+			authenticated, err := files.GetUser(userWhitespace, userWhitespace, clientID)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+		})
+
 		//There are no superusers for files
 		Convey("For any user superuser should return false", func() {
 			superuser, err := files.GetSuperuser(user1)
@@ -111,7 +121,11 @@ func TestFiles(t *testing.T) {
 		testTopic2 := `test/topic/2`
 		testTopic3 := `test/other/1`
 		testTopic4 := `other/1`
+		commentedTopic := `test/comment-are-ignored`
+		topicWithUserWord := `test/user/topic/1`
+		topicWithSpace := `test/whitespace in the topic`
 		readWriteTopic := "readwrite/topic"
+		readWriteTopic2 := `implicit-readwrite/topic`
 
 		Convey("User 1 should be able to publish and not subscribe to test topic 1, and only subscribe but not publish to topic 2", func() {
 			tt1, err1 := files.CheckAcl(user1, testTopic1, clientID, 2)
@@ -136,6 +150,35 @@ func TestFiles(t *testing.T) {
 			So(err2, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
+		})
+
+		Convey("User 1 should be able to subscribe or publish to a implicit readwrite topic rule", func() {
+			tt1, err1 := files.CheckAcl(user1, readWriteTopic2, clientID, 2)
+			tt2, err2 := files.CheckAcl(user1, readWriteTopic2, clientID, 1)
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeTrue)
+		})
+
+		Convey("User 1 should not be able to subscribe to topic commented", func() {
+			tt1, err1 := files.CheckAcl(user1, commentedTopic, clientID, 2)
+			tt2, err2 := files.CheckAcl(user1, commentedTopic, clientID, 1)
+
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(tt1, ShouldBeFalse)
+			So(tt2, ShouldBeFalse)
+		})
+
+		Convey("User 1 should be able to publish and not subscribe to topic with \"user\" in the topic name", func() {
+			tt1, err1 := files.CheckAcl(user1, topicWithUserWord, clientID, 2)
+			tt2, err2 := files.CheckAcl(user1, topicWithUserWord, clientID, 1)
+
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeFalse)
 		})
 
 		Convey("User 2 should be able to read any test/topic/X but not any/other", func() {
@@ -174,6 +217,16 @@ func TestFiles(t *testing.T) {
 			So(tt1, ShouldBeFalse)
 		})
 
+		Convey("User with whitespace should be able to only subscribe but not publish to topic with whitespace", func() {
+			tt1, err1 := files.CheckAcl(userWhitespace, topicWithSpace, clientID, 2)
+			tt2, err2 := files.CheckAcl(userWhitespace, topicWithSpace, clientID, 1)
+
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(tt1, ShouldBeFalse)
+			So(tt2, ShouldBeTrue)
+		})
+
 		//Now check against patterns.
 
 		Convey("Given a topic that mentions username, acl check should pass", func() {
@@ -186,6 +239,16 @@ func TestFiles(t *testing.T) {
 			tt1, err1 := files.CheckAcl(user1, "test/test_client", clientID, 1)
 			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
+		})
+
+		Convey("Given a topic that mentions username, acl check should pass even if whitespace are involved", func() {
+			tt1, err1 := files.CheckAcl(user1, "test/pattern with whitespace/test1", clientID, 1)
+			tt2, err2 := files.CheckAcl(userWhitespace, "test/pattern with whitespace/"+userWhitespace, clientID, 1)
+
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeTrue)
 		})
 
 		//Halt files
