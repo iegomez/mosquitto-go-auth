@@ -14,6 +14,22 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+const (
+	read      = "read"
+	write     = "write"
+	readwrite = "readwrite"
+	subscribe = "subscribe"
+	deny      = "deny"
+)
+
+var permissions = map[string]byte{
+	read:      MOSQ_ACL_READ,
+	write:     MOSQ_ACL_WRITE,
+	readwrite: MOSQ_ACL_READWRITE,
+	subscribe: MOSQ_ACL_SUBSCRIBE,
+	deny:      MOSQ_ACL_DENY,
+}
+
 //FileUer keeps a user password and acl records.
 type FileUser struct {
 	Password   string
@@ -23,7 +39,7 @@ type FileUser struct {
 //AclRecord holds a topic and access privileges.
 type AclRecord struct {
 	Topic string
-	Acc   byte //None 0x00, Read 0x01, Write 0x02, ReadWrite: Read | Write : 0x03
+	Acc   byte //None 0x00, Read 0x01, Write 0x02, ReadWrite: Read | Write : 0x03, Subscribe 0x04, Deny 0x11
 }
 
 //FileBE holds paths to files, list of file users and general (no user or pattern) acl records.
@@ -201,59 +217,72 @@ func (o *Files) readAcls() (int, error) {
 			lineArr := strings.Fields(line)
 
 			//Check format
-			if len(lineArr) == 2 && lineArr[0] == "user" {
-				_, ok := o.Users[lineArr[1]]
+			if lineArr[0] == "user" {
+				username := strings.Join(lineArr[1:], " ")
+
+				_, ok := o.Users[username]
 
 				//Check that user exists
 				if !ok {
-					log.Warnf("user %s doesn't exist, skipping acl", lineArr[1])
+					log.Warnf("user %s doesn't exist, skipping acl", username)
 					continue
 				}
 
-				currentUser = lineArr[1]
+				currentUser = username
 
 			} else {
 				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
-		} else if strings.Contains(line, "topic") {
+		} else if strings.Contains(line, "topic") || strings.Contains(line, "pattern") {
 
-			//Split and check for read, write or empty (readwwrite) privileges.
+			//Split and check for privileges.
 			lineArr := strings.Fields(line)
+			correctFormat := lineArr[0] == "topic" || lineArr[0] == "pattern"
 
-			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "topic" {
+			if correctFormat {
 
 				var aclRecord = AclRecord{
 					Topic: "",
 					Acc:   MOSQ_ACL_NONE,
 				}
 
-				//If len is 2, then we assume ReadWrite privileges.
+				/*	If len is 2, then we assume ReadWrite privileges.
+
+					Notice that Mosquitto docs prevent whitespaces when there's no explicit access given:
+						"The access type is controlled using "read", "write", "readwrite" or "deny". This parameter is optional (unless <topic> includes a space character)"
+						https://mosquitto.org/man/mosquitto-conf-5.html
+					When access is given, then the topic may contain whitespaces.
+				*/
 				if len(lineArr) == 2 {
 					aclRecord.Topic = lineArr[1]
 					aclRecord.Acc = MOSQ_ACL_READWRITE
 				} else {
-					aclRecord.Topic = lineArr[2]
-					if lineArr[1] == "read" {
-						aclRecord.Acc = MOSQ_ACL_READ
-					} else if lineArr[1] == "write" {
-						aclRecord.Acc = MOSQ_ACL_WRITE
-					} else if lineArr[1] == "readwrite" {
-						aclRecord.Acc = MOSQ_ACL_READWRITE
-					} else if lineArr[1] == "subscribe" {
-						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
-					} else {
+					permission := lineArr[1]
+					topic := strings.Join(lineArr[2:], " ")
+
+					switch permission {
+					case read, write, readwrite, subscribe, deny:
+						aclRecord.Acc = permissions[permission]
+					default:
 						return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 					}
+
+					aclRecord.Topic = topic
 				}
 
-				//Append to user or general depending on currentUser.
-				if currentUser != "" {
-					fUser, ok := o.Users[currentUser]
-					if !ok {
-						return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d", lineArr[1], index)
+				if strings.Contains(line, "topic") {
+					//Append to user or general depending on currentUser.
+					if currentUser != "" {
+						fUser, ok := o.Users[currentUser]
+						if !ok {
+							return 0, errors.Errorf("Files backend error: user %s does not exist for acl at line %d", lineArr[1], index)
+						}
+						fUser.AclRecords = append(fUser.AclRecords, aclRecord)
+					} else {
+						o.AclRecords = append(o.AclRecords, aclRecord)
 					}
-					fUser.AclRecords = append(fUser.AclRecords, aclRecord)
 				} else {
+					//Append to general acls.
 					o.AclRecords = append(o.AclRecords, aclRecord)
 				}
 
@@ -263,46 +292,8 @@ func (o *Files) readAcls() (int, error) {
 				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 			}
 
-		} else if strings.Contains(line, "pattern") {
-
-			//Split and check for read, write or empty (readwwrite) privileges.
-			lineArr := strings.Fields(line)
-
-			if (len(lineArr) == 2 || len(lineArr) == 3) && lineArr[0] == "pattern" {
-
-				var aclRecord = AclRecord{
-					Topic: "",
-					Acc:   MOSQ_ACL_NONE,
-				}
-
-				//If len is 2, then we assume ReadWrite privileges.
-				if len(lineArr) == 2 {
-					aclRecord.Topic = lineArr[1]
-					aclRecord.Acc = MOSQ_ACL_READWRITE
-				} else {
-					aclRecord.Topic = lineArr[2]
-					if lineArr[1] == "read" {
-						aclRecord.Acc = MOSQ_ACL_READ
-					} else if lineArr[1] == "write" {
-						aclRecord.Acc = MOSQ_ACL_WRITE
-					} else if lineArr[1] == "readwrite" {
-						aclRecord.Acc = MOSQ_ACL_READWRITE
-					} else if lineArr[1] == "subscribe" {
-						aclRecord.Acc = MOSQ_ACL_SUBSCRIBE
-					} else {
-						return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
-					}
-				}
-
-				//Append to general acls.
-				o.AclRecords = append(o.AclRecords, aclRecord)
-
-				linesCount++
-
-			} else {
-				return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
-			}
-
+		} else {
+			return 0, errors.Errorf("Files backend error: wrong acl format at line %d", index)
 		}
 	}
 
@@ -349,11 +340,19 @@ func (o *Files) CheckAcl(username, topic, clientid string, acc int32) (bool, err
 
 	fileUser, ok := o.Users[username]
 
-	//If user exists, check against his acls and common ones. If not, check against common acls only.
+	// If user exists, check against his acls and common ones. If not, check against common acls only.
+	// But first check if the topic was explicitly denied and refuse to authorize if so.
 	if ok {
 		for _, aclRecord := range fileUser.AclRecords {
-			if TopicsMatch(aclRecord.Topic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
-				return true, nil
+			match := TopicsMatch(aclRecord.Topic, topic)
+			if match {
+				if aclRecord.Acc == MOSQ_ACL_DENY {
+					return false, nil
+				}
+
+				if acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE)) {
+					return true, nil
+				}
 			}
 		}
 	}
@@ -361,8 +360,17 @@ func (o *Files) CheckAcl(username, topic, clientid string, acc int32) (bool, err
 		//Replace all occurrences of %c for clientid and %u for username
 		aclTopic := strings.Replace(aclRecord.Topic, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if TopicsMatch(aclTopic, topic) && (acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE))) {
-			return true, nil
+
+		match := TopicsMatch(aclTopic, topic)
+
+		if match {
+			if aclRecord.Acc == MOSQ_ACL_DENY {
+				return false, nil
+			}
+
+			if acc == int32(aclRecord.Acc) || int32(aclRecord.Acc) == MOSQ_ACL_READWRITE || (acc == MOSQ_ACL_SUBSCRIBE && topic != "#" && (int32(aclRecord.Acc) == MOSQ_ACL_READ || int32(aclRecord.Acc) == MOSQ_ACL_SUBSCRIBE)) {
+				return true, nil
+			}
 		}
 	}
 
