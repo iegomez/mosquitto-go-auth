@@ -37,6 +37,9 @@ func TestFiles(t *testing.T) {
 		/*
 			ACL file looks like this:
 
+			topic test/general
+			topic deny test/general_denied
+
 			user test1
 			topic write test/topic/1
 			topic read test/topic/2
@@ -46,21 +49,30 @@ func TestFiles(t *testing.T) {
 
 			user test3
 			topic read test/#
+			topic deny test/denied
+
+			user test with space
+			topic  test/space
+			topic read test/multiple spaces in/topic
+			 topic   read   test/lots   of   spaces   in/topic and borders
 
 			user not_present
-			topic read test/#
+			topic read test/not_present
 
 			pattern read test/%u
-
 			pattern read test/%c
 		*/
 
 		// passwords are the same as users,
-		// except for user4 that's not present in psswords and should be skipped when reading acls
+		// except for user4 that's not present in passwords and should be skipped when reading acls
 		user1 := "test1"
 		user2 := "test2"
 		user3 := "test3"
 		user4 := "not_present"
+		elton := "test with space" // You know, because he's a rocket man. Ok, I'll let myself out.
+
+		generalTopic := "test/general"
+		generalDeniedTopic := "test/general_denied"
 
 		Convey("All users but not present ones should have a record", func() {
 			_, ok := files.Users[user1]
@@ -74,6 +86,45 @@ func TestFiles(t *testing.T) {
 
 			_, ok = files.Users[user4]
 			So(ok, ShouldBeFalse)
+
+			_, ok = files.Users[elton]
+			So(ok, ShouldBeTrue)
+		})
+
+		Convey("All users should be able to read the general topic", func() {
+			authenticated, err := files.CheckAcl(user1, generalTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.CheckAcl(user2, generalTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.CheckAcl(user3, generalTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.CheckAcl(elton, generalTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+		})
+
+		Convey("No user should be able to read the general denied topic", func() {
+			authenticated, err := files.CheckAcl(user1, generalDeniedTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+
+			authenticated, err = files.CheckAcl(user2, generalDeniedTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+
+			authenticated, err = files.CheckAcl(user3, generalDeniedTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+
+			authenticated, err = files.CheckAcl(elton, generalDeniedTopic, clientID, 1)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
 		})
 
 		Convey("Given a username and a correct password, it should correctly authenticate it", func() {
@@ -112,6 +163,22 @@ func TestFiles(t *testing.T) {
 		testTopic3 := `test/other/1`
 		testTopic4 := `other/1`
 		readWriteTopic := "readwrite/topic"
+		spaceTopic := "test/space"
+		multiSpaceTopic := "test/multiple spaces in/topic"
+		lotsOfSpacesTopic := "test/lots   of   spaces   in/topic and borders"
+		deniedTopic := "test/denied"
+
+		Convey("Topics for non existing users should be ignored", func() {
+			for record := range files.AclRecords {
+				So(record, ShouldNotEqual, "test/not_present")
+			}
+
+			for _, user := range files.Users {
+				for record := range user.AclRecords {
+					So(record, ShouldNotEqual, "test/not_present")
+				}
+			}
+		})
 
 		Convey("User 1 should be able to publish and not subscribe to test topic 1, and only subscribe but not publish to topic 2", func() {
 			tt1, err1 := files.CheckAcl(user1, testTopic1, clientID, 2)
@@ -151,20 +218,24 @@ func TestFiles(t *testing.T) {
 			So(tt3, ShouldBeFalse)
 		})
 
-		Convey("User 3 should be able to read any test/X but not other/...", func() {
+		Convey("User 3 should be able to read any test/X but not other/... nor test/denied\n\n", func() {
+			fmt.Printf("\n\nUser 3 acls: %#v", files.Users[user3].AclRecords)
 			tt1, err1 := files.CheckAcl(user3, testTopic1, clientID, 1)
 			tt2, err2 := files.CheckAcl(user3, testTopic2, clientID, 1)
 			tt3, err3 := files.CheckAcl(user3, testTopic3, clientID, 1)
 			tt4, err4 := files.CheckAcl(user3, testTopic4, clientID, 1)
+			tt5, err5 := files.CheckAcl(user3, deniedTopic, clientID, 1)
 
 			So(err1, ShouldBeNil)
 			So(err2, ShouldBeNil)
 			So(err3, ShouldBeNil)
 			So(err4, ShouldBeNil)
+			So(err5, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
 			So(tt2, ShouldBeTrue)
 			So(tt3, ShouldBeTrue)
 			So(tt4, ShouldBeFalse)
+			So(tt5, ShouldBeFalse)
 		})
 
 		Convey("User 4 should not be able to read since it's not in the passwords file", func() {
@@ -174,12 +245,34 @@ func TestFiles(t *testing.T) {
 			So(tt1, ShouldBeFalse)
 		})
 
-		//Now check against patterns.
+		Convey("Elton Bowie should be able to read and write to `test/space`, and only read from other topics", func() {
+			tt1, err1 := files.CheckAcl(elton, spaceTopic, clientID, 2)
+			tt2, err2 := files.CheckAcl(elton, multiSpaceTopic, clientID, 1)
+			tt3, err3 := files.CheckAcl(elton, multiSpaceTopic, clientID, 2)
+			tt4, err4 := files.CheckAcl(elton, lotsOfSpacesTopic, clientID, 1)
+			tt5, err5 := files.CheckAcl(elton, lotsOfSpacesTopic, clientID, 2)
 
+			So(err1, ShouldBeNil)
+			So(err2, ShouldBeNil)
+			So(err3, ShouldBeNil)
+			So(err4, ShouldBeNil)
+			So(err5, ShouldBeNil)
+			So(tt1, ShouldBeTrue)
+			So(tt2, ShouldBeTrue)
+			So(tt3, ShouldBeFalse)
+			So(tt4, ShouldBeTrue)
+			So(tt5, ShouldBeFalse)
+		})
+
+		//Now check against patterns.
 		Convey("Given a topic that mentions username, acl check should pass", func() {
 			tt1, err1 := files.CheckAcl(user1, "test/test1", clientID, 1)
 			So(err1, ShouldBeNil)
 			So(tt1, ShouldBeTrue)
+
+			tt2, err2 := files.CheckAcl(elton, "test/test with space", clientID, 1)
+			So(err2, ShouldBeNil)
+			So(tt2, ShouldBeTrue)
 		})
 
 		Convey("Given a topic that mentions clientid, acl check should pass", func() {
