@@ -1,3 +1,6 @@
+topic read test/general
+topic deny test/general_denied
+
 user test1
 topic write test/topic/1
 topic read test/topic/2
@@ -8,9 +11,15 @@ topic read test/topic/+
 
 user test3
 topic read test/#
+topic deny test/denied
+
+user  test with space
+topic  test/space
+topic read test/multiple spaces in/topic
+  topic   read   test/lots   of   spaces   in/topic and borders  
 
 user not_present
-topic read test/#
+topic read test/not_present
 
 pattern read test/%u
 pattern read test/%c
