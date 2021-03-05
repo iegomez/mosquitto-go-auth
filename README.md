@@ -360,7 +360,7 @@ backend may be behind a load-balancer (like HTTP backend) and one instance may f
 auth_opt_retry_count 2
 ```
 
-The above example will do up to 2 retry (3 call in total) if backend had an error.
+The above example will do up to 2 retries (3 calls in total considering the original one) if the responsible backend had an error or was down while performing the check.
 
 #### Prefixes
 
