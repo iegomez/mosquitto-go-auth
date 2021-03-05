@@ -275,12 +275,10 @@ auth_opt_auth_jitter_seconds 3
 auth_opt_acl_jitter_seconds 3
 ```
 
-The `auth_jitter_seconds` and `acl_jitter_seconds` allow to randomize the expiration used. The value used
-is cache_seconds +/- jitter_seconds. With above values (30 seconds for cache and 3 seconds for jitter), the
-expiration will be between 27 seconds and 33 seconds. The jitter is useful to reduce loopups storm that could
-occur every auth/acl_cache_seconds if lots of clients connected at the same time (for example
-after a server restart, all your clients may reconnect immediatly creating lots of entry expiring at the same time, unless
-a jitter is used). You can set jitter to 0 to disable this feature.
+`auth_jitter_seconds` and `acl_jitter_seconds` options allow to randomize cache expiration time by a given offset
+The value used for expiring a cache record would then be `cache_seconds` +/- `jitter_seconds`. With above values (30 seconds for cache and 3 seconds for jitter), effective expiration would yield any value between 27 and 33 seconds. 
+Setting a `jitter` value is useful to reduce lookups storms that could occur every `auth/acl_cache_seconds` if lots of clients connected at the same time, e.g. after a server restart when all clients may reconnect immediately creating lots of entries expiring at the same time.
+You may omit or set jitter options to 0 to disable this feature.
 
 If `cache_reset` is set to false or omitted, cache won't be flushed upon service start.
 

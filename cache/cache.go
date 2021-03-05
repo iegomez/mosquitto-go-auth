@@ -126,9 +126,8 @@ func isMovedError(err error) bool {
 	return false
 }
 
-// return a expiration duration with a jitter added
-// The result is between expiration-jitter and expiration+jitter.
-// Negative value are never returned, 0 is used instead
+// Return an expiration duration with a jitter added, i.e the actual expiration is in the range [expiration - jitter, expiration + jitter].
+// If no expiration was set or jitter > expiration, then any negative value will yield 0 instead.
 func expirationWithJitter(expiration, jitter time.Duration) time.Duration {
 	if jitter == 0 {
 		return expiration
