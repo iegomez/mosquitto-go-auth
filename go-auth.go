@@ -395,6 +395,11 @@ func setCache(authOpts map[string]string) {
 		}
 	}
 
+	if authJitterSeconds > authCacheSeconds {
+		authJitterSeconds = authCacheSeconds
+		log.Warningf("authJitterSeconds is larger than authCacheSeconds, defaulting to %d", authJitterSeconds)
+	}
+
 	if aclCacheSec, ok := authOpts["acl_cache_seconds"]; ok {
 		aclSec, err := strconv.ParseInt(aclCacheSec, 10, 64)
 		if err == nil {
@@ -411,6 +416,11 @@ func setCache(authOpts map[string]string) {
 		} else {
 			log.Warningf("couldn't parse aclJitterSeconds (err: %s), defaulting to %d", err, aclJitterSeconds)
 		}
+	}
+
+	if aclJitterSeconds > aclCacheSeconds {
+		aclJitterSeconds = aclCacheSeconds
+		log.Warningf("aclJitterSeconds is larger than aclCacheSeconds, defaulting to %d", aclJitterSeconds)
 	}
 
 	reset := false
