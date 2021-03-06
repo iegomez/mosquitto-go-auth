@@ -443,6 +443,21 @@ You may run all tests (see Testing X for each backend's testing requirements) li
 make test
 ```
 
+### Registering checks
+
+Backends may register which checks they'll run, enabling the option to e.g. only check user auth through an HTTP backend while delegating ACL to another backend, e.g. Files.
+By default, when the option is not present, all checks for that backend will be enabled (unless `superuser` is globally disabled in the case of `superuser` checks).
+For `user` and `acl` checks, at least one backend needs to be registered, either explicitly or by default.
+
+You may register which checks a backend will perform with the option `auth_opt_backend_register` followed by comma separated values of the registered checks, e.g.:
+```
+auth_opt_http_register user
+auth_opt_files_register user, acl
+auth_opt_redis_register superuser
+```
+
+Possible values for checks are `user`, `superuser` and `acl`. Any other value will result in an error initializing the plugin.
+
 
 ### Files
 
@@ -1254,15 +1269,15 @@ func Init(authOpts map[string]string, logLevel log.Level) error {
 	return nil
 }
 
-func GetUser(username, password, clientid string) bool {
+func GetUser(username, password, clientid string) (bool, error) {
 	return false
 }
 
-func GetSuperuser(username string) bool {
+func GetSuperuser(username string) (bool, error) {
 	return false
 }
 
-func CheckAcl(username, topic, clientid string, acc int) bool {
+func CheckAcl(username, topic, clientid string, acc int) (bool, error) {
 	return false
 }
 
