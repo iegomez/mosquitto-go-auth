@@ -31,7 +31,7 @@ type Backends struct {
 }
 
 const (
-	//backends
+	// backends
 	postgresBackend = "postgres"
 	jwtBackend      = "jwt"
 	redisBackend    = "redis"
@@ -44,7 +44,7 @@ const (
 	grpcBackend     = "grpc"
 	jsBackend       = "js"
 
-	//checks
+	// checks
 	aclCheck       = "acl"
 	userCheck      = "user"
 	superuserCheck = "superuser"
@@ -66,7 +66,7 @@ var AllowedBackendsOptsPrefix = map[string]string{
 }
 
 // Initialize sets general options, tries to build the backends and register their checkers.
-func Initialize(authOpts map[string]string, logLevel log.Level, backends []string) *Backends {
+func Initialize(authOpts map[string]string, logLevel log.Level, backends []string) (*Backends, error) {
 
 	b := &Backends{
 		backends:          make(map[string]Backend),
@@ -82,17 +82,26 @@ func Initialize(authOpts map[string]string, logLevel log.Level, backends []strin
 		b.disableSuperuser = true
 	}
 
+	err := b.addBackends(authOpts, logLevel, backends)
+	if err != nil {
+		return nil, err
+	}
+
+	err = b.setCheckers(authOpts)
+	if err != nil {
+		return nil, err
+	}
+
+	b.setPrefixes(authOpts, backends)
+
+	return b, nil
+}
+
+func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, backends []string) error {
 	for _, bename := range backends {
 		var beIface Backend
 		var err error
 
-		/*
-			TODO: this could be nicer if we had a initializer map, e.g.:
-			  var initializers map[string] func(authOpts map[string]string, logLevel log.Level, hasher hashing.Hasher) (Backend, error)
-
-			Sadly, not all backends require a hasher and I'm not sure about changing them to accept a dummy one just for the sake of this.
-			But I'll keep this comment for further thought and to remind me about changing those that don't return a pointer to do so.
-		*/
 		hasher := hashing.NewHasher(authOpts, AllowedBackendsOptsPrefix[bename])
 		switch bename {
 		case postgresBackend:
@@ -183,13 +192,12 @@ func Initialize(authOpts map[string]string, logLevel log.Level, backends []strin
 				log.Infof("Backend registered: %s", beIface.GetName())
 				b.backends[pluginBackend] = beIface.(*CustomPlugin)
 			}
+		default:
+			return fmt.Errorf("unkown backend %s", bename)
 		}
 	}
 
-	b.setCheckers(authOpts)
-	b.setPrefixes(authOpts, backends)
-
-	return b
+	return nil
 }
 
 func (b *Backends) setCheckers(authOpts map[string]string) error {
@@ -206,18 +214,24 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 				switch check {
 				case aclCheck:
 					b.aclCheckers = append(b.aclCheckers, name)
+					log.Infof("registered acl checker: %s", name)
 				case userCheck:
 					b.userCheckers = append(b.userCheckers, name)
+					log.Infof("registered user checker: %s", name)
 				case superuserCheck:
 					b.superuserCheckers = append(b.superuserCheckers, name)
+					log.Infof("registered superuser checker: %s", name)
 				default:
-					return fmt.Errorf("unsupported check %s found for backend %s, skipping registration", check, name)
+					return fmt.Errorf("unsupported check %s found for backend %s", check, name)
 				}
 			}
 		} else {
 			b.aclCheckers = append(b.aclCheckers, name)
+			log.Infof("registered acl checker: %s", name)
 			b.userCheckers = append(b.userCheckers, name)
+			log.Infof("registered user checker: %s", name)
 			b.superuserCheckers = append(b.superuserCheckers, name)
+			log.Infof("registered superuser checker: %s", name)
 		}
 	}
 
@@ -235,11 +249,13 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 // setPrefixes sets options for prefixes handling.
 func (b *Backends) setPrefixes(authOpts map[string]string, backends []string) {
 	if checkPrefix, ok := authOpts["check_prefix"]; ok && strings.Replace(checkPrefix, " ", "", -1) == "true" {
-		//Check that backends match prefixes.
+		// Check that backends match prefixes.
 		if prefixesStr, ok := authOpts["prefixes"]; ok {
 			prefixes := strings.Split(strings.Replace(prefixesStr, " ", "", -1), ",")
 			if len(prefixes) == len(backends) {
-				//Set prefixes
+				// Set prefixes
+				// (I know some people find this type of comments useless, even harmful,
+				//  but I find them helpful for quick code navigation on a project I don't work on daily, so screw them).
 				for i, backend := range backends {
 					b.prefixes[prefixes[i]] = backend
 				}
@@ -296,32 +312,31 @@ func (b *Backends) AuthUnpwdCheck(username, password, clientid string) (bool, er
 	var authenticated bool
 	var err error
 
-	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
-	if b.checkPrefix {
-		validPrefix, bename := b.lookupPrefix(username)
+	// If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
+	if !b.checkPrefix {
+		return b.checkAuth(username, password, clientid)
+	}
 
-		if !checkRegistered(bename, b.userCheckers) {
-			return false, fmt.Errorf("backends %s not registered to check users", bename)
-		}
+	validPrefix, bename := b.lookupPrefix(username)
 
-		if validPrefix {
-			// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix it will be handled in the common case.
-			if bename == jwtBackend {
-				prefix := b.getPrefixForBackend(bename)
-				username = strings.TrimPrefix(username, prefix+"_")
-			}
-			var backend = b.backends[bename]
+	if !checkRegistered(bename, b.userCheckers) {
+		return false, fmt.Errorf("backend %s not registered to check users", bename)
+	}
 
-			authenticated, err = backend.GetUser(username, password, clientid)
-			if authenticated && err == nil {
-				log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
-			}
-		} else {
-			//If there's no valid prefix, check all backends.
-			authenticated, err = b.checkAuth(username, password, clientid)
-		}
-	} else {
-		authenticated, err = b.checkAuth(username, password, clientid)
+	if !validPrefix {
+		return b.checkAuth(username, password, clientid)
+	}
+
+	// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix it will be handled in the common case.
+	if bename == jwtBackend {
+		prefix := b.getPrefixForBackend(bename)
+		username = strings.TrimPrefix(username, prefix+"_")
+	}
+	var backend = b.backends[bename]
+
+	authenticated, err = backend.GetUser(username, password, clientid)
+	if authenticated && err == nil {
+		log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
 	}
 
 	return authenticated, err
@@ -354,56 +369,56 @@ func (b *Backends) checkAuth(username, password, clientid string) (bool, error) 
 	return authenticated, err
 }
 
-// AuthAclCheck checks user/topic/acc authentication.
+// AuthAclCheck checks user/topic/acc authorization.
 func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool, error) {
 	var aclCheck bool
 	var err error
 
-	//If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
-	//Else, check all backends.
-	if b.checkPrefix {
-		validPrefix, bename := b.lookupPrefix(username)
-		if validPrefix {
-			// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then it be handled in the common case.
-			if bename == jwtBackend {
-				prefix := b.getPrefixForBackend(bename)
-				username = strings.TrimPrefix(username, prefix+"_")
-			}
-			var backend = b.backends[bename]
+	// If prefixes are enabled, check if username has a valid prefix and use the correct backend if so.
+	// Else, check all backends.
+	if !b.checkPrefix {
+		return b.checkAcl(username, topic, clientid, acc)
+	}
 
-			// Short circuit checks when superusers are disabled.
-			if !b.disableSuperuser {
-				log.Debugf("Superuser check with backend %s", backend.GetName())
-				if !checkRegistered(bename, b.superuserCheckers) {
-					return false, fmt.Errorf("backends %s not registered to check superusers", bename)
-				}
+	validPrefix, bename := b.lookupPrefix(username)
 
-				aclCheck, err = backend.GetSuperuser(username)
+	if !validPrefix {
+		return b.checkAcl(username, topic, clientid, acc)
+	}
 
-				if aclCheck && err == nil {
-					log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
-				}
-			}
-			//If not superuser, check acl.
-			if !aclCheck {
-				if !checkRegistered(bename, b.aclCheckers) {
-					return false, fmt.Errorf("backends %s not registered to check superusers", bename)
-				}
+	// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then let it be handled in the common case.
+	if bename == jwtBackend {
+		prefix := b.getPrefixForBackend(bename)
+		username = strings.TrimPrefix(username, prefix+"_")
+	}
+	var backend = b.backends[bename]
 
-				log.Debugf("Acl check with backend %s", backend.GetName())
-				if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
-					aclCheck = true
-					log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
-				} else if checkACLErr != nil && err == nil {
-					err = checkACLErr
-				}
-			}
-		} else {
-			//If there's no valid prefix, check all backends.
-			aclCheck, err = b.checkAcl(username, topic, clientid, acc)
+	// Short circuit checks when superusers are disabled.
+	if !b.disableSuperuser {
+		log.Debugf("Superuser check with backend %s", backend.GetName())
+		if !checkRegistered(bename, b.superuserCheckers) {
+			return false, fmt.Errorf("backend %s not registered to check superusers", bename)
 		}
-	} else {
-		aclCheck, err = b.checkAcl(username, topic, clientid, acc)
+
+		aclCheck, err = backend.GetSuperuser(username)
+
+		if aclCheck && err == nil {
+			log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
+		}
+	}
+	// If not superuser, check acl.
+	if !aclCheck {
+		if !checkRegistered(bename, b.aclCheckers) {
+			return false, fmt.Errorf("backend %s not registered to check superusers", bename)
+		}
+
+		log.Debugf("Acl check with backend %s", backend.GetName())
+		if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
+			aclCheck = true
+			log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+		} else if checkACLErr != nil && err == nil {
+			err = checkACLErr
+		}
 	}
 
 	log.Debugf("Acl is %t for user %s", aclCheck, username)
@@ -411,7 +426,7 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 }
 
 func (b *Backends) checkAcl(username, topic, clientid string, acc int) (bool, error) {
-	//Check superusers first
+	// Check superusers first
 	var err error
 	aclCheck := false
 	if !b.disableSuperuser {
@@ -454,7 +469,7 @@ func (b *Backends) checkAcl(username, topic, clientid string, acc int) (bool, er
 }
 
 func (b *Backends) Halt() {
-	//Halt every registered backend.
+	// Halt every registered backend.
 	for _, v := range b.backends {
 		v.Halt()
 	}

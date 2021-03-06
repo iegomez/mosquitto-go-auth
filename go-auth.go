@@ -124,7 +124,12 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		}
 	}
 
-	authPlugin.backends = bes.Initialize(authOpts, authPlugin.logLevel, backends)
+	var err error
+
+	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel, backends)
+	if err != nil {
+		log.Fatalf("error initializing backends: %s", err)
+	}
 
 	if cache, ok := authOpts["cache"]; ok && strings.Replace(cache, " ", "", -1) == "true" {
 		log.Info("redisCache activated")

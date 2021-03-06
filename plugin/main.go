@@ -21,7 +21,7 @@ func GetSuperuser(username string) (bool, error) {
 	return false, nil
 }
 
-func CheckAcl(username, topic, clientid string, acc int) (bool, error) {
+func CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	log.Debugf("Checking acl with custom plugin.")
 	return false, nil
 }

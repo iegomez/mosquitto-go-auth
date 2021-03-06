@@ -131,6 +131,18 @@ func TestFiles(t *testing.T) {
 			authenticated, err := files.GetUser(user1, user1, clientID)
 			So(err, ShouldBeNil)
 			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.GetUser(user2, user2, clientID)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.GetUser(user3, user3, clientID)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+			authenticated, err = files.GetUser(elton, elton, clientID)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
 		})
 
 		Convey("Given a username and an incorrect password, it should not authenticate it", func() {
