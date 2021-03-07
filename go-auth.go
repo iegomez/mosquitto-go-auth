@@ -374,8 +374,8 @@ func setCache(authOpts map[string]string) {
 
 	var aclCacheSeconds int64 = 30
 	var authCacheSeconds int64 = 30
-	var authJitterSeconds int64 = 3
-	var aclJitterSeconds int64 = 3
+	var authJitterSeconds int64 = 0
+	var aclJitterSeconds int64 = 0
 
 	if authCacheSec, ok := authOpts["auth_cache_seconds"]; ok {
 		authSec, err := strconv.ParseInt(authCacheSec, 10, 64)
