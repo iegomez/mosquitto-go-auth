@@ -1432,6 +1432,29 @@ Please read the [documentation](./docker/README.md) in the [docker](/docker) dir
 
 Images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
 
+### Testing using Docker
+
+Since tests require multiple backends (PostgreSQL, Mysql, Redis...), a Dockerfile.test provide
+and image with all required backend.
+To use it:
+```
+docker build -t mosquitto-go-auth.test -f Dockerfile.runtest .
+docker run --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh
+```
+
+Or using local source (avoid the need to rebuild image):
+```
+docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh
+```
+
+You may even specify the command to run after backends are started, which allow
+to run only some tests or even get a shell inside the containers:
+```
+docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh make test-backends
+
+docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test sh ./run-test-in-docker.sh bash
+```
+
 ### License
 
 mosquitto-go-auth is distributed under the MIT license. See also [LICENSE](LICENSE).
