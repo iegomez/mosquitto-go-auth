@@ -185,7 +185,7 @@ func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string
 //CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.checkRecord(ctx, record, expirationWithJitter(s.aclExpiration, s.authJitter))
+	return s.checkRecord(ctx, record, expirationWithJitter(s.aclExpiration, s.aclJitter))
 }
 
 func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime time.Duration) (bool, bool) {
