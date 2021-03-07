@@ -35,6 +35,7 @@ type AuthPlugin struct {
 	customPluginHalt         func()
 	useCache                 bool
 	checkPrefix              bool
+	retryCount               int
 	prefixes                 map[string]string
 	logLevel                 log.Level
 	logDest                  string
@@ -118,6 +119,15 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		}
 		// Always set backends option so backends may know if they are running solo or not.
 		authOpts[keys[i]] = values[i]
+	}
+
+	if retryCount, ok := authOpts["retry_count"]; ok {
+		retry, err := strconv.ParseInt(retryCount, 10, 64)
+		if err == nil {
+			authPlugin.retryCount = int(retry)
+		} else {
+			log.Warningf("couldn't parse retryCount (err: %s), defaulting to 0", err)
+		}
 	}
 
 	//Log and end program if backends are wrong
@@ -520,7 +530,16 @@ func setCache(authOpts map[string]string) {
 
 //export AuthUnpwdCheck
 func AuthUnpwdCheck(username, password, clientid string) uint8 {
-	ok, err := authUnpwdCheck(username, password, clientid)
+	var ok bool
+	var err error
+
+	for try := 0; try <= authPlugin.retryCount; try++ {
+		ok, err = authUnpwdCheck(username, password, clientid)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		log.Error(err)
 		return AuthError
@@ -608,7 +627,16 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 
 //export AuthAclCheck
 func AuthAclCheck(clientid, username, topic string, acc int) uint8 {
-	ok, err := authAclCheck(clientid, username, topic, acc)
+	var ok bool
+	var err error
+
+	for try := 0; try <= authPlugin.retryCount; try++ {
+		ok, err = authAclCheck(clientid, username, topic, acc)
+		if err == nil {
+			break
+		}
+	}
+
 	if err != nil {
 		log.Error(err)
 		return AuthError
