@@ -1275,15 +1275,15 @@ func Init(authOpts map[string]string, logLevel log.Level) error {
 }
 
 func GetUser(username, password, clientid string) (bool, error) {
-	return false
+	return false, nil
 }
 
 func GetSuperuser(username string) (bool, error) {
-	return false
+	return false, nil
 }
 
 func CheckAcl(username, topic, clientid string, acc int) (bool, error) {
-	return false
+	return false, nil
 }
 
 func GetName() string {

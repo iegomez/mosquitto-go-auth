@@ -219,8 +219,10 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 					b.userCheckers = append(b.userCheckers, name)
 					log.Infof("registered user checker: %s", name)
 				case superuserCheck:
-					b.superuserCheckers = append(b.superuserCheckers, name)
-					log.Infof("registered superuser checker: %s", name)
+					if !b.disableSuperuser {
+						b.superuserCheckers = append(b.superuserCheckers, name)
+						log.Infof("registered superuser checker: %s", name)
+					}
 				default:
 					return fmt.Errorf("unsupported check %s found for backend %s", check, name)
 				}
@@ -230,8 +232,11 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 			log.Infof("registered acl checker: %s", name)
 			b.userCheckers = append(b.userCheckers, name)
 			log.Infof("registered user checker: %s", name)
-			b.superuserCheckers = append(b.superuserCheckers, name)
-			log.Infof("registered superuser checker: %s", name)
+
+			if !b.disableSuperuser {
+				b.superuserCheckers = append(b.superuserCheckers, name)
+				log.Infof("registered superuser checker: %s", name)
+			}
 		}
 	}
 
@@ -319,12 +324,12 @@ func (b *Backends) AuthUnpwdCheck(username, password, clientid string) (bool, er
 
 	validPrefix, bename := b.lookupPrefix(username)
 
-	if !checkRegistered(bename, b.userCheckers) {
-		return false, fmt.Errorf("backend %s not registered to check users", bename)
-	}
-
 	if !validPrefix {
 		return b.checkAuth(username, password, clientid)
+	}
+
+	if !checkRegistered(bename, b.userCheckers) {
+		return false, fmt.Errorf("backend %s not registered to check users", bename)
 	}
 
 	// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix it will be handled in the common case.
@@ -395,10 +400,11 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 
 	// Short circuit checks when superusers are disabled.
 	if !b.disableSuperuser {
-		log.Debugf("Superuser check with backend %s", backend.GetName())
 		if !checkRegistered(bename, b.superuserCheckers) {
-			return false, fmt.Errorf("backend %s not registered to check superusers", bename)
+			return false, nil
 		}
+
+		log.Debugf("Superuser check with backend %s", backend.GetName())
 
 		aclCheck, err = backend.GetSuperuser(username)
 
@@ -409,7 +415,7 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 	// If not superuser, check acl.
 	if !aclCheck {
 		if !checkRegistered(bename, b.aclCheckers) {
-			return false, fmt.Errorf("backend %s not registered to check superusers", bename)
+			return false, fmt.Errorf("backend %s not registered to check acls", bename)
 		}
 
 		log.Debugf("Acl check with backend %s", backend.GetName())
