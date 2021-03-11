@@ -51,7 +51,7 @@ const (
 )
 
 // AllowedBackendsOptsPrefix serves as a check for allowed backends and a map from backend to expected opts prefix.
-var AllowedBackendsOptsPrefix = map[string]string{
+var allowedBackendsOptsPrefix = map[string]string{
 	postgresBackend: "pg",
 	jwtBackend:      "jwt",
 	redisBackend:    "redis",
@@ -66,7 +66,7 @@ var AllowedBackendsOptsPrefix = map[string]string{
 }
 
 // Initialize sets general options, tries to build the backends and register their checkers.
-func Initialize(authOpts map[string]string, logLevel log.Level, backends []string) (*Backends, error) {
+func Initialize(authOpts map[string]string, logLevel log.Level) (*Backends, error) {
 
 	b := &Backends{
 		backends:          make(map[string]Backend),
@@ -80,6 +80,23 @@ func Initialize(authOpts map[string]string, logLevel log.Level, backends []strin
 	//Disable superusers for all backends if option is set.
 	if authOpts["disable_superuser"] == "true" {
 		b.disableSuperuser = true
+
+	}
+
+	backendsOpt, ok := authOpts["backends"]
+	if !ok || backendsOpt == "" {
+		return nil, fmt.Errorf("missing or blank option backends")
+	}
+
+	backends := strings.Split(strings.Replace(backendsOpt, " ", "", -1), ",")
+	if len(backends) < 1 {
+		return nil, fmt.Errorf("missing or blank option backends")
+	}
+
+	for _, backend := range backends {
+		if _, ok := allowedBackendsOptsPrefix[backend]; !ok {
+			return nil, fmt.Errorf("unknown backend %s", backend)
+		}
 	}
 
 	err := b.addBackends(authOpts, logLevel, backends)
@@ -102,7 +119,7 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 		var beIface Backend
 		var err error
 
-		hasher := hashing.NewHasher(authOpts, AllowedBackendsOptsPrefix[bename])
+		hasher := hashing.NewHasher(authOpts, allowedBackendsOptsPrefix[bename])
 		switch bename {
 		case postgresBackend:
 			beIface, err = NewPostgres(authOpts, logLevel, hasher)
@@ -205,11 +222,11 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 	// At least one backend must be registered for user and acl checks.
 	// When option auth_opt_backend_register is missing for the backend, we register all checks.
 	for name := range b.backends {
-		opt := fmt.Sprintf("%s_register", AllowedBackendsOptsPrefix[name])
+		opt := fmt.Sprintf("%s_register", allowedBackendsOptsPrefix[name])
 		options, ok := authOpts[opt]
 
 		if ok {
-			checkers := strings.Fields(options)
+			checkers := strings.Split(strings.Replace(options, " ", "", -1), ",")
 			for _, check := range checkers {
 				switch check {
 				case aclCheck:
@@ -399,11 +416,7 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 	var backend = b.backends[bename]
 
 	// Short circuit checks when superusers are disabled.
-	if !b.disableSuperuser {
-		if !checkRegistered(bename, b.superuserCheckers) {
-			return false, nil
-		}
-
+	if !b.disableSuperuser && checkRegistered(bename, b.superuserCheckers) {
 		log.Debugf("Superuser check with backend %s", backend.GetName())
 
 		aclCheck, err = backend.GetSuperuser(username)

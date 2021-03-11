@@ -34,7 +34,6 @@ const (
 	AuthError    = 2
 )
 
-var backends []string          //List of selected backends.
 var authOpts map[string]string //Options passed by mosquitto.
 var authPlugin AuthPlugin      //General struct with options and conf.
 
@@ -50,24 +49,8 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		ctx:      context.Background(),
 	}
 
-	//First, get backends
-	backendsOk := false
 	authOpts = make(map[string]string)
 	for i := 0; i < authOptsNum; i++ {
-		if keys[i] == "backends" {
-			backends = strings.Split(strings.Replace(values[i], " ", "", -1), ",")
-			if len(backends) > 0 {
-				backendsCheck := true
-				for _, backend := range backends {
-					if _, ok := bes.AllowedBackendsOptsPrefix[backend]; !ok {
-						backendsCheck = false
-						log.Errorf("backend not allowed: %s", backend)
-					}
-				}
-				backendsOk = backendsCheck
-			}
-		}
-		// Always set backends option so backends may know if they are running solo or not.
 		authOpts[keys[i]] = values[i]
 	}
 
@@ -78,11 +61,6 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 		} else {
 			log.Warningf("couldn't parse retryCount (err: %s), defaulting to 0", err)
 		}
-	}
-
-	//Log and end program if backends are wrong
-	if !backendsOk {
-		log.Fatal("backends error")
 	}
 
 	//Check if log level is given. Set level if any valid option is given.
@@ -126,7 +104,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	var err error
 
-	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel, backends)
+	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel)
 	if err != nil {
 		log.Fatalf("error initializing backends: %s", err)
 	}
