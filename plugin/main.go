@@ -11,19 +11,19 @@ func Init(authOpts map[string]string, logLevel log.Level) error {
 	return nil
 }
 
-func GetUser(username, password, clientid string) bool {
+func GetUser(username, password, clientid string) (bool, error) {
 	log.Debugf("Checking get user with custom plugin.")
-	return false
+	return false, nil
 }
 
-func GetSuperuser(username string) bool {
+func GetSuperuser(username string) (bool, error) {
 	log.Debugf("Checking get superuser with custom plugin.")
-	return false
+	return false, nil
 }
 
-func CheckAcl(username, topic, clientid string, acc int) bool {
+func CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	log.Debugf("Checking acl with custom plugin.")
-	return false
+	return false, nil
 }
 
 func GetName() string {

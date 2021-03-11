@@ -57,13 +57,18 @@ func testRedis(ctx context.Context, t *testing.T, authOpts map[string]string) {
 	assert.Nil(t, err)
 	assert.False(t, authenticated)
 
-	redis.conn.Set(ctx, username+":su", "true", 0)
-	superuser, err := redis.GetSuperuser(username)
+	authenticated, err = redis.GetUser("wrong-user", userPass, "")
+	assert.Nil(t, err)
+	assert.False(t, authenticated)
+
+	redis.conn.Set(ctx, "superuser", userPassHash, 0)
+	redis.conn.Set(ctx, "superuser:su", "true", 0)
+	superuser, err := redis.GetSuperuser("superuser")
 	assert.Nil(t, err)
 	assert.True(t, superuser)
 
 	redis.disableSuperuser = true
-	superuser, err = redis.GetSuperuser(username)
+	superuser, err = redis.GetSuperuser("superuser")
 	assert.Nil(t, err)
 	assert.False(t, superuser)
 
