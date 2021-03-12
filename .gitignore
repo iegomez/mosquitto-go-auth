@@ -23,5 +23,4 @@ vendor
 .vscode/
 
 
-# todo
-TODO
+plugin/*.so
