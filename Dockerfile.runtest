@@ -4,20 +4,20 @@ FROM debian:stable-slim as builder
 
 #Set mosquitto and plugin versions.
 #Change them for your needs.
-ENV MOSQUITTO_VERSION=1.6.10
+ENV MOSQUITTO_VERSION=2.0.8
 ENV GO_VERSION=1.16.2
 
 WORKDIR /app
 
 #Get mosquitto build dependencies.
-RUN apt-get update && apt-get install -y libwebsockets8 libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev wget build-essential git
+RUN apt-get update && apt-get install -y libcjson1 libcjson-dev docbook-xsl docbook libwebsockets8 libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev wget build-essential git
 RUN mkdir -p mosquitto/auth mosquitto/conf.d
 
 RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
 RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz 
 
 #Build mosquitto.
-RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install && cd ..
+RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=no && make install && cd ..
 
 #Get Go.
 RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
