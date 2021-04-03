@@ -498,8 +498,8 @@ Usage of ./pw:
 For this backend `passwords` and `acls` file paths must be given:
 
 ```
-auth_opt_password_path /path/to/password_file
-auth_opt_acl_path /path/to/acl_file
+auth_opt_files_password_path /path/to/password_file
+auth_opt_files_acl_path /path/to/acl_file
 ```
 
 The following are correctly formatted examples of password and acl files:
@@ -824,11 +824,11 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 ### JWT
 
-The `jwt` backend is for auth with a JWT remote API, a local DB or a JavaScript VM interpreter. Global otions for JWT are:
+The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM interpreter or an ACL file. Global otions for JWT are:
 
 | Option                    | default           |  Mandatory  | Meaning                                     			|
 | ------------------------- | ----------------- | :---------: | -------------------------------------------------------	|
-| jwt_mode                  |                   |      Y      | local, remote, js		                    			|
+| jwt_mode                  |                   |      Y      | local, remote, js, files                    			|
 | jwt_parse_token           | false             |      N      | Parse token in remote/js modes              			|
 | jwt_secret	            |                   |     Y/N     | JWT secret, required for local mode, optional otherwise	|
 | jwt_userfield		        |                   |      N      | When `Username`, expect `username` as part of claims	|
@@ -1002,7 +1002,7 @@ Since local JWT follows the underlying DB backend's way of working, both of thes
 
 #### JS mode
 
-The last mode for this backend is JS mode, which allows to run a JavaScript interpreter VM to conduct checks. Options for this mode are:
+When set to `js` JWT will act in JS mode, which allows to run a JavaScript interpreter VM to conduct checks. Options for this mode are:
 
 | Option           				| default         |  Mandatory  | Meaning					  							|
 | ------------------------------| --------------- | :---------: | ----------------------------------------------------- |
@@ -1048,6 +1048,28 @@ checkAcl(token, topic, clientid, acc);
 With `auth_opt_jwt_parse_token` the signature would be `function checkAcl(token, topic, clientid, acc, username)` instead.
 
 Finally, this mode uses [otto](https://github.com/robertkrimen/otto) under the hood to run the scripts. Please check their documentation for supported features and known limitations.
+
+#### Files mode
+
+When set to `files` JWT will run in Files mode, which allows to check user ACLs from a given file.
+These ACLs follow the exact same syntax and semantics as those from the [Files](#files) backend.
+
+Options for this mode are:
+
+| Option           				| default         |  Mandatory  | Meaning			    |
+| ------------------------------| --------------- | :---------: | --------------------- |
+| jwt_files_acl_path  	    	|                 |     Y       | Path to ACL files 	|
+
+
+Notice there's no `passwords` file option since usernames come from parsing the JWT token and no password check is required.
+Thus, you should be careful about general ACL rules and prefer to explicitly set rules for each valid user.
+
+If this shows to be a pain, I'm open to add a file that sets valid `users`, 
+i.e. like the `passwords` file for regular `Files` backend but without actual passwords.
+
+If you run into the case where you want to grant some general access but only to valid registered users,
+and find that duplicating rules for each of them in ACLs file is really a pain, please open an issue for discussion.
+
 
 #### Password hashing
 

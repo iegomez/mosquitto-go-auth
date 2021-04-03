@@ -9,6 +9,8 @@ import (
 	"time"
 
 	goredis "github.com/go-redis/redis/v8"
+	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
+	"github.com/iegomez/mosquitto-go-auth/backends/topics"
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 )
@@ -347,7 +349,7 @@ func (o Redis) checkAcl(username, topic, clientid string, acc int32) (bool, erro
 
 	//Now loop through acls looking for a match.
 	for _, acl := range acls {
-		if TopicsMatch(acl, topic) {
+		if topics.Match(acl, topic) {
 			return true, nil
 		}
 	}
@@ -355,7 +357,7 @@ func (o Redis) checkAcl(username, topic, clientid string, acc int32) (bool, erro
 	for _, acl := range commonAcls {
 		aclTopic := strings.Replace(acl, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if TopicsMatch(aclTopic, topic) {
+		if topics.Match(aclTopic, topic) {
 			return true, nil
 		}
 	}

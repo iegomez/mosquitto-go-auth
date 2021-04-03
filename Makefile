@@ -14,10 +14,14 @@ all:
 	go build pw-gen/pw.go
 
 test:
+	cd plugin && make
 	go test ./backends ./cache ./hashing -v -count=1
+	rm plugin/*.so
 
 test-backends:
+	cd plugin && make
 	go test ./backends -v -failfast -count=1
+	rm plugin/*.so
 
 test-cache:
 	go test ./cache -v -failfast -count=1

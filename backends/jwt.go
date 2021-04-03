@@ -39,6 +39,7 @@ const (
 	remoteMode = "remote"
 	localMode  = "local"
 	jsMode     = "js"
+	filesMode  = "files"
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (*JWT, error) {
@@ -83,6 +84,9 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 	case remoteMode:
 		jwt.mode = remoteMode
 		checker, err = NewRemoteJWTChecker(authOpts, options)
+	case filesMode:
+		jwt.mode = filesMode
+		checker, err = NewFilesJWTChecker(authOpts, logLevel, hasher, options)
 	default:
 		err = errors.New("unknown JWT mode")
 	}

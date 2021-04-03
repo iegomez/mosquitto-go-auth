@@ -257,12 +257,8 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 		}
 	}
 
-	if len(b.userCheckers) == 0 {
-		return errors.New("no backend registered user checks")
-	}
-
-	if len(b.aclCheckers) == 0 {
-		return errors.New("no backend registered ACL checks")
+	if len(b.userCheckers) == 0 && len(b.aclCheckers) == 0 {
+		return errors.New("no backends registered")
 	}
 
 	return nil
@@ -270,31 +266,38 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 
 // setPrefixes sets options for prefixes handling.
 func (b *Backends) setPrefixes(authOpts map[string]string, backends []string) {
-	if checkPrefix, ok := authOpts["check_prefix"]; ok && strings.Replace(checkPrefix, " ", "", -1) == "true" {
-		// Check that backends match prefixes.
-		if prefixesStr, ok := authOpts["prefixes"]; ok {
-			prefixes := strings.Split(strings.Replace(prefixesStr, " ", "", -1), ",")
-			if len(prefixes) == len(backends) {
-				// Set prefixes
-				// (I know some people find this type of comments useless, even harmful,
-				//  but I find them helpful for quick code navigation on a project I don't work on daily, so screw them).
-				for i, backend := range backends {
-					b.prefixes[prefixes[i]] = backend
-				}
-				log.Infof("prefixes enabled for backends %s with prefixes %s.", authOpts["backends"], authOpts["prefixes"])
-				b.checkPrefix = true
-			} else {
-				log.Errorf("Error: got %d backends and %d prefixes, defaulting to prefixes disabled.", len(backends), len(prefixes))
-				b.checkPrefix = false
-			}
+	checkPrefix, ok := authOpts["check_prefix"]
 
-		} else {
-			log.Warn("Error: prefixes enabled but no options given, defaulting to prefixes disabled.")
-			b.checkPrefix = false
-		}
-	} else {
+	if !ok || strings.Replace(checkPrefix, " ", "", -1) != "true" {
 		b.checkPrefix = false
+
+		return
 	}
+
+	prefixesStr, ok := authOpts["prefixes"]
+
+	if !ok {
+		log.Warn("Error: prefixes enabled but no options given, defaulting to prefixes disabled.")
+		b.checkPrefix = false
+
+		return
+	}
+
+	prefixes := strings.Split(strings.Replace(prefixesStr, " ", "", -1), ",")
+
+	if len(prefixes) != len(backends) {
+		log.Errorf("Error: got %d backends and %d prefixes, defaulting to prefixes disabled.", len(backends), len(prefixes))
+		b.checkPrefix = false
+
+		return
+	}
+
+	for i, backend := range backends {
+		b.prefixes[prefixes[i]] = backend
+	}
+
+	log.Infof("prefixes enabled for backends %s with prefixes %s.", authOpts["backends"], authOpts["prefixes"])
+	b.checkPrefix = true
 }
 
 // checkPrefix checks if a username contains a valid prefix. If so, returns ok and the suitable backend name; else, !ok and empty string.

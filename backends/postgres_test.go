@@ -3,6 +3,7 @@ package backends
 import (
 	"testing"
 
+	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"

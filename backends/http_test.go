@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 )
