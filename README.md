@@ -165,6 +165,28 @@ File an issue or open a PR if you wish to contribute correct flags for your syst
 The introduction of new plugin functions in Mosquitto may result in some issue compiling versions 1.5.x and later.
 Please reach me with any solutions you may find when resolving said issues.
 
+#### Building the plugin on Raspberry Pi
+Make sure to edit the `Makefile` in `mosquitto-go-auth` before building.
+`Makefile` should look like this:
+```
+CFLAGS := -I/usr/local/include -fPIC
+LDFLAGS := -shared -Wl,-unresolved-symbols=ignore-all
+
+UNAME_S := $(shell uname -s)
+
+ifeq ($(UNAME_S),Darwin)
+        LDFLAGS += -undefined dynamic_lookup
+endif
+
+all:
+        @echo "Bulding for $(UNAME_S)"
+        env CGO_CFLAGS="$(CFLAGS)" go build -buildmode=c-archive go-auth.go
+        env CGO_LDFLAGS="$(LDFLAGS)" go build -x -buildmode=c-shared -o go-auth$
+        go build pw-gen/pw.go
+...
+
+```
+
 To build on a Raspberry Pi (tested with Pi 3 B), you'll need to have Go installed first. 
 You can install latest version (**last tested was 1.10.1, change it to suit your needs**) with something like this:
 
