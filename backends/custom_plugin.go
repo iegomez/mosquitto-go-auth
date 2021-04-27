@@ -20,7 +20,7 @@ type CustomPlugin struct {
 func NewCustomPlugin(authOpts map[string]string, logLevel log.Level) (*CustomPlugin, error) {
 	plug, err := plugin.Open(authOpts["plugin_path"])
 	if err != nil {
-		return nil, fmt.Errorf("Could not init custom plugin: %s", err)
+		return nil, fmt.Errorf("could not init custom plugin: %s", err)
 	}
 
 	customPlugin := &CustomPlugin{
@@ -31,14 +31,14 @@ func NewCustomPlugin(authOpts map[string]string, logLevel log.Level) (*CustomPlu
 	plInit, err := plug.Lookup("Init")
 
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't find func Init in plugin: %s", err)
+		return nil, fmt.Errorf("couldn't find func Init in plugin: %s", err)
 	}
 
 	initFunc := plInit.(func(authOpts map[string]string, logLevel log.Level) error)
 
 	err = initFunc(authOpts, logLevel)
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't init plugin: %s", err)
+		return nil, fmt.Errorf("couldn't init plugin: %s", err)
 	}
 
 	customPlugin.init = initFunc
@@ -46,7 +46,7 @@ func NewCustomPlugin(authOpts map[string]string, logLevel log.Level) (*CustomPlu
 	plName, err := plug.Lookup("GetName")
 
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't find func GetName in plugin: %s", err)
+		return nil, fmt.Errorf("couldn't find func GetName in plugin: %s", err)
 	}
 
 	nameFunc := plName.(func() string)
@@ -101,7 +101,7 @@ func NewCustomPlugin(authOpts map[string]string, logLevel log.Level) (*CustomPlu
 	plHalt, err := plug.Lookup("Halt")
 
 	if err != nil {
-		return nil, fmt.Errorf("Couldn't find func Halt in plugin: %s", err)
+		return nil, fmt.Errorf("couldn't find func Halt in plugin: %s", err)
 	}
 
 	haltFunc := plHalt.(func())

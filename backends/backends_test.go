@@ -30,8 +30,8 @@ func TestBackends(t *testing.T) {
 	pwPath, _ := filepath.Abs("../test-files/passwords")
 	aclPath, _ := filepath.Abs("../test-files/acls")
 
-	authOpts["password_path"] = pwPath
-	authOpts["acl_path"] = aclPath
+	authOpts["files_password_path"] = pwPath
+	authOpts["files_acl_path"] = aclPath
 
 	authOpts["redis_host"] = "localhost"
 	authOpts["redis_port"] = "6379"
@@ -63,24 +63,6 @@ func TestBackends(t *testing.T) {
 		_, err := Initialize(authOpts, log.DebugLevel)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "unknown backend unknown")
-	})
-
-	Convey("On initialization, lacking user/acl checkers should result in an error", t, func() {
-		authOpts["backends"] = "files, redis"
-		authOpts["files_register"] = "user"
-		authOpts["redis_register"] = "user"
-
-		_, err := Initialize(authOpts, log.DebugLevel)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "no backend registered ACL checks")
-
-		authOpts["backends"] = "files, redis"
-		authOpts["files_register"] = "acl"
-		authOpts["redis_register"] = "acl"
-
-		_, err = Initialize(authOpts, log.DebugLevel)
-		So(err, ShouldNotBeNil)
-		So(err.Error(), ShouldEqual, "no backend registered user checks")
 	})
 
 	Convey("On initialization, unknown checkers should result in an error", t, func() {

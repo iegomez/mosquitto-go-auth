@@ -1,0 +1,4 @@
+user some-user
+topic read clients/topic
+
+pattern write clients/%c

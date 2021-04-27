@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/iegomez/mosquitto-go-auth/backends/topics"
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -175,7 +176,7 @@ func (o Sqlite) CheckAcl(username, topic, clientid string, acc int32) (bool, err
 	for _, acl := range acls {
 		aclTopic := strings.Replace(acl, "%c", clientid, -1)
 		aclTopic = strings.Replace(aclTopic, "%u", username, -1)
-		if TopicsMatch(aclTopic, topic) {
+		if topics.Match(aclTopic, topic) {
 			return true, nil
 		}
 	}
