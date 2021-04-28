@@ -59,7 +59,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		UsersCollection: "users",
 		AclsCollection:  "acls",
 		hasher:          hasher,
-		Tls:             true,
+		Tls:             false,
 	}
 
 	if authOpts["mongo_disable_superuser"] == "true" {
@@ -98,6 +98,11 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.AclsCollection = aclsCollection
 	}
 
+	if authOpts["mongo_use_tls"] == "true" {
+		m.Tls = true
+	}
+
+	
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
 	to := 60 * time.Second
