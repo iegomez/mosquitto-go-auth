@@ -1241,7 +1241,7 @@ auth_opt_mongo_password pwd
 auth_opt_mongo_users users_collection_name
 auth_opt_mongo_acls acls_collection_name
 auth_opt_mongo_disable_superuser true
-auth_opt_mongo_use_tls true
+auth_opt_mongo_with_tls true
 ```
 
 The last two set names for the collections to be used for the given database.
