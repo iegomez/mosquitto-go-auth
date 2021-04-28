@@ -30,7 +30,7 @@ type Mongo struct {
 	Conn             *mongo.Client
 	disableSuperuser bool
 	hasher           hashing.HashComparer
-	Tls              bool
+	withTLS              bool
 }
 
 type MongoAcl struct {
