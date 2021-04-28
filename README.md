@@ -1255,7 +1255,7 @@ When not set, these options default to:
 	dbame:           "mosquitto"
 	users: 			 "users"
 	acls:  			 "acls"
-    tls:             "false"
+    with_tls:             "false"
 
 If you experience any problem connecting to a replica set, please refer to [this issue](https://github.com/iegomez/mosquitto-go-auth/issues/32).
 
