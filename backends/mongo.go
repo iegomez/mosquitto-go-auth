@@ -106,17 +106,13 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
 	to := 60 * time.Second
-	var opts options.ClientOptions
 
-	if false == m.Tls {
-	  opts = options.ClientOptions {
-	    ConnectTimeout: &to,
-	  }
-	}else{
-	  opts = options.ClientOptions {
-	    ConnectTimeout: &to,
-	    TLSConfig:  &tls.Config{},
-	  }
+	opts := options.ClientOptions {
+	  ConnectTimeout: &to,
+	}
+	
+	if m.Tls {
+		opts.TLSConfig = &tls.Config{}
 	}
 
 	opts.ApplyURI(addr)
