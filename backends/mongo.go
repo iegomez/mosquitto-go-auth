@@ -30,7 +30,7 @@ type Mongo struct {
 	Conn             *mongo.Client
 	disableSuperuser bool
 	hasher           hashing.HashComparer
-	Tls              bool
+	withTLS              bool
 }
 
 type MongoAcl struct {
@@ -106,7 +106,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
 	to := 60 * time.Second
-
+	
 	opts := options.ClientOptions {
 	  ConnectTimeout: &to,
 	}
