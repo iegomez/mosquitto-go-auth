@@ -30,7 +30,8 @@ type Mongo struct {
 	Conn             *mongo.Client
 	disableSuperuser bool
 	hasher           hashing.HashComparer
-	withTLS              bool
+	withTLS            bool
+	insecureSkipVerify bool
 }
 
 type MongoAcl struct {
@@ -60,6 +61,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		AclsCollection:  "acls",
 		hasher:          hasher,
 		withTLS:         false,
+		insecureSkipVerify: false,
 	}
 
 	if authOpts["mongo_disable_superuser"] == "true" {
@@ -102,6 +104,9 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.withTLS = true
 	}
 
+	if authOpts["mongo_insecure_skip_verify"] == "true" {
+		m.insecureSkipVerify = true
+	}
 	
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 

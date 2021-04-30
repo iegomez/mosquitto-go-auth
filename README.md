@@ -1242,6 +1242,7 @@ auth_opt_mongo_users users_collection_name
 auth_opt_mongo_acls acls_collection_name
 auth_opt_mongo_disable_superuser true
 auth_opt_mongo_with_tls true
+auth_opt_mongo_insecure_skip_verify false
 ```
 
 The last two set names for the collections to be used for the given database.
@@ -1256,6 +1257,7 @@ When not set, these options default to:
 	users: 			 "users"
 	acls:  			 "acls"
     with_tls:        "false"
+    insecure_skip_verify: "false"
 
 If you experience any problem connecting to a replica set, please refer to [this issue](https://github.com/iegomez/mosquitto-go-auth/issues/32).
 
