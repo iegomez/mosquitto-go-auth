@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"crypto/tls"
 
 	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/backends/topics"
@@ -29,6 +30,8 @@ type Mongo struct {
 	Conn             *mongo.Client
 	disableSuperuser bool
 	hasher           hashing.HashComparer
+	withTLS            bool
+	insecureSkipVerify bool
 }
 
 type MongoAcl struct {
@@ -57,6 +60,8 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		UsersCollection: "users",
 		AclsCollection:  "acls",
 		hasher:          hasher,
+		withTLS:         false,
+		insecureSkipVerify: false,
 	}
 
 	if authOpts["mongo_disable_superuser"] == "true" {
@@ -95,11 +100,24 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.AclsCollection = aclsCollection
 	}
 
+	if authOpts["mongo_use_tls"] == "true" {
+		m.withTLS = true
+	}
+
+	if authOpts["mongo_insecure_skip_verify"] == "true" {
+		m.insecureSkipVerify = true
+	}
+	
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
 	to := 60 * time.Second
-	opts := options.ClientOptions{
-		ConnectTimeout: &to,
+
+	opts := options.ClientOptions {
+	  ConnectTimeout: &to,
+	}
+	
+	if m.withTLS {
+		opts.TLSConfig = &tls.Config{}
 	}
 
 	opts.ApplyURI(addr)
