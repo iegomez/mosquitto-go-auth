@@ -106,7 +106,7 @@ First, install dependencies (tested on Debian 9 and later, Linux Mint 18, 19 and
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.6.8.tar.gz
+wget http://mosquitto.org/files/source/mosquitto-1.6.10.tar.gz
 tar xzvf mosquitto-1.6.10.tar.gz
 cd mosquitto-1.6.10
 ```
