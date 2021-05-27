@@ -38,7 +38,7 @@ var authOpts map[string]string //Options passed by mosquitto.
 var authPlugin AuthPlugin      //General struct with options and conf.
 
 //export AuthPluginInit
-func AuthPluginInit(keys []string, values []string, authOptsNum int) {
+func AuthPluginInit(keys []string, values []string, authOptsNum int, version string) {
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -104,7 +104,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int) {
 
 	var err error
 
-	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel)
+	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel, version)
 	if err != nil {
 		log.Fatalf("error initializing backends: %s", err)
 	}

@@ -52,7 +52,12 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
   GoSlice keysSlice = {keys, auth_opt_count, auth_opt_count};
   GoSlice valuesSlice = {values, auth_opt_count, auth_opt_count};
 
-  AuthPluginInit(keysSlice, valuesSlice, opts_count);
+  char versionArray[10];
+  sprintf(versionArray, "%i.%i.%i", LIBMOSQUITTO_MAJOR, LIBMOSQUITTO_MINOR, LIBMOSQUITTO_REVISION);
+
+  GoString version = {versionArray, strlen(versionArray)};
+
+  AuthPluginInit(keysSlice, valuesSlice, opts_count, version);
   return MOSQ_ERR_SUCCESS;
 }
 

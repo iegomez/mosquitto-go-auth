@@ -20,6 +20,7 @@ type remoteJWTChecker struct {
 	userUri      string
 	superuserUri string
 	aclUri       string
+	userAgent    string
 	host         string
 	port         string
 	withTLS      bool
@@ -38,7 +39,7 @@ type Response struct {
 	Error string `json:"error"`
 }
 
-func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions) (jwtChecker, error) {
+func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, version string) (jwtChecker, error) {
 	var checker = &remoteJWTChecker{
 		withTLS:      false,
 		verifyPeer:   false,
@@ -78,6 +79,11 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions) (jwtC
 	} else {
 		remoteOk = false
 		missingOpts += " jwt_aclcheck_uri"
+	}
+
+	checker.userAgent = fmt.Sprintf("%s-%s", defaultUserAgent, version)
+	if userAgent, ok := authOpts["jwt_user_agent"]; ok {
+		checker.userAgent = userAgent
 	}
 
 	if hostname, ok := authOpts["jwt_host"]; ok {
@@ -240,10 +246,12 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 			return false, err
 		}
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("User-Agent", o.userAgent)
 	default:
 		req, err = h.NewRequest("POST", fullURI, strings.NewReader(urlValues.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Content-Length", strconv.Itoa(len(urlValues.Encode())))
+		req.Header.Set("User-Agent", o.userAgent)
 
 		if err != nil {
 			log.Errorf("req error: %s", err)

@@ -42,7 +42,7 @@ const (
 	filesMode  = "files"
 )
 
-func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer) (*JWT, error) {
+func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
 	log.SetLevel(logLevel)
 
 	jwt := &JWT{}
@@ -83,7 +83,7 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 		checker, err = NewLocalJWTChecker(authOpts, logLevel, hasher, options)
 	case remoteMode:
 		jwt.mode = remoteMode
-		checker, err = NewRemoteJWTChecker(authOpts, options)
+		checker, err = NewRemoteJWTChecker(authOpts, options, version)
 	case filesMode:
 		jwt.mode = filesMode
 		checker, err = NewFilesJWTChecker(authOpts, logLevel, hasher, options)

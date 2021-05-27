@@ -48,6 +48,9 @@ const (
 	aclCheck       = "acl"
 	userCheck      = "user"
 	superuserCheck = "superuser"
+
+	// other constants
+	defaultUserAgent = "mosquitto"
 )
 
 // AllowedBackendsOptsPrefix serves as a check for allowed backends and a map from backend to expected opts prefix.
@@ -66,7 +69,7 @@ var allowedBackendsOptsPrefix = map[string]string{
 }
 
 // Initialize sets general options, tries to build the backends and register their checkers.
-func Initialize(authOpts map[string]string, logLevel log.Level) (*Backends, error) {
+func Initialize(authOpts map[string]string, logLevel log.Level, version string) (*Backends, error) {
 
 	b := &Backends{
 		backends:          make(map[string]Backend),
@@ -99,7 +102,7 @@ func Initialize(authOpts map[string]string, logLevel log.Level) (*Backends, erro
 		}
 	}
 
-	err := b.addBackends(authOpts, logLevel, backends)
+	err := b.addBackends(authOpts, logLevel, backends, version)
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +117,7 @@ func Initialize(authOpts map[string]string, logLevel log.Level) (*Backends, erro
 	return b, nil
 }
 
-func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, backends []string) error {
+func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, backends []string, version string) error {
 	for _, bename := range backends {
 		var beIface Backend
 		var err error
@@ -130,7 +133,7 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 				b.backends[postgresBackend] = beIface.(Postgres)
 			}
 		case jwtBackend:
-			beIface, err = NewJWT(authOpts, logLevel, hasher)
+			beIface, err = NewJWT(authOpts, logLevel, hasher, version)
 			if err != nil {
 				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 			} else {
@@ -162,7 +165,7 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 				b.backends[mysqlBackend] = beIface.(Mysql)
 			}
 		case httpBackend:
-			beIface, err = NewHTTP(authOpts, logLevel)
+			beIface, err = NewHTTP(authOpts, logLevel, version)
 			if err != nil {
 				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 			} else {
