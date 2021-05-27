@@ -146,8 +146,19 @@ WantedBy=multi-user.target
 If you are running another distro or need more details on building mosquitto, please check the offical mosquitto docs.
 
 #### Building the plugin
+Only Linux (tested in Debian, Ubuntu and Mint ùs) and MacOS are supported. 
 
-Only Linux (tested in Debian, Ubuntu and Mint versions) and MacOS are supported. This will build `go-auth.so` shared object:
+Before attempting to build the plugin, make sure you have go installed on the system. The required GO version for the current release is 1.13.8.
+
+```
+wget https://dl.google.com/go/go1.13.8.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.13.8.linux-amd64.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+go version
+rm go1.13.8.linux-amd64.tar.gz
+```
+
+This will fetch all the go dependecies and then build `go-auth.so` shared object:
 
 ```
 make
