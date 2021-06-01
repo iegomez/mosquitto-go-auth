@@ -106,7 +106,7 @@ First, install dependencies (tested on Debian 9 and later, Linux Mint 18, 19 and
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.6.8.tar.gz
+wget http://mosquitto.org/files/source/mosquitto-1.6.10.tar.gz
 tar xzvf mosquitto-1.6.10.tar.gz
 cd mosquitto-1.6.10
 ```
@@ -146,8 +146,35 @@ WantedBy=multi-user.target
 If you are running another distro or need more details on building mosquitto, please check the offical mosquitto docs.
 
 #### Building the plugin
+Only Linux (tested in Debian, Ubuntu and Mint ùs) and MacOS are supported. 
 
-Only Linux (tested in Debian, Ubuntu and Mint versions) and MacOS are supported. This will build `go-auth.so` shared object:
+Before attempting to build the plugin, make sure you have go installed on the system. 
+The minimum required GO version for the current release is 1.13.8. 
+To check which version (if any) of Go is installed on the system, simply run the following:
+
+```
+go version
+```
+
+If Go is not installed or the installed version is older than 1.13.8, please update it. 
+You can retrieve and install the latest version of Go from the official [Go download website](https://golang.org/dl/):
+
+```
+# Update the following as per your system configuration
+export GO_VERSION=1.16.4
+export GO_OS=linux
+export GO_ARCH=amd64
+
+wget https://dl.google.com/go/go${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz -O golang.tar.gz
+sudo tar -C /usr/local -xzf golang.tar.gz
+export PATH=$PATH:/usr/local/go/bin
+rm golang.tar.gz
+
+# Prints the Go version
+go version
+```
+
+This will fetch all the go dependecies and then build `go-auth.so` shared object:
 
 ```
 make
