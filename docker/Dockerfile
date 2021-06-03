@@ -41,7 +41,7 @@ RUN mkdir mosquitto-go-auth && \
 FROM debian:stable-slim
 
 #Get mosquitto dependencies.
-RUN apt-get update && apt-get install -y libwebsockets8 libc-ares2 openssl uuid
+RUN apt-get update && apt-get install -y libwebsockets8 libc-ares2 openssl uuid tini
 
 #Setup mosquitto env.
 RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
@@ -67,4 +67,5 @@ COPY --from=builder /usr/local/sbin/mosquitto /usr/sbin/mosquitto
 #Expose tcp and websocket ports as defined at mosquitto.conf (change accordingly).
 EXPOSE 1883 1884
 
-ENTRYPOINT ["sh", "-c", "/usr/sbin/mosquitto -c /etc/mosquitto/mosquitto.conf" ]
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD [ "/usr/sbin/mosquitto" ,"-c", "/etc/mosquitto/mosquitto.conf" ]
