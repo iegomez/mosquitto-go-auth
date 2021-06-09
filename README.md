@@ -1524,6 +1524,7 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 #### Support and issues
 Please be aware that, since Docker isn't actively used by the maintainer of this project, support for issues regarding Docker, the provided images and building Docker images is very limited and usually driven by other contributors.
 
+Only images for x86_64/AMD64 and ARMv7 have been tested. ARMv6 and ARM64 hardware was not available to the contributor creating the build workflow.
 #### Prebuilt images
 
 Prebuilt images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
