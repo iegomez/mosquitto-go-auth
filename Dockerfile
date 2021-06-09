@@ -72,7 +72,7 @@ RUN if [ ! -z "$TARGETPLATFORM" ]; then \
     apt update && apt install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
     ;; \
   "linux/arm/v6") \
-    apt update && apt install -y gcc-arm-linux-gnueabi libc6-dev-armel-cross \
+    apt update && apt install -y gcc-arm-linux-gnueabihf libc6-dev-armel-cross libc6-dev-armhf-cross \
     ;; \
   esac \
   fi
