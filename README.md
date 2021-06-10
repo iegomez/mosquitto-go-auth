@@ -83,6 +83,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 	- [Testing Javascript](#testing-javascript)
 - [Using with LoRa Server](#using-with-lora-server)
 - [Docker](#docker)
+	- [Prebuilt images](#prebuilt-images)
+	- [Building images](#building-images)
 - [License](#license)
 
 <!-- /MarkdownTOC -->
@@ -1519,11 +1521,41 @@ See the official [MQTT authentication & authorization guide](https://www.loraser
 
 ### Docker
 
-This project provides example Dockerfiles for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
+#### Support and issues
+Please be aware that, since Docker isn't actively used by the maintainer of this project, support for issues regarding Docker, the provided images and building Docker images is very limited and usually driven by other contributors.
 
-Please read the [documentation](./docker/README.md) in the [docker](/docker) directory for more information.
+Only images for x86_64/AMD64 and ARMv7 have been tested. ARMv6 and ARM64 hardware was not available to the contributor creating the build workflow.
+#### Prebuilt images
 
-Images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
+Prebuilt images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
+To run the latest image, use the following command and replace `/conf` with the location of your `.conf` files: 
+`docker run -it -p 1884:1884 -p 1883:1883 -v /conf:/etc/mosquitto iegomez/mosquitto-go-auth`
+
+#### Building images
+
+This project provides a Dockerfile for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
+
+Building containers is only supported on x86_64/AMD64 machines with multi-arch build support via [Docker Buildx](https://docs.docker.com/buildx/working-with-buildx).
+This allows building containers for x86_64/AMD64, ARMv6, ARMv7 and ARM64 on a single x86_64/AMD64 machine. For further instructions regarding Buildx, please refer to its documentation ond Docker's website.
+
+
+#### Step-by-step guide:
+* clone this repository: `git clone https://github.com/iegomez/mosquitto-go-auth.git`
+* change into the project folder `cd mosquitto-go-auth`
+* build containers for your desired architectures: `docker buildx build --platform linux/amd64,linux/arm64,linux/arm/v7 .`
+
+#### Base Image
+Since there are several issues with using `alpine` based images we are using `debian:stable-slim` for both our build and final image. The final image size is about 60 MB.
+
+Documented issues:
+- https://github.com/iegomez/mosquitto-go-auth/issues/14
+- https://github.com/iegomez/mosquitto-go-auth/issues/15
+- https://github.com/iegomez/mosquitto-go-auth/issues/20
+
+#### Mosquitto version
+The Dockerfile compiles `mosquitto` using the source code from the version specified by `MOSQUITTO_VERSION`.
+
+>Mosquitto released versions can be found at https://mosquitto.org/files/source/
 
 ### Testing using Docker
 
