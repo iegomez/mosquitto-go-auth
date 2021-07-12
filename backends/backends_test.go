@@ -43,16 +43,18 @@ func TestBackends(t *testing.T) {
 	passwordHash := "PBKDF2$sha512$100000$2WQHK5rjNN+oOT+TZAsWAw==$TDf4Y6J+9BdnjucFQ0ZUWlTwzncTjOOeE00W4Qm8lfPQyPCZACCjgfdK353jdGFwJjAf6vPAYaba9+z4GWK7Gg=="
 	clientid := "clientid"
 
+	version := "2.0.0"
+
 	Convey("Missing or empty backends option should result in an error", t, func() {
 		authOpts["backends"] = ""
 
-		_, err := Initialize(authOpts, log.DebugLevel)
+		_, err := Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "missing or blank option backends")
 
 		delete(authOpts, "backends")
 
-		_, err = Initialize(authOpts, log.DebugLevel)
+		_, err = Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "missing or blank option backends")
 	})
@@ -60,7 +62,7 @@ func TestBackends(t *testing.T) {
 	Convey("An unknown backend should result in an error", t, func() {
 		authOpts["backends"] = "unknown"
 
-		_, err := Initialize(authOpts, log.DebugLevel)
+		_, err := Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "unknown backend unknown")
 	})
@@ -70,7 +72,7 @@ func TestBackends(t *testing.T) {
 		authOpts["files_register"] = "user"
 		authOpts["redis_register"] = "unknown"
 
-		_, err := Initialize(authOpts, log.DebugLevel)
+		_, err := Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldNotBeNil)
 		So(err.Error(), ShouldEqual, "unsupported check unknown found for backend redis")
 	})
@@ -89,7 +91,7 @@ func TestBackends(t *testing.T) {
 		username = "test1"
 		redis.conn.Set(ctx, username, passwordHash, 0)
 
-		b, err := Initialize(authOpts, log.DebugLevel)
+		b, err := Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldBeNil)
 
 		// Redis only contains test1, while files has a bunch of more users.
@@ -140,7 +142,7 @@ func TestBackends(t *testing.T) {
 		// Insert a user to test auth
 		redis.conn.Set(ctx, username, passwordHash, 0)
 
-		b, err := Initialize(authOpts, log.DebugLevel)
+		b, err := Initialize(authOpts, log.DebugLevel, version)
 		So(err, ShouldBeNil)
 
 		tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -197,7 +199,7 @@ func TestBackends(t *testing.T) {
 			// Set it as superuser.
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -242,7 +244,7 @@ func TestBackends(t *testing.T) {
 			redis.conn.Set(ctx, username, passwordHash, 0)
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -287,7 +289,7 @@ func TestBackends(t *testing.T) {
 			redis.conn.Set(ctx, username, passwordHash, 0)
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -331,7 +333,7 @@ func TestBackends(t *testing.T) {
 			// Set it as superuser.
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -376,7 +378,7 @@ func TestBackends(t *testing.T) {
 			redis.conn.Set(ctx, username, passwordHash, 0)
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
@@ -421,7 +423,7 @@ func TestBackends(t *testing.T) {
 			redis.conn.Set(ctx, username, passwordHash, 0)
 			redis.conn.Set(ctx, fmt.Sprintf("%s:su", username), "true", 0)
 
-			b, err := Initialize(authOpts, log.DebugLevel)
+			b, err := Initialize(authOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 
 			tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)

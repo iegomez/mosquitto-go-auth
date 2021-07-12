@@ -855,32 +855,32 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM interpreter or an ACL file. Global otions for JWT are:
 
-| Option                    | default           |  Mandatory  | Meaning                                     			|
-| ------------------------- | ----------------- | :---------: | -------------------------------------------------------	|
-| jwt_mode                  |                   |      Y      | local, remote, js, files                    			|
-| jwt_parse_token           | false             |      N      | Parse token in remote/js modes              			|
-| jwt_secret	            |                   |     Y/N     | JWT secret, required for local mode, optional otherwise	|
-| jwt_userfield		        |                   |      N      | When `Username`, expect `username` as part of claims	|
-| jwt_skip_user_expiration	| false             |      N      | Skip token expiration in user/superuser checks			|
-| jwt_skip_acl_expiration	| false             |      N      | Skip token expiration in ACL checks						|
-
+| Option                   | default   | Mandatory | Meaning                                                 |
+| ------------------------ | --------- | :-------: | ------------------------------------------------------- |
+| jwt_mode                 |           |     Y     | local, remote, js, files                                |
+| jwt_parse_token          | false     |     N     | Parse token in remote/js modes                          |
+| jwt_secret               |           |    Y/N    | JWT secret, required for local mode, optional otherwise |
+| jwt_userfield            |           |     N     | When `Username`, expect `username` as part of claims    |
+| jwt_skip_user_expiration | false     |     N     | Skip token expiration in user/superuser checks          |
+| jwt_skip_acl_expiration  | false     |     N     | Skip token expiration in ACL checks                     |
+| jwt_user_agent           | mosquitto |     N     | User agent for requests                                 |
 
 #### Remote mode
 
 The following `auth_opt_` options are supported by the `jwt` backend when remote is set to true:
 
-| Option                    | default           |  Mandatory  | Meaning                                     |
-| ------------------------- | ----------------- | :---------: | ------------------------------------------- |
-| jwt_host                  |                   |      Y      | API server host name or ip                  |
-| jwt_port                  |                   |      Y      | TCP port number                             |
-| jwt_getuser_uri           |                   |      Y      | URI for check username/password             |
-| jwt_superuser_uri         |                   |      N      | URI for check superuser                     |
-| jwt_aclcheck_uri          |                   |      Y      | URI for check acl                           |
-| jwt_with_tls              | false             |      N      | Use TLS on connect                          |
-| jwt_verify_peer           | false             |      N      | Whether to verify peer for tls              |
-| jwt_response_mode         | status            |      N      | Response type (status, json, text)          |
-| jwt_params_mode           | json              |      N      | Data type (json, form)                      |
-
+| Option            | default   | Mandatory | Meaning                            |
+| ----------------- | --------- | :-------: | ---------------------------------- |
+| jwt_host          |           |     Y     | API server host name or ip         |
+| jwt_port          |           |     Y     | TCP port number                    |
+| jwt_getuser_uri   |           |     Y     | URI for check username/password    |
+| jwt_superuser_uri |           |     N     | URI for check superuser            |
+| jwt_aclcheck_uri  |           |     Y     | URI for check acl                  |
+| jwt_with_tls      | false     |     N     | Use TLS on connect                 |
+| jwt_verify_peer   | false     |     N     | Whether to verify peer for tls     |
+| jwt_response_mode | status    |     N     | Response type (status, json, text) |
+| jwt_params_mode   | json      |     N     | Data type (json, form)             |
+| jwt_user_agent    | mosquitto |     N     | User agent for requests            |
 
 URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.  
 
@@ -1120,20 +1120,19 @@ The `http` backend is very similar to the JWT one, but instead of a jwt token it
 
 The following `auth_opt_` options are supported:
 
-
-| Option             | default           |  Mandatory  | Meaning     |
-| ------------------ | ----------------- | :---------: | ----------  |
-| http_host          |                   |      Y      | IP address,will skip dns lookup   |
-| http_port          |                   |      Y      | TCP port number                   |
-| http_getuser_uri   |                   |      Y      | URI for check username/password   |
-| http_superuser_uri |                   |      N      | URI for check superuser           |
-| http_aclcheck_uri  |                   |      Y      | URI for check acl                 |
-| http_with_tls      | false             |      N      | Use TLS on connect                |
-| http_verify_peer   | false             |      N      | Whether to verify peer for tls    |
-| http_response_mode | status            |      N      | Response type (status, json, text)|
-| http_params_mode   | json              |      N      | Data type (json, form)            |
-| http_timeout       | 5                 |      N      | Timeout in seconds                |
-
+| Option             | default   | Mandatory | Meaning                            |
+| ------------------ | --------- | :-------: | ---------------------------------- |
+| http_host          |           |     Y     | IP address,will skip dns lookup    |
+| http_port          |           |     Y     | TCP port number                    |
+| http_getuser_uri   |           |     Y     | URI for check username/password    |
+| http_superuser_uri |           |     N     | URI for check superuser            |
+| http_aclcheck_uri  |           |     Y     | URI for check acl                  |
+| http_with_tls      | false     |     N     | Use TLS on connect                 |
+| http_verify_peer   | false     |     N     | Whether to verify peer for tls     |
+| http_response_mode | status    |     N     | Response type (status, json, text) |
+| http_params_mode   | json      |     N     | Data type (json, form)             |
+| http_timeout       | 5         |     N     | Timeout in seconds                 |
+| http_user_agent    | mosquitto |     N     | User Agent to use in requests      |
 
 #### Response mode
 
