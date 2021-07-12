@@ -35,7 +35,7 @@ type HTTPResponse struct {
 	Error string `json:"error"`
 }
 
-func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
+func NewHTTP(authOpts map[string]string, logLevel log.Level, version string) (HTTP, error) {
 
 	log.SetLevel(logLevel)
 
@@ -80,7 +80,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level) (HTTP, error) {
 		missingOpts += " http_aclcheck_uri"
 	}
 
-	http.UserAgent = "mosquitto"
+	http.UserAgent = fmt.Sprintf("%s-%s", defaultUserAgent, version)
 	if userAgent, ok := authOpts["http_user_agent"]; ok {
 		http.UserAgent = userAgent
 	}
