@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -21,18 +22,35 @@ type GRPC struct {
 	client           gs.AuthServiceClient
 	conn             *grpc.ClientConn
 	disableSuperuser bool
+	dialOptions      []grpc.DialOption
+	hostname         string
+	timeout          int
 }
 
+const defaultGRPCTimeoutMs = 500
+
 // NewGRPC tries to connect to the gRPC service at the given host.
-func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
-	var g GRPC
+func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
+	g := &GRPC{
+		timeout: defaultGRPCTimeoutMs,
+	}
 
 	if authOpts["grpc_host"] == "" || authOpts["grpc_port"] == "" {
-		return g, errors.New("grpc must have a host and port")
+		return nil, errors.New("grpc must have a host and port")
 	}
 
 	if authOpts["grpc_disable_superuser"] == "true" {
 		g.disableSuperuser = true
+	}
+
+	if timeout, ok := authOpts["grpc_dial_timeout_ms"]; ok {
+		timeoutMs, err := strconv.Atoi(timeout)
+
+		if err != nil {
+			log.Warnf("invalid grpc dial timeout value: %s", err)
+		} else {
+			g.timeout = timeoutMs
+		}
 	}
 
 	caCert := []byte(authOpts["grpc_ca_cert"])
@@ -40,19 +58,29 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (GRPC, error) {
 	tlsKey := []byte(authOpts["grpc_tls_key"])
 	addr := fmt.Sprintf("%s:%s", authOpts["grpc_host"], authOpts["grpc_port"])
 
-	conn, gsClient, err := createClient(addr, caCert, tlsCert, tlsKey)
+	options, err := setup(addr, caCert, tlsCert, tlsKey)
 	if err != nil {
-		return g, err
+		return nil, err
 	}
 
-	g.client = gsClient
-	g.conn = conn
+	g.dialOptions = options
+	g.hostname = addr
+
+	err = g.deriveClient()
+	if err != nil {
+		log.Errorf("dial grpc api error: %s", err)
+
+		if authOpts["grpc_fail_on_dial_error"] == "true" {
+			return nil, err
+		}
+	}
 
 	return g, nil
 }
 
 // GetUser checks that the username exists and the given password hashes to the same password.
-func (o GRPC) GetUser(username, password, clientid string) (bool, error) {
+func (o *GRPC) GetUser(username, password, clientid string) (bool, error) {
+	o.deriveClient()
 
 	req := gs.GetUserRequest{
 		Username: username,
@@ -72,7 +100,8 @@ func (o GRPC) GetUser(username, password, clientid string) (bool, error) {
 }
 
 // GetSuperuser checks that the user is a superuser.
-func (o GRPC) GetSuperuser(username string) (bool, error) {
+func (o *GRPC) GetSuperuser(username string) (bool, error) {
+	o.deriveClient()
 
 	if o.disableSuperuser {
 		return false, nil
@@ -94,7 +123,8 @@ func (o GRPC) GetSuperuser(username string) (bool, error) {
 }
 
 // CheckAcl checks if the user has access to the given topic.
-func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
+func (o *GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
+	o.deriveClient()
 
 	req := gs.CheckAclRequest{
 		Username: username,
@@ -115,23 +145,27 @@ func (o GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, error
 }
 
 // GetName gets the gRPC backend's name.
-func (o GRPC) GetName() string {
+func (o *GRPC) GetName() string {
 	resp, err := o.client.GetName(context.Background(), &empty.Empty{})
 	if err != nil {
-		return "gRPC name error"
+		return "grpc get name error"
 	}
 	return resp.Name
 }
 
 // Halt signals the gRPC backend that mosquitto is halting.
-func (o GRPC) Halt() {
+func (o *GRPC) Halt() {
 	_, err := o.client.Halt(context.Background(), &empty.Empty{})
 	if err != nil {
 		log.Errorf("grpc halt: %s", err)
 	}
+
+	if o.conn != nil {
+		o.conn.Close()
+	}
 }
 
-func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.ClientConn, gs.AuthServiceClient, error) {
+func setup(hostname string, caCert, tlsCert, tlsKey []byte) ([]grpc.DialOption, error) {
 	logrusEntry := log.NewEntry(log.StandardLogger())
 	logrusOpts := []grpc_logrus.Option{
 		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
@@ -151,12 +185,12 @@ func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.Client
 		log.WithField("server", hostname).Info("creating grpc client")
 		cert, err := tls.X509KeyPair(tlsCert, tlsKey)
 		if err != nil {
-			return nil, nil, errors.Wrap(err, "load x509 keypair error")
+			return nil, errors.Wrap(err, "load x509 keypair error")
 		}
 
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, nil, errors.Wrap(err, "append ca cert to pool error")
+			return nil, errors.Wrap(err, "append ca cert to pool error")
 		}
 
 		nsOpts = append(nsOpts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
@@ -165,13 +199,28 @@ func createClient(hostname string, caCert, tlsCert, tlsKey []byte) (*grpc.Client
 		})))
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
+	return nsOpts, nil
+}
 
-	gsClient, err := grpc.DialContext(ctx, hostname, nsOpts...)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "dial grpc api error")
+func (g *GRPC) deriveClient() error {
+	if g.conn != nil {
+		return nil
 	}
 
-	return gsClient, gs.NewAuthServiceClient(gsClient), nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(g.timeout)*time.Millisecond)
+	defer cancel()
+
+	gsClient, err := grpc.DialContext(ctx, g.hostname, g.dialOptions...)
+
+	if err != nil {
+		g.conn = nil
+		g.client = nil
+
+		return err
+	}
+
+	g.conn = gsClient
+	g.client = gs.NewAuthServiceClient(gsClient)
+
+	return nil
 }

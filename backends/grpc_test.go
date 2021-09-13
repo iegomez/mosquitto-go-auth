@@ -85,10 +85,32 @@ func TestGRPC(t *testing.T) {
 		authOpts := make(map[string]string)
 		authOpts["grpc_host"] = "localhost"
 		authOpts["grpc_port"] = "3123"
+		authOpts["grpc_dial_timeout_ms"] = "100"
+
+		Convey("given wrong host", func(c C) {
+			wrongOpts := make(map[string]string)
+			wrongOpts["grpc_host"] = "localhost2"
+			wrongOpts["grpc_port"] = "1111"
+
+			Convey("when grpc_fail_on_dial_error is set to true, it should return an error", func(c C) {
+				wrongOpts["grpc_fail_on_dial_error"] = "true"
+
+				_, err := NewGRPC(wrongOpts, log.DebugLevel)
+				c.So(err, ShouldNotBeNil)
+			})
+
+			Convey("when grpc_fail_on_dial_error is not set to true, it should not return an error", func(c C) {
+				wrongOpts["grpc_fail_on_dial_error"] = "false"
+
+				_, err := NewGRPC(wrongOpts, log.DebugLevel)
+				c.So(err, ShouldBeNil)
+			})
+		})
 
 		Convey("given a correct host grpc backend should be able to initialize", func(c C) {
 			g, err := NewGRPC(authOpts, log.DebugLevel)
 			c.So(err, ShouldBeNil)
+			So(g.timeout, ShouldEqual, 100)
 
 			Convey("given incorrect credentials user should not be authenticated", func(c C) {
 
