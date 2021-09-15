@@ -3,7 +3,7 @@
 # This script is make to be run in Docker image build by Dockerfile.test
 
 service postgresql start
-service mysql start
+service mariadb start
 service redis-server start
 
 sudo -u mongodb mongod --config /etc/mongod.conf &

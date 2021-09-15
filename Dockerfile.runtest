@@ -11,11 +11,36 @@ ENV GO_VERSION=1.13.8
 WORKDIR /app
 
 #Get mosquitto build dependencies.
-RUN apt-get update && apt-get install -y libwebsockets8 libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev wget build-essential git
+RUN apt-get update && apt-get install -y libc-ares2 libc-ares-dev openssl uuid uuid-dev wget build-essential git
+
+RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
+        apt install -y libwebsockets-dev ; \
+    else \
+        export LWS_VERSION=2.4.2  && \
+        wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
+        mkdir -p /build/lws && \
+        tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
+        rm /tmp/lws.tar.gz && \
+        cd /build/lws && \
+        cmake . \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DLWS_IPV6=ON \
+            -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
+            -DLWS_WITHOUT_CLIENT=ON \
+            -DLWS_WITHOUT_EXTENSIONS=ON \
+            -DLWS_WITHOUT_TESTAPPS=ON \
+            -DLWS_WITH_SHARED=OFF \
+            -DLWS_WITH_ZIP_FOPS=OFF \
+            -DLWS_WITH_ZLIB=OFF && \
+        make -j "$(nproc)" && \
+        rm -rf /root/.cmake ; \
+    fi
+
 RUN mkdir -p mosquitto/auth mosquitto/conf.d
 
 RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
-RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz 
+RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
 #Build mosquitto.
 RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install && cd ..
