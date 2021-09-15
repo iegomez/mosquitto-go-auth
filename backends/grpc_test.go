@@ -85,10 +85,50 @@ func TestGRPC(t *testing.T) {
 		authOpts := make(map[string]string)
 		authOpts["grpc_host"] = "localhost"
 		authOpts["grpc_port"] = "3123"
+		authOpts["grpc_dial_timeout_ms"] = "100"
+
+		Convey("given wrong host", func(c C) {
+			wrongOpts := make(map[string]string)
+			wrongOpts["grpc_host"] = "localhost"
+			wrongOpts["grpc_port"] = "1111"
+
+			Convey("when grpc_fail_on_dial_error is set to true, it should return an error", func(c C) {
+				wrongOpts["grpc_fail_on_dial_error"] = "true"
+
+				_, err := NewGRPC(wrongOpts, log.DebugLevel)
+				c.So(err, ShouldNotBeNil)
+			})
+
+			Convey("when grpc_fail_on_dial_error is not set to true, it should not return an error", func(c C) {
+				wrongOpts["grpc_fail_on_dial_error"] = "false"
+
+				g, err := NewGRPC(wrongOpts, log.DebugLevel)
+				c.So(err, ShouldBeNil)
+
+				Convey("but it should return an error on any user or acl check", func(c C) {
+					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					So(err, ShouldNotBeNil)
+					c.So(auth, ShouldBeFalse)
+				})
+
+				Convey("it should work after the service comes back up", func(c C) {
+					lis, err := net.Listen("tcp", ":1111")
+					So(err, ShouldBeNil)
+
+					go grpcServer.Serve(lis)
+					defer grpcServer.Stop()
+
+					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					So(err, ShouldBeNil)
+					c.So(auth, ShouldBeTrue)
+				})
+			})
+		})
 
 		Convey("given a correct host grpc backend should be able to initialize", func(c C) {
 			g, err := NewGRPC(authOpts, log.DebugLevel)
 			c.So(err, ShouldBeNil)
+			So(g.timeout, ShouldEqual, 100)
 
 			Convey("given incorrect credentials user should not be authenticated", func(c C) {
 

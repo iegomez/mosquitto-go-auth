@@ -194,7 +194,7 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
 			} else {
 				log.Infof("Backend registered: %s", beIface.GetName())
-				b.backends[grpcBackend] = beIface.(GRPC)
+				b.backends[grpcBackend] = beIface.(*GRPC)
 			}
 		case jsBackend:
 			beIface, err = NewJavascript(authOpts, logLevel)

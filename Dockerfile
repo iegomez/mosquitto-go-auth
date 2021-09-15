@@ -32,7 +32,7 @@ RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
         make -j "$(nproc)" && \
         rm -rf /root/.cmake ; \
     fi
-    
+
 WORKDIR /app
 
 RUN mkdir -p mosquitto/auth mosquitto/conf.d
@@ -60,7 +60,7 @@ ARG BUILDPLATFORM
 
 # Install TARGETPLATFORM parser to translate its value to GOOS, GOARCH, and GOARM
 COPY --from=tonistiigi/xx:golang / /
-RUN go env 
+RUN go env
 
 # Install needed libc and gcc for target platform.
 RUN if [ ! -z "$TARGETPLATFORM" ]; then \
@@ -89,9 +89,34 @@ RUN go build -buildmode=c-archive go-auth.go && \
 #Start from a new image.
 FROM debian:stable-slim
 
-RUN apt update && apt install -y libwebsockets8 libc-ares2 openssl uuid tini
+RUN apt update && apt install -y libc-ares2 openssl uuid tini
 
-RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto 
+# Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
+RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
+        apt install -y libwebsockets-dev ; \
+    else \
+        export LWS_VERSION=2.4.2  && \
+        wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
+        mkdir -p /build/lws && \
+        tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
+        rm /tmp/lws.tar.gz && \
+        cd /build/lws && \
+        cmake . \
+            -DCMAKE_BUILD_TYPE=MinSizeRel \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DLWS_IPV6=ON \
+            -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
+            -DLWS_WITHOUT_CLIENT=ON \
+            -DLWS_WITHOUT_EXTENSIONS=ON \
+            -DLWS_WITHOUT_TESTAPPS=ON \
+            -DLWS_WITH_SHARED=OFF \
+            -DLWS_WITH_ZIP_FOPS=OFF \
+            -DLWS_WITH_ZLIB=OFF && \
+        make -j "$(nproc)" && \
+        rm -rf /root/.cmake ; \
+    fi
+
+RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
 RUN groupadd mosquitto \
     && useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto \
     && chown -R mosquitto:mosquitto /var/log/mosquitto/ \
