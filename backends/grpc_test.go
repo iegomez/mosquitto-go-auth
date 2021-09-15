@@ -89,7 +89,7 @@ func TestGRPC(t *testing.T) {
 
 		Convey("given wrong host", func(c C) {
 			wrongOpts := make(map[string]string)
-			wrongOpts["grpc_host"] = "localhost2"
+			wrongOpts["grpc_host"] = "localhost"
 			wrongOpts["grpc_port"] = "1111"
 
 			Convey("when grpc_fail_on_dial_error is set to true, it should return an error", func(c C) {
@@ -102,8 +102,26 @@ func TestGRPC(t *testing.T) {
 			Convey("when grpc_fail_on_dial_error is not set to true, it should not return an error", func(c C) {
 				wrongOpts["grpc_fail_on_dial_error"] = "false"
 
-				_, err := NewGRPC(wrongOpts, log.DebugLevel)
+				g, err := NewGRPC(wrongOpts, log.DebugLevel)
 				c.So(err, ShouldBeNil)
+
+				Convey("but it should return an error on any user or acl check", func(c C) {
+					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					So(err, ShouldNotBeNil)
+					c.So(auth, ShouldBeFalse)
+				})
+
+				Convey("it should work after the service comes back up", func(c C) {
+					lis, err := net.Listen("tcp", ":1111")
+					So(err, ShouldBeNil)
+
+					go grpcServer.Serve(lis)
+					defer grpcServer.Stop()
+
+					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
+					So(err, ShouldBeNil)
+					c.So(auth, ShouldBeTrue)
+				})
 			})
 		})
 

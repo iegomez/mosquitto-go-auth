@@ -57,8 +57,9 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
 	tlsCert := []byte(authOpts["grpc_tls_cert"])
 	tlsKey := []byte(authOpts["grpc_tls_key"])
 	addr := fmt.Sprintf("%s:%s", authOpts["grpc_host"], authOpts["grpc_port"])
+	withBlock := authOpts["grpc_fail_on_dial_error"] == "true"
 
-	options, err := setup(addr, caCert, tlsCert, tlsKey)
+	options, err := setup(addr, caCert, tlsCert, tlsKey, withBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -66,13 +67,9 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
 	g.dialOptions = options
 	g.hostname = addr
 
-	err = g.deriveClient()
+	err = g.initClient()
 	if err != nil {
-		log.Errorf("dial grpc api error: %s", err)
-
-		if authOpts["grpc_fail_on_dial_error"] == "true" {
-			return nil, err
-		}
+		return nil, err
 	}
 
 	return g, nil
@@ -80,8 +77,6 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
 
 // GetUser checks that the username exists and the given password hashes to the same password.
 func (o *GRPC) GetUser(username, password, clientid string) (bool, error) {
-	o.deriveClient()
-
 	req := gs.GetUserRequest{
 		Username: username,
 		Password: password,
@@ -101,8 +96,6 @@ func (o *GRPC) GetUser(username, password, clientid string) (bool, error) {
 
 // GetSuperuser checks that the user is a superuser.
 func (o *GRPC) GetSuperuser(username string) (bool, error) {
-	o.deriveClient()
-
 	if o.disableSuperuser {
 		return false, nil
 	}
@@ -124,8 +117,6 @@ func (o *GRPC) GetSuperuser(username string) (bool, error) {
 
 // CheckAcl checks if the user has access to the given topic.
 func (o *GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
-	o.deriveClient()
-
 	req := gs.CheckAclRequest{
 		Username: username,
 		Topic:    topic,
@@ -165,17 +156,20 @@ func (o *GRPC) Halt() {
 	}
 }
 
-func setup(hostname string, caCert, tlsCert, tlsKey []byte) ([]grpc.DialOption, error) {
+func setup(hostname string, caCert, tlsCert, tlsKey []byte, withBlock bool) ([]grpc.DialOption, error) {
 	logrusEntry := log.NewEntry(log.StandardLogger())
 	logrusOpts := []grpc_logrus.Option{
 		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
 	}
 
 	nsOpts := []grpc.DialOption{
-		grpc.WithBlock(),
 		grpc.WithUnaryInterceptor(
 			grpc_logrus.UnaryClientInterceptor(logrusEntry, logrusOpts...),
 		),
+	}
+
+	if withBlock {
+		nsOpts = append(nsOpts, grpc.WithBlock())
 	}
 
 	if len(caCert) == 0 && len(tlsCert) == 0 && len(tlsKey) == 0 {
@@ -202,20 +196,13 @@ func setup(hostname string, caCert, tlsCert, tlsKey []byte) ([]grpc.DialOption, 
 	return nsOpts, nil
 }
 
-func (g *GRPC) deriveClient() error {
-	if g.conn != nil {
-		return nil
-	}
-
+func (g *GRPC) initClient() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(g.timeout)*time.Millisecond)
 	defer cancel()
 
 	gsClient, err := grpc.DialContext(ctx, g.hostname, g.dialOptions...)
 
 	if err != nil {
-		g.conn = nil
-		g.client = nil
-
 		return err
 	}
 
