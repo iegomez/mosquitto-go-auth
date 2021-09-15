@@ -2,10 +2,10 @@ package backends
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"strings"
 	"time"
-	"crypto/tls"
 
 	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/backends/topics"
@@ -18,18 +18,18 @@ import (
 )
 
 type Mongo struct {
-	Host             string
-	Port             string
-	Username         string
-	Password         string
-	SaltEncoding     string
-	DBName           string
-	AuthSource       string
-	UsersCollection  string
-	AclsCollection   string
-	Conn             *mongo.Client
-	disableSuperuser bool
-	hasher           hashing.HashComparer
+	Host               string
+	Port               string
+	Username           string
+	Password           string
+	SaltEncoding       string
+	DBName             string
+	AuthSource         string
+	UsersCollection    string
+	AclsCollection     string
+	Conn               *mongo.Client
+	disableSuperuser   bool
+	hasher             hashing.HashComparer
 	withTLS            bool
 	insecureSkipVerify bool
 }
@@ -51,16 +51,16 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	log.SetLevel(logLevel)
 
 	var m = Mongo{
-		Host:            "localhost",
-		Port:            "27017",
-		Username:        "",
-		Password:        "",
-		DBName:          "mosquitto",
-		AuthSource:      "",
-		UsersCollection: "users",
-		AclsCollection:  "acls",
-		hasher:          hasher,
-		withTLS:         false,
+		Host:               "localhost",
+		Port:               "27017",
+		Username:           "",
+		Password:           "",
+		DBName:             "mosquitto",
+		AuthSource:         "",
+		UsersCollection:    "users",
+		AclsCollection:     "acls",
+		hasher:             hasher,
+		withTLS:            false,
 		insecureSkipVerify: false,
 	}
 
@@ -107,15 +107,15 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	if authOpts["mongo_insecure_skip_verify"] == "true" {
 		m.insecureSkipVerify = true
 	}
-	
+
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
 	to := 60 * time.Second
 
-	opts := options.ClientOptions {
-	  ConnectTimeout: &to,
+	opts := options.ClientOptions{
+		ConnectTimeout: &to,
 	}
-	
+
 	if m.withTLS {
 		opts.TLSConfig = &tls.Config{}
 	}
