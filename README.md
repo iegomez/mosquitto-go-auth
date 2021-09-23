@@ -405,10 +405,18 @@ The above example will do up to 2 retries (3 calls in total considering the orig
 
 #### Prefixes
 
-Though the plugin may have multiple backends enabled, there's a way to specify which backend must be used for a given user: prefixes. When enabled, `prefixes` allow to check if the username contains a predefined prefix in the form prefix_username and use the configured backend for that prefix. Options to enable and set prefixes are the following:
+Though the plugin may have multiple backends enabled, there's a way to specify which backend must be used for a given user: prefixes.
+When enabled, `prefixes` allow to check if the username contains a predefined prefix in the form prefix_username and use the configured backend for that prefix.
+There's also an option to strip the prefix upon checking user or acl,
+so that if a record for `username` exists on a backend with prefix `prefix`,
+then both `username` and `prefix_username` would be authenticated/authorized. Notice that the former would
+need to loop through all the backends since it carries no prefix, while the latter will only be checked by the correct backend.
+
+Options to enable and set prefixes are the following:
 
 ```
 auth_opt_check_prefix true
+auth_opt_strip_prefix true
 auth_opt_prefixes filesprefix, pgprefix, jwtprefix
 ```
 

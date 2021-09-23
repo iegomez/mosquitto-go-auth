@@ -25,6 +25,7 @@ type Backends struct {
 	superuserCheckers []string
 
 	checkPrefix bool
+	stripPrefix bool
 	prefixes    map[string]string
 
 	disableSuperuser bool
@@ -76,7 +77,6 @@ func Initialize(authOpts map[string]string, logLevel log.Level, version string) 
 		aclCheckers:       make([]string, 0),
 		userCheckers:      make([]string, 0),
 		superuserCheckers: make([]string, 0),
-		checkPrefix:       false,
 		prefixes:          make(map[string]string),
 	}
 
@@ -273,6 +273,7 @@ func (b *Backends) setPrefixes(authOpts map[string]string, backends []string) {
 
 	if !ok || strings.Replace(checkPrefix, " ", "", -1) != "true" {
 		b.checkPrefix = false
+		b.stripPrefix = false
 
 		return
 	}
@@ -282,6 +283,7 @@ func (b *Backends) setPrefixes(authOpts map[string]string, backends []string) {
 	if !ok {
 		log.Warn("Error: prefixes enabled but no options given, defaulting to prefixes disabled.")
 		b.checkPrefix = false
+		b.stripPrefix = false
 
 		return
 	}
@@ -291,8 +293,13 @@ func (b *Backends) setPrefixes(authOpts map[string]string, backends []string) {
 	if len(prefixes) != len(backends) {
 		log.Errorf("Error: got %d backends and %d prefixes, defaulting to prefixes disabled.", len(backends), len(prefixes))
 		b.checkPrefix = false
+		b.stripPrefix = false
 
 		return
+	}
+
+	if authOpts["strip_prefix"] == "true" {
+		b.stripPrefix = true
 	}
 
 	for i, backend := range backends {
@@ -355,8 +362,10 @@ func (b *Backends) AuthUnpwdCheck(username, password, clientid string) (bool, er
 		return false, fmt.Errorf("backend %s not registered to check users", bename)
 	}
 
-	// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix it will be handled in the common case.
-	if bename == jwtBackend {
+	// If the backend is JWT and the token was prefixed, then strip the token.
+	// If the token was passed without a prefix it will be handled in the common case.
+	// Also strip the prefix if the strip_prefix option was set.
+	if bename == jwtBackend || b.stripPrefix {
 		prefix := b.getPrefixForBackend(bename)
 		username = strings.TrimPrefix(username, prefix+"_")
 	}
@@ -414,8 +423,10 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 		return b.checkAcl(username, topic, clientid, acc)
 	}
 
-	// If the backend is JWT and the token was prefixed, then strip the token. If the token was passed without a prefix then let it be handled in the common case.
-	if bename == jwtBackend {
+	// If the backend is JWT and the token was prefixed, then strip the token.
+	// If the token was passed without a prefix then let it be handled in the common case.
+	// Also strip the prefix if the strip_prefix option was set.
+	if bename == jwtBackend || b.stripPrefix {
 		prefix := b.getPrefixForBackend(bename)
 		username = strings.TrimPrefix(username, prefix+"_")
 	}

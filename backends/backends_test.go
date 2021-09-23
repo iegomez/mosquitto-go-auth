@@ -444,5 +444,53 @@ func TestBackends(t *testing.T) {
 
 			redis.Halt()
 		})
+
+		Convey("When strip_prefix is true, the prefix will be stripped from the username prior to conducting checks", func() {
+			authOpts["backends"] = "redis"
+			authOpts["redis_register"] = "user, acl"
+			authOpts["check_prefix"] = "true"
+			authOpts["strip_prefix"] = "true"
+			authOpts["prefixes"] = "redis"
+			delete(authOpts, "disable_superuser")
+
+			username := "redis_test1"
+			stripUsername := "test1"
+			password := username
+			passwordHash := "PBKDF2$sha512$100000$hgodnayqjfs0AOCxvsU+Zw==$dfc4LBGmZ/wB128NOD48qF5fCS+r/bsjU+oCXgT3UksAik73vIkXcPFydtbJKoIgnepNXP9t+zGIaR5wyRmXaA=="
+
+			redis, err := NewRedis(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "redis"))
+			assert.Nil(t, err)
+
+			ctx := context.Background()
+
+			// Insert a user to test auth.
+			redis.conn.Set(ctx, stripUsername, passwordHash, 0)
+			redis.conn.Set(ctx, fmt.Sprintf("%s:su", stripUsername), "true", 0)
+
+			b, err := Initialize(authOpts, log.DebugLevel, version)
+			So(err, ShouldBeNil)
+
+			userCheck, err := b.AuthUnpwdCheck(username, password, clientid)
+
+			So(err, ShouldBeNil)
+			So(userCheck, ShouldBeTrue)
+
+			redis.conn.SAdd(ctx, stripUsername+":racls", "test/redis")
+
+			aclCheck, err := b.AuthAclCheck(clientid, stripUsername, "test/redis", 1)
+			So(err, ShouldBeNil)
+			So(aclCheck, ShouldBeTrue)
+
+			userCheck, err = b.AuthUnpwdCheck(username, password, clientid)
+
+			So(err, ShouldBeNil)
+			So(userCheck, ShouldBeTrue)
+
+			aclCheck, err = b.AuthAclCheck(clientid, stripUsername, "test/redis", 1)
+			So(err, ShouldBeNil)
+			So(aclCheck, ShouldBeTrue)
+
+			redis.Halt()
+		})
 	})
 }
