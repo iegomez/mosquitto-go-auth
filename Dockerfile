@@ -9,30 +9,26 @@ ARG MOSQUITTO_VERSION
 RUN apt update && apt install -y wget build-essential cmake libssl-dev  libcjson-dev
 
 # Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
-RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
-        apt install -y libwebsockets-dev ; \
-    else \
-        export LWS_VERSION=2.4.2  && \
-        wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
-        mkdir -p /build/lws && \
-        tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
-        rm /tmp/lws.tar.gz && \
-        cd /build/lws && \
-        cmake . \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DLWS_IPV6=ON \
-            -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
-            -DLWS_WITHOUT_CLIENT=ON \
-            -DLWS_WITHOUT_EXTENSIONS=ON \
-            -DLWS_WITHOUT_TESTAPPS=ON \
-            -DLWS_WITH_HTTP2=OFF \
-            -DLWS_WITH_SHARED=OFF \
-            -DLWS_WITH_ZIP_FOPS=OFF \
-            -DLWS_WITH_ZLIB=OFF && \
-        make -j "$(nproc)" && \
-        rm -rf /root/.cmake ; \
-    fi
+RUN export LWS_VERSION=2.4.2  && \
+    wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
+    mkdir -p /build/lws && \
+    tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
+    rm /tmp/lws.tar.gz && \
+    cd /build/lws && \
+    cmake . \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DLWS_IPV6=ON \
+        -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
+        -DLWS_WITHOUT_CLIENT=ON \
+        -DLWS_WITHOUT_EXTENSIONS=ON \
+        -DLWS_WITHOUT_TESTAPPS=ON \
+        -DLWS_WITH_HTTP2=OFF \
+        -DLWS_WITH_SHARED=OFF \
+        -DLWS_WITH_ZIP_FOPS=OFF \
+        -DLWS_WITH_ZLIB=OFF && \
+    make -j "$(nproc)" && \
+    rm -rf /root/.cmake
 
 WORKDIR /app
 
@@ -43,7 +39,7 @@ RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
 # Build mosquitto.
 RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
-   cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install ; \
+   cd mosquitto-${MOSQUITTO_VERSION} && make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes && make install ; \
    else \
    cd mosquitto-${MOSQUITTO_VERSION} && make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes && make install ; \
    fi
@@ -90,33 +86,29 @@ RUN go build -buildmode=c-archive go-auth.go && \
 #Start from a new image.
 FROM debian:stable-slim
 
-RUN apt update && apt install -y libc-ares2 openssl uuid tini
+RUN apt update && apt install -y libc-ares2 openssl uuid tini wget cmake libssl-dev
 
 # Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
-RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
-        apt install -y libwebsockets-dev ; \
-    else \
-        export LWS_VERSION=2.4.2  && \
-        wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
-        mkdir -p /build/lws && \
-        tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
-        rm /tmp/lws.tar.gz && \
-        cd /build/lws && \
-        cmake . \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DLWS_IPV6=ON \
-            -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
-            -DLWS_WITHOUT_CLIENT=ON \
-            -DLWS_WITHOUT_EXTENSIONS=ON \
-            -DLWS_WITHOUT_TESTAPPS=ON \
-            -DLWS_WITH_HTTP2=OFF \
-            -DLWS_WITH_SHARED=OFF \
-            -DLWS_WITH_ZIP_FOPS=OFF \
-            -DLWS_WITH_ZLIB=OFF && \
-        make -j "$(nproc)" && \
-        rm -rf /root/.cmake ; \
-    fi
+RUN export LWS_VERSION=2.4.2  && \
+    wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
+    mkdir -p /build/lws && \
+    tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
+    rm /tmp/lws.tar.gz && \
+    cd /build/lws && \
+    cmake . \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DLWS_IPV6=ON \
+        -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
+        -DLWS_WITHOUT_CLIENT=ON \
+        -DLWS_WITHOUT_EXTENSIONS=ON \
+        -DLWS_WITHOUT_TESTAPPS=ON \
+        -DLWS_WITH_HTTP2=OFF \
+        -DLWS_WITH_SHARED=OFF \
+        -DLWS_WITH_ZIP_FOPS=OFF \
+        -DLWS_WITH_ZLIB=OFF && \
+    make -j "$(nproc)" && \
+    rm -rf /root/.cmake
 
 RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
 RUN groupadd mosquitto \
