@@ -44,6 +44,7 @@ const (
 	pluginBackend   = "plugin"
 	grpcBackend     = "grpc"
 	jsBackend       = "js"
+	oauth2Backend   = "oauth2"
 
 	// checks
 	aclCheck       = "acl"
@@ -67,6 +68,7 @@ var allowedBackendsOptsPrefix = map[string]string{
 	pluginBackend:   "plugin",
 	grpcBackend:     "grpc",
 	jsBackend:       "js",
+	oauth2Backend:   "oauth2",
 }
 
 // Initialize sets general options, tries to build the backends and register their checkers.
@@ -203,6 +205,14 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 			} else {
 				log.Infof("Backend registered: %s", beIface.GetName())
 				b.backends[jsBackend] = beIface.(*Javascript)
+			}
+		case oauth2Backend:
+			beIface, err = NewOauth2(authOpts, logLevel)
+			if err != nil {
+				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
+			} else {
+				log.Infof("Backend registered: %s", beIface.GetName())
+				b.backends[oauth2Backend] = beIface.(Oauth2)
 			}
 		case pluginBackend:
 			beIface, err = NewCustomPlugin(authOpts, logLevel)
