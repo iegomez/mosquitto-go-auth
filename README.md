@@ -1571,7 +1571,7 @@ which must return a json similar to
 
 To use client credentials pass the `client_id` and `client_secret` to mosquitto as the username and password respectively.
 
-To  use the access token pass it to mosquitto as the username and use the password `authbearer_empty_password` since mosquitto doesn't allow empty passwords.
+To  use the access token pass it to mosquitto as the username and use the password `oauthbearer_empty_password` since mosquitto doesn't allow empty passwords.
 
 The following `auth_opt_` options are supported
 
