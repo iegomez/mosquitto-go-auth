@@ -889,8 +889,9 @@ The following `auth_opt_` options are supported by the `jwt` backend when remote
 | jwt_response_mode | status    |     N     | Response type (status, json, text) |
 | jwt_params_mode   | json      |     N     | Data type (json, form)             |
 | jwt_user_agent    | mosquitto |     N     | User agent for requests            |
+| jwt_http_method   | POST      |     N     | Http method used (POST, GET, PUT)  |
 
-URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a POST request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
+URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a http request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
 
 If the option `jwt_superuser_uri` is not set then `superuser` checks are disabled for this mode.
 

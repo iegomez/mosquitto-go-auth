@@ -27,6 +27,7 @@ type remoteJWTChecker struct {
 	verifyPeer   bool
 
 	paramsMode   string
+	httpMethod   string
 	responseMode string
 
 	options tokenOptions
@@ -45,6 +46,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		verifyPeer:   false,
 		responseMode: "status",
 		paramsMode:   "json",
+		httpMethod:   "POST",
 		options:      options,
 	}
 
@@ -60,6 +62,12 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 	if paramsMode, ok := authOpts["jwt_params_mode"]; ok {
 		if paramsMode == "form" {
 			checker.paramsMode = paramsMode
+		}
+	}
+
+	if httpMethod, ok := authOpts["jwt_http_method"]; ok {
+		if httpMethod == "POST" || httpMethod == "GET" || httpMethod == "PUT" {
+			checker.httpMethod = httpMethod
 		}
 	}
 
@@ -239,7 +247,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 		}
 
 		contentReader := bytes.NewReader(dataJSON)
-		req, err = h.NewRequest("POST", fullURI, contentReader)
+		req, err = h.NewRequest(o.httpMethod, fullURI, contentReader)
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
@@ -248,7 +256,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", o.userAgent)
 	default:
-		req, err = h.NewRequest("POST", fullURI, strings.NewReader(urlValues.Encode()))
+		req, err = h.NewRequest(o.httpMethod, fullURI, strings.NewReader(urlValues.Encode()))
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 		req.Header.Set("Content-Length", strconv.Itoa(len(urlValues.Encode())))
 		req.Header.Set("User-Agent", o.userAgent)
