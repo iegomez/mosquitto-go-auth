@@ -25,6 +25,7 @@ type HTTP struct {
 	WithTLS      bool
 	VerifyPeer   bool
 	ParamsMode   string
+	httpMethod   string
 	ResponseMode string
 	Timeout      int
 	Client       *h.Client
@@ -45,6 +46,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level, version string) (HT
 		VerifyPeer:   false,
 		ResponseMode: "status",
 		ParamsMode:   "json",
+		httpMethod:   "POST",
 	}
 
 	missingOpts := ""
@@ -59,6 +61,12 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level, version string) (HT
 	if paramsMode, ok := authOpts["http_params_mode"]; ok {
 		if paramsMode == "form" {
 			http.ParamsMode = paramsMode
+		}
+	}
+
+	if httpMethod, ok := authOpts["http_method"]; ok {
+		if httpMethod == "POST" || httpMethod == "GET" || httpMethod == "PUT" {
+			http.httpMethod = httpMethod
 		}
 	}
 
@@ -210,6 +218,13 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	var err error
 
 	if o.ParamsMode == "form" {
+		if o.httpMethod != "POST" {
+			log.Errorf("error form param only supported for POST.")
+			err = fmt.Errorf("form only supported for POST, error code: %d",
+				500)
+			return false, err
+		}
+
 		resp, err = o.Client.PostForm(fullUri, urlValues)
 	} else {
 		var dataJson []byte
@@ -222,7 +237,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 
 		contentReader := bytes.NewReader(dataJson)
 		var req *h.Request
-		req, err = h.NewRequest("POST", fullUri, contentReader)
+		req, err = h.NewRequest(o.httpMethod, fullUri, contentReader)
 
 		if err != nil {
 			log.Errorf("req error: %s", err)
@@ -236,7 +251,7 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	}
 
 	if err != nil {
-		log.Errorf("POST error: %s", err)
+		log.Errorf("http request error: %s", err)
 		return false, err
 	}
 
