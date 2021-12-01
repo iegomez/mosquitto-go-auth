@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/backends/topics"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -46,13 +47,13 @@ type Oauth2 struct {
 	userCache               map[string]userState
 	cacheDuration           time.Duration
 	version                 string
-	scopesSplitted          []string
+	scopesSplit             []string
 }
 
-func NewOauth2(authOpts map[string]string, logLevel log.Level) (Oauth2, error) {
+func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) {
 	log.SetLevel(logLevel)
 
-	var oauth2 = Oauth2{}
+	var oauth2 = &Oauth2{}
 
 	placedOpts := ""
 	missingOpts := ""
@@ -68,7 +69,7 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (Oauth2, error) {
 	}
 
 	oauth2.oauth2Config = go_oauth2.Config{
-		Scopes:      oauth2.scopesSplitted,
+		Scopes:      oauth2.scopesSplit,
 		RedirectURL: "",
 		Endpoint: go_oauth2.Endpoint{
 			TokenURL: tokenUrl,
@@ -77,7 +78,6 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (Oauth2, error) {
 	}
 
 	if userInfoURL, ok := authOpts["oauth_userinfo_url"]; ok {
-		placedOpts += "oauth_userinfo_url=" + userInfoURL + "\n"
 		oauth2.userInfoURL = userInfoURL
 	} else {
 		oauth2Ok = false
@@ -98,10 +98,10 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (Oauth2, error) {
 
 	if scopes, ok := authOpts["oauth_scopes"]; ok {
 		placedOpts += "oauth_scopes=" + scopes + "\n"
-		oauth2.scopesSplitted = strings.Split(strings.Replace(scopes, " ", "", -1), ",")
+		oauth2.scopesSplit = strings.Split(strings.Replace(scopes, " ", "", -1), ",")
 	} else {
 		log.Infof("no scopes where specified, using scope `all`")
-		oauth2.scopesSplitted = []string{"all"}
+		oauth2.scopesSplit = []string{"all"}
 	}
 
 	oauth2.userCache = make(map[string]userState)
@@ -115,7 +115,7 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (Oauth2, error) {
 	return oauth2, nil
 }
 
-func (o Oauth2) GetUser(username, password, clientid string) (bool, error) {
+func (o *Oauth2) GetUser(username, password, clientid string) (bool, error) {
 	// Get token for the credentials and verify the user
 	log.Debugf("Checking user with oauth plugin.")
 
@@ -126,7 +126,7 @@ func (o Oauth2) GetUser(username, password, clientid string) (bool, error) {
 	}
 }
 
-func (o Oauth2) GetSuperuser(username string) (bool, error) {
+func (o *Oauth2) GetSuperuser(username string) (bool, error) {
 	// Function that checks if the user has admin privilies
 	log.Debugf("Checking if user %s is a superuser.", username)
 
@@ -162,7 +162,7 @@ func (o Oauth2) GetSuperuser(username string) (bool, error) {
 	return cache.superuser, nil
 }
 
-func (o Oauth2) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
+func (o *Oauth2) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 	// Function that checks if the user has the right to access to an address
 	log.Debugf("Checking if user %s is allowed to access topic %s with access %d.", username, topic, acc)
 
@@ -198,15 +198,15 @@ func (o Oauth2) CheckAcl(username, topic, clientid string, acc int32) (bool, err
 	return res, nil
 }
 
-func (o Oauth2) GetName() string {
+func (o *Oauth2) GetName() string {
 	return "OAuth Plugin " + o.version
 }
 
-func (o Oauth2) Halt() {
+func (o *Oauth2) Halt() {
 	// Do whatever cleanup is needed.
 }
 
-func (o Oauth2) createUserWithCredentials(username, password, clientid string) (bool, error) {
+func (o *Oauth2) createUserWithCredentials(username, password, clientid string) (bool, error) {
 	o.clientcredentialsConfig = go_clientcredentials.Config{
 		ClientID:     username,
 		ClientSecret: password,
@@ -234,7 +234,7 @@ func (o Oauth2) createUserWithCredentials(username, password, clientid string) (
 	return true, err
 }
 
-func (o Oauth2) createUserWithToken(accessToken, clientid string) (bool, error) {
+func (o *Oauth2) createUserWithToken(accessToken, clientid string) (bool, error) {
 	token := &go_oauth2.Token{
 		AccessToken: accessToken,
 		TokenType:   "Bearer",
@@ -263,7 +263,7 @@ func (o Oauth2) createUserWithToken(accessToken, clientid string) (bool, error) 
 	return true, err
 }
 
-func (o Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
+func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 	req, _ := http.NewRequest("GET", o.userInfoURL, nil)
 	resp, err := client.Do(req)
 	if err != nil {
@@ -281,25 +281,32 @@ func (o Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 	return &info, nil
 }
 
-func (o Oauth2) checkAccessToTopic(topic string, acc int32, cache *userState, username string, clientid string) bool {
+func (o *Oauth2) checkAccessToTopic(topic string, acc int32, cache *userState, username string, clientid string) bool {
 	log.Debugf("Check for acl level %d", acc)
 
 	// check read access
-	if acc == 1 || acc == 4 {
+	if acc == MOSQ_ACL_READ {
+		res := o.isTopicInList(cache.readTopics, topic, username, clientid)
+		log.Debugf("ACL for read was %t", res)
+		return res
+	}
+
+	// check subscribe access
+	if acc == MOSQ_ACL_SUBSCRIBE {
 		res := o.isTopicInList(cache.readTopics, topic, username, clientid)
 		log.Debugf("ACL for read was %t", res)
 		return res
 	}
 
 	// check write
-	if acc == 2 {
+	if acc == MOSQ_ACL_WRITE {
 		res := o.isTopicInList(cache.writeTopics, topic, username, clientid)
 		log.Debugf("ACL for write was %t", res)
 		return res
 	}
 
 	// check for readwrite
-	if acc == 3 {
+	if acc == MOSQ_ACL_READWRITE {
 		res := o.isTopicInList(cache.readTopics, topic, username, clientid) && o.isTopicInList(cache.writeTopics, topic, username, clientid)
 		log.Debugf("ACL for readwrite was %t", res)
 		return res
@@ -307,7 +314,7 @@ func (o Oauth2) checkAccessToTopic(topic string, acc int32, cache *userState, us
 	return false
 }
 
-func (o Oauth2) cacheIsValid(cache *userState) bool {
+func (o *Oauth2) cacheIsValid(cache *userState) bool {
 	log.Debugf("Cache Expiary: %s", o.cacheDuration)
 	log.Debugf("Last Update: %s", cache.updatedAt)
 	log.Debugf("Difference to now: %s", time.Now().Sub(cache.updatedAt))
@@ -323,7 +330,7 @@ func (o Oauth2) cacheIsValid(cache *userState) bool {
 	return false
 }
 
-func (o Oauth2) isTopicInList(topicList []string, searchedTopic string, username string, clientid string) bool {
+func (o *Oauth2) isTopicInList(topicList []string, searchedTopic string, username string, clientid string) bool {
 	replacer := strings.NewReplacer("%u", username, "%c", clientid)
 
 	for _, topicFromList := range topicList {

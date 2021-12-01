@@ -1,14 +1,27 @@
 package backends
 
 import (
+	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"testing"
 	"time"
 )
+
+type oauth2ServerUserinfoResponse struct {
+	Sub  string `json:"sub"`
+	MQTT struct {
+		Topics struct {
+			Read  []string `json:"read"`
+			Write []string `json:"write"`
+		} `json:"topics"`
+		Superuser bool `json:"superuser"`
+	} `json:"mqtt"`
+}
 
 func setupMockOAuthServer() (*httptest.Server, func()) {
 	mux := http.NewServeMux()
@@ -22,10 +35,38 @@ func setupMockOAuthServer() (*httptest.Server, func()) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if authHeader == "Bearer mock_access_token_normaluser" {
-			w.Write([]byte("{\"sub\":\"mock_user_id_0\",\"mqtt\":{\"superuser\":false,\"topics\":{\"read\":[\"/test/topic/read/#\",\"/test/topic/writeread/1\",\"/test/topic/pattern/username/%u\",\"/test/topic/pattern/clientid/%c\"],\"write\":[\"/test/topic/write/+/db\",\"/test/topic/writeread/1\"]}}}"))
+			response := new(oauth2ServerUserinfoResponse)
+			response.Sub = "mock_user_id_0"
+			response.MQTT.Topics.Read = []string{
+				"/test/topic/read/#",
+				"/test/topic/writeread/1",
+				"/test/topic/pattern/username/%u",
+				"/test/topic/pattern/clientid/%c",
+			}
+			response.MQTT.Topics.Write = []string{
+				"/test/topic/write/+/db",
+				"/test/topic/writeread/1",
+			}
+			response.MQTT.Superuser = false
+
+			str, _ := json.Marshal(response)
+			w.Write(str)
 		}
 		if authHeader == "Bearer mock_access_token_superuser" {
-			w.Write([]byte("{\"sub\":\"mock_user_id_1\",\"mqtt\":{\"superuser\":true,\"topics\":{\"read\":[\"/test/topic/read/#\",\"/test/topic/writeread/1\"],\"write\":[\"/test/topic/write/+/db\",\"/test/topic/writeread/1\"]}}}"))
+			response := new(oauth2ServerUserinfoResponse)
+			response.Sub = "mock_user_id_1"
+			response.MQTT.Topics.Read = []string{
+				"/test/topic/read/#",
+				"/test/topic/writeread/1",
+			}
+			response.MQTT.Topics.Write = []string{
+				"/test/topic/write/+/db",
+				"/test/topic/writeread/1",
+			}
+			response.MQTT.Superuser = true
+
+			str, _ := json.Marshal(response)
+			w.Write(str)
 		}
 	})
 
@@ -49,14 +90,34 @@ func setupMockOAuthServer() (*httptest.Server, func()) {
 		if (username == "test_normaluser" && password == "test_normaluser") || (username == "test_pattern_user") || accessToken == "mock_access_token_normaluser" {
 			// Should return acccess token back to the user
 			w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
-			w.Write([]byte("access_token=mock_access_token_normaluser&scope=user&token_type=bearer&refresh_token=mock_refresh_token_normaluser&expires_in=0"))
+
+			response := url.Values{
+				"access_token": {"mock_access_token_normaluser"},
+				"scope":        {"user"},
+				"token_type":   {"bearer"},
+				"expires_in":   {"0"},
+			}
+
+			str := response.Encode()
+			w.Write([]byte(str))
+
 			return
 		}
 
 		// register superuser
 		if (username == "test_superuser" && password == "test_superuser") || accessToken == "mock_access_token_normaluser" {
 			w.Header().Set("Content-Type", "application/x-www-form-urlencoded")
-			w.Write([]byte("access_token=mock_access_token_superuser&scope=user&token_type=bearer&refresh_token=mock_refresh_token_superuser&expires_in=0"))
+
+			response := url.Values{
+				"access_token": {"mock_access_token_superuser"},
+				"scope":        {"user"},
+				"token_type":   {"bearer"},
+				"expires_in":   {"0"},
+			}
+
+			str := response.Encode()
+			w.Write([]byte(str))
+
 			return
 		}
 
