@@ -251,7 +251,7 @@ func SuperUserTests(username string, password string, oauth2 *Oauth2, closeServe
 
 	Convey("GetSuperuser() should return false if that user was not registered as superuser by GetUser()", func() {
 		allowed, err := oauth2.GetSuperuser(username)
-		So(err, ShouldBeError)
+		So(err, ShouldBeNil)
 		So(allowed, ShouldBeFalse)
 	})
 	Convey("Given valid superuser username and password GetUser() should return true", func() {

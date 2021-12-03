@@ -3,7 +3,6 @@ package backends
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/backends/topics"
 	"github.com/pkg/errors"
@@ -123,7 +122,8 @@ func (o *Oauth2) GetSuperuser(username string) (bool, error) {
 
 	cache, ok := o.userCache[username]
 	if !ok {
-		return false, fmt.Errorf("no entry in user cache for user %s", username)
+		log.Infof("no entry in user cache for user %s", username)
+		return false, nil
 	}
 
 	err := o.updateCache(&cache)
@@ -142,7 +142,8 @@ func (o *Oauth2) CheckAcl(username, topic, clientid string, acc int32) (bool, er
 
 	cache, ok := o.userCache[username]
 	if !ok {
-		return false, fmt.Errorf("no entry in user cache for user %s", username)
+		log.Infof("no entry in user cache for user %s", username)
+		return false, nil
 	}
 
 	err := o.updateCache(&cache)
@@ -201,13 +202,6 @@ func (o *Oauth2) createUserWithCredentials(username, password, clientid string) 
 		TokenURL:     o.tokenUrl,
 	}
 
-	token, err := clientcredentialsConfig.Token(context.Background())
-
-	if err != nil {
-		log.Println(err)
-		return false, err
-	}
-
 	clientcredentialsClient := clientcredentialsConfig.Client(context.Background())
 
 	o.userCache[username] = userState{
@@ -216,10 +210,15 @@ func (o *Oauth2) createUserWithCredentials(username, password, clientid string) 
 		createdAt: time.Now(),
 		updatedAt: time.Unix(0, 0),
 		client:    clientcredentialsClient,
-		token:     token,
 	}
 
-	return true, err
+	cache, _ := o.userCache[username]
+	err := o.updateCache(&cache)
+	if err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
 
 func (o *Oauth2) createUserWithToken(accessToken, clientid string) (bool, error) {
@@ -239,27 +238,20 @@ func (o *Oauth2) createUserWithToken(accessToken, clientid string) (bool, error)
 
 	client := oauth2Config.Client(context.Background(), token)
 
-	info, err := o.getUserInfo(client)
+	o.userCache[accessToken] = userState{
+		username:  accessToken,
+		createdAt: time.Now(),
+		updatedAt: time.Unix(0, 0),
+		client:    client,
+	}
 
+	cache, _ := o.userCache[accessToken]
+	err := o.updateCache(&cache)
 	if err != nil {
-		log.Println(err)
 		return false, err
 	}
 
-	o.userCache[accessToken] = userState{
-		username:        accessToken,
-		superuser:       info.MQTT.Superuser,
-		createdAt:       time.Now(),
-		updatedAt:       time.Now(),
-		readTopics:      info.MQTT.Topics.Read,
-		writeTopics:     info.MQTT.Topics.Write,
-		subscribeTopics: info.MQTT.Topics.Subscribe,
-		denyTopics:      info.MQTT.Topics.Deny,
-		client:          client,
-		token:           token,
-	}
-
-	return true, err
+	return true, nil
 }
 
 func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
