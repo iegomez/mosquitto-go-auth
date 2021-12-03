@@ -2,12 +2,13 @@ package backends
 
 import (
 	"encoding/json"
+	"fmt"
+	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -16,8 +17,9 @@ type oauth2ServerUserinfoResponse struct {
 	Sub  string `json:"sub"`
 	MQTT struct {
 		Topics struct {
-			Read  []string `json:"read"`
-			Write []string `json:"write"`
+			Read      []string `json:"read"`
+			Write     []string `json:"write"`
+			Subscribe []string
 		} `json:"topics"`
 		Superuser bool `json:"superuser"`
 	} `json:"mqtt"`
@@ -35,7 +37,7 @@ func setupMockOAuthServer() (*httptest.Server, func()) {
 		w.Header().Set("Content-Type", "application/json")
 
 		if authHeader == "Bearer mock_access_token_normaluser" {
-			response := new(oauth2ServerUserinfoResponse)
+			response := new(UserInfo)
 			response.Sub = "mock_user_id_0"
 			response.MQTT.Topics.Read = []string{
 				"/test/topic/read/#",
@@ -46,6 +48,12 @@ func setupMockOAuthServer() (*httptest.Server, func()) {
 			response.MQTT.Topics.Write = []string{
 				"/test/topic/write/+/db",
 				"/test/topic/writeread/1",
+			}
+			response.MQTT.Topics.Subscribe = []string{
+				"/test/topic/subscribe/1",
+			}
+			response.MQTT.Topics.Deny = []string{
+				"/test/topic/deny/1",
 			}
 			response.MQTT.Superuser = false
 
@@ -132,13 +140,166 @@ func setupMockOAuthServer() (*httptest.Server, func()) {
 	}
 }
 
+func UserTests(username string, password string, oauth2 *Oauth2) {
+	Convey("Given unvalid username and password combination GetUser() should return false", func() {
+		allowed, err := oauth2.GetUser(username, "test_wrong_password", "client_id")
+		So(err, ShouldBeError)
+		So(allowed, ShouldBeFalse)
+	})
+
+	// Normal User
+	Convey("Given valid username and password GetUser() should return true", func() {
+		allowed, err := oauth2.GetUser(username, password, "client_id")
+		So(err, ShouldBeNil)
+		So(allowed, ShouldBeTrue)
+
+		// Authorization
+		Convey("When checking none access for a topic included in oauth2-server /userinfo 'read', 'write', 'subscribe' or 'deny' response CheckAcl should be false", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/read/1", "client_id", MOSQ_ACL_NONE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/write/1/db", "client_id", MOSQ_ACL_NONE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/subscribe/1", "client_id", MOSQ_ACL_NONE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/deny/1", "client_id", MOSQ_ACL_NONE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+		Convey("When checking none access for a topic not included in oauth2-server /userinfo 'read', 'write', 'subscribe' and 'deny' response CheckAcl should be true", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/nothing/1", "client_id", MOSQ_ACL_NONE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		Convey("When checking if topic access is denied explicitly and that topic is included in oauth2-servers /userinfo 'deny' response CheckAcl() should be true", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/deny/1", "client_id", MOSQ_ACL_DENY)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		Convey("When checking if topic access is denied explicitly and that topic is not included in oauth2-servers /userinfo 'deny' response CheckAcl() should be false", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/deny/wrong_topic", "client_id", MOSQ_ACL_DENY)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+		// // Grant access
+		Convey("When requesting read access for a topic included in oauth2-servers /userinfo 'read' response CheckAcl() should be true", func() {
+			// Without username/client_id pattern
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/read/sensor", "client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+			// username pattern ("%u")
+			allowed, err = oauth2.CheckAcl(username, fmt.Sprintf("/test/topic/pattern/username/%s", username), "clientid", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+			// client_id pattern ("%c")
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/pattern/clientid/test_clientid", "test_clientid", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		Convey("When requesting write access for a topic included in oauth2-servers/userinfo 'write' response CheckAcl() should be true", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/write/influx/db", "client_id", MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		Convey("When requesting readwrite access for a topic included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be true", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/writeread/1", "client_id", MOSQ_ACL_READWRITE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		Convey("When requesting subscribe access for a topic included in oauth2-servers /userinfo 'subscribe' response CheckAcl() should be true", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/subscribe/1", "client_id", MOSQ_ACL_SUBSCRIBE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		// // Deny access
+		Convey("When requesting read access for a topic not included in oauth2-servers /userinfo 'read' response CheckAcl() should be false", func() {
+			// Without username/client_id pattern
+			allowed, err = oauth2.CheckAcl(username, "/test/wrong_topic/read/sensor", "client_id", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+			// username pattern ("%u")
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/pattern/username/test_wrong_user", "clientid", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+			// client_id pattern ("%c")
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/pattern/clientid/test_wrong_clientid", "test_clientid", MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+		Convey("When requesting write access for a topic not included in oauth2-servers/userinfo 'write' response CheckAcl() should be false", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/wrong_topic/write/influx/db", "client_id", MOSQ_ACL_WRITE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+		Convey("When requesting readwrite access for a topic not included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be false", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/wrong_topic/writeread/1", "client_id", MOSQ_ACL_READWRITE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+		Convey("When requesting subscribe access for a topic not included in oauth2-servers /userinfo 'subscribe' response CheckAcl() should be false", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/subscribe/wrong_topic", "client_id", MOSQ_ACL_SUBSCRIBE)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeFalse)
+		})
+	})
+}
+
+func SuperUserTests(username string, password string, oauth2 *Oauth2, closeServer func()) {
+	cacheDuration := oauth2.cacheDuration
+
+	Convey("GetSuperuser() should return false if that user was not registered as superuser by GetUser()", func() {
+		allowed, err := oauth2.GetSuperuser(username)
+		So(err, ShouldBeError)
+		So(allowed, ShouldBeFalse)
+	})
+	Convey("Given valid superuser username and password GetUser() should return true", func() {
+		allowed, err := oauth2.GetUser(username, password, "client_id")
+		So(err, ShouldBeNil)
+		So(allowed, ShouldBeTrue)
+		Convey("For a given superuser `username` GetSuperuser() should return true if that superuser was registered as superuser by GetUser()", func() {
+			allowed, err := oauth2.GetSuperuser(username)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+		})
+		// Test cache expiry and token refreshment
+		Convey("Refresh Tokens should be updated succesfully after cache expiry", func() {
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/read/sensor", "client_id", 1)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+			allowed, err = oauth2.GetSuperuser(username)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+
+			time.Sleep(cacheDuration + 1*time.Second)
+
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/read/sensor", "client_id", 1)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+			allowed, err = oauth2.GetSuperuser(username)
+			So(err, ShouldBeNil)
+			So(allowed, ShouldBeTrue)
+
+			closeServer()
+			time.Sleep(cacheDuration + 1*time.Second)
+
+			allowed, err = oauth2.CheckAcl(username, "/test/topic/read/sensor", "client_id", 1)
+			So(err, ShouldBeError)
+			So(allowed, ShouldBeFalse)
+			allowed, err = oauth2.GetSuperuser(username)
+			So(err, ShouldBeError)
+			So(allowed, ShouldBeFalse)
+		})
+	})
+}
+
 func TestOauth2(t *testing.T) {
 
 	authOpts := make(map[string]string)
 	authOpts["oauth_client_id"] = "clientId"
 	authOpts["oauth_client_secret"] = "clientSecret"
-	cacheDuration := 2
-	authOpts["oauth_cache_duration"] = strconv.Itoa(cacheDuration)
+	authOpts["oauth_cache_duration"] = "2"
 	authOpts["oauth_scopes"] = "all"
 
 	Convey("If mandatory params are not set initialization should fail", t, func() {
@@ -148,122 +309,15 @@ func TestOauth2(t *testing.T) {
 
 	Convey("Test authentication and authorization using client credentials", t, func() {
 		server, closeServer := setupMockOAuthServer()
+		defer closeServer()
 		authOpts["oauth_token_url"] = server.URL + "/token"
 		authOpts["oauth_userinfo_url"] = server.URL + "/userinfo"
-		log.Infof("Start Testserver on location %s", server.URL)
-
+		log.Infof("Started Testserver on location %s", server.URL)
 		Convey("Given valid params NewOauth2() should return a Oauth2 backend instance", func() {
 			oauth2, err := NewOauth2(authOpts, log.ErrorLevel)
 			So(err, ShouldBeNil)
-
-			Convey("Given unvalid username and password GetUser() should return false", func() {
-				allowed, err := oauth2.GetUser("test_wrong_user", "test_wrong_user", "client_id")
-				So(err, ShouldBeError)
-				So(allowed, ShouldBeFalse)
-			})
-
-			// Normal User
-			Convey("Given valid username and password GetUser() should return true", func() {
-				allowed, err := oauth2.GetUser("test_normaluser", "test_normaluser", "client_id")
-				So(err, ShouldBeNil)
-				So(allowed, ShouldBeTrue)
-
-				// Authorization
-				Convey("When requesting read access for a topic included in oauth2-servers /userinfo 'read' response CheckAcl() should be true", func() {
-					// Without username/client_id pattern
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					// username pattern ("%u")
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/pattern/username/test_normaluser", "clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					// client_id pattern ("%c")
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/pattern/clientid/test_clientid", "test_clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-				Convey("When requesting write access for a topic included in oauth2-servers/userinfo 'write' response CheckAcl() should be true", func() {
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/write/influx/db", "client_id", 2)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-
-				})
-				Convey("When requesting readwrite access for a topic included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be true", func() {
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/writeread/1", "client_id", 3)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-				Convey("When requesting read access for a topic included in oauth2-servers /userinfo 'read' response CheckAcl() should be false", func() {
-					// Without username/client_id pattern
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/wrong_topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-					// username pattern ("%u")
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/pattern/username/test_wrong_user", "clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-					// client_id pattern ("%c")
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/topic/pattern/clientid/test_wrong_clientid", "test_clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-				Convey("When requesting write access for a topic included in oauth2-servers/userinfo 'write' response CheckAcl() should be false", func() {
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/wrong_topic/write/influx/db", "client_id", 2)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-				Convey("When requesting readwrite access for a topic included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be false", func() {
-					allowed, err = oauth2.CheckAcl("test_normaluser", "/test/wrong_topic/writeread/1", "client_id", 3)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-			})
-
-			// Super User
-			Convey("GetSuperuser() should return false if that user was not registered as superuser by GetUser()", func() {
-				allowed, err := oauth2.GetSuperuser("test_normaluser")
-				So(err, ShouldBeError)
-				So(allowed, ShouldBeFalse)
-			})
-			Convey("Given valid superuser username and password GetUser() should return true", func() {
-				allowed, err := oauth2.GetUser("test_superuser", "test_superuser", "client_id")
-				So(err, ShouldBeNil)
-				So(allowed, ShouldBeTrue)
-				Convey("For a given superuser `username` GetSuperuser() should return true if that superuser was registered as superuser by GetUser()", func() {
-					allowed, err := oauth2.GetSuperuser("test_superuser")
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-				// Test cache expiry and token refreshment
-				Convey("Refresh Tokens should be updated succesfully after cache expiry", func() {
-					allowed, err = oauth2.CheckAcl("test_superuser", "/test/topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					allowed, err = oauth2.GetSuperuser("test_superuser")
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-
-					time.Sleep(time.Duration(cacheDuration+1) * time.Second)
-
-					allowed, err = oauth2.CheckAcl("test_superuser", "/test/topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					allowed, err = oauth2.GetSuperuser("test_superuser")
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-
-					closeServer()
-					time.Sleep(time.Duration(cacheDuration+1) * time.Second)
-
-					allowed, err = oauth2.CheckAcl("test_superuser", "/test/topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeError)
-					So(allowed, ShouldBeFalse)
-					allowed, err = oauth2.GetSuperuser("test_superuser")
-					So(err, ShouldBeError)
-					So(allowed, ShouldBeFalse)
-				})
-			})
+			UserTests("test_normaluser", "test_normaluser", oauth2)
+			SuperUserTests("test_superuser", "test_superuser", oauth2, closeServer)
 		})
 	})
 
@@ -273,91 +327,11 @@ func TestOauth2(t *testing.T) {
 		authOpts["oauth_token_url"] = server.URL + "/token"
 		authOpts["oauth_userinfo_url"] = server.URL + "/userinfo"
 		log.Infof("Start Testserver on location %s", server.URL)
-
 		Convey("Given valid params NewOauth2() should return a Oauth2 backend instance", func() {
-			oauth2, err := NewOauth2(authOpts, log.DebugLevel)
+			oauth2, err := NewOauth2(authOpts, log.ErrorLevel)
 			So(err, ShouldBeNil)
-
-			Convey("Given an unvalid access token GetUser() should return false", func() {
-				allowed, err := oauth2.GetUser("wrong_access_token", "oauthbearer_empty_password", "client_id")
-				So(err, ShouldBeError)
-				So(allowed, ShouldBeFalse)
-			})
-
-			// Normal User
-			Convey("Given a valid access token GetUser() should return true", func() {
-				allowed, err := oauth2.GetUser("mock_access_token_normaluser", "oauthbearer_empty_password", "client_id")
-				So(err, ShouldBeNil)
-				So(allowed, ShouldBeTrue)
-
-				// Authorization
-				Convey("When requesting read access for a topic included in oauth2-servers /userinfo 'read' response CheckAcl() should be true", func() {
-					// Without username/client_id pattern
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					// username pattern ("%u")
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/pattern/username/mock_access_token_normaluser", "clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-					// client_id pattern ("%c")
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/pattern/clientid/test_clientid", "test_clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-				Convey("When requesting write access for a topic included in oauth2-servers/userinfo 'write' response CheckAcl() should be true", func() {
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/write/influx/db", "client_id", 2)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-
-				})
-				Convey("When requesting readwrite access for a topic included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be true", func() {
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/writeread/1", "client_id", 3)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-				Convey("When requesting read access for a topic included in oauth2-servers /userinfo 'read' response CheckAcl() should be false", func() {
-					// Without username/client_id pattern
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/wrong_topic/read/sensor", "client_id", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-					// username pattern ("%u")
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/pattern/username/test_wrong_user", "clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-					// client_id pattern ("%c")
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/topic/pattern/clientid/test_wrong_clientid", "test_clientid", 1)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-				Convey("When requesting write access for a topic included in oauth2-servers/userinfo 'write' response CheckAcl() should be false", func() {
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/wrong_topic/write/influx/db", "client_id", 2)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-				Convey("When requesting readwrite access for a topic included in oauth2-servers /userinfo 'read' and 'write' response CheckAcl() should be false", func() {
-					allowed, err = oauth2.CheckAcl("mock_access_token_normaluser", "/test/wrong_topic/writeread/1", "client_id", 3)
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeFalse)
-				})
-			})
-
-			// Super User
-			Convey("GetSuperuser() should return false if that user was not registered as superuser by GetUser()", func() {
-				allowed, err := oauth2.GetSuperuser("mock_access_token_normaluser")
-				So(err, ShouldBeError)
-				So(allowed, ShouldBeFalse)
-			})
-			Convey("Given valid superuser access token GetUser() should return true", func() {
-				allowed, err := oauth2.GetUser("mock_access_token_superuser", "oauthbearer_empty_password", "client_id")
-				So(err, ShouldBeNil)
-				So(allowed, ShouldBeTrue)
-				Convey("For a given superuser GetSuperuser() should return true if that superuser was registered as superuser by GetUser()", func() {
-					allowed, err := oauth2.GetSuperuser("mock_access_token_superuser")
-					So(err, ShouldBeNil)
-					So(allowed, ShouldBeTrue)
-				})
-			})
+			UserTests("mock_access_token_normaluser", "oauthbearer_empty_password", oauth2)
+			SuperUserTests("mock_access_token_superuser", "oauthbearer_empty_password", oauth2, closeServer)
 		})
 	})
 
