@@ -57,14 +57,12 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) 
 	var oauth2 = &Oauth2{}
 	oauth2.version = "1.0.0"
 
-	placedOpts := ""
 	missingOpts := ""
 	oauth2Ok := true
 
 	tokenUrl, ok := authOpts["oauth_token_url"]
 	if ok {
 		oauth2.tokenUrl = tokenUrl
-		placedOpts += "oauth_token_url=" + tokenUrl + "\n"
 	} else {
 		oauth2Ok = false
 		missingOpts += " oauth_token_url"
@@ -79,7 +77,6 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) 
 
 	if cacheDurationSeconds, ok := authOpts["oauth_cache_duration"]; ok {
 		if durationInt, err := strconv.Atoi(cacheDurationSeconds); err == nil {
-			placedOpts += "oauth_cache_duration=" + cacheDurationSeconds + "\n"
 			oauth2.cacheDuration = time.Duration(durationInt) * time.Second
 		} else {
 			log.Errorf("unable to parse cacheDurationSeconds: %s", err)
@@ -90,7 +87,6 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) 
 	}
 
 	if scopes, ok := authOpts["oauth_scopes"]; ok {
-		placedOpts += "oauth_scopes=" + scopes + "\n"
 		oauth2.scopesSplit = strings.Split(strings.Replace(scopes, " ", "", -1), ",")
 	} else {
 		log.Infof("no scopes where specified, using scope `all`")
@@ -99,9 +95,7 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) 
 
 	oauth2.userCache = make(map[string]userState)
 
-	if oauth2Ok {
-		log.Infof("OAuth Plugin initialized with configurations\n" + placedOpts)
-	} else {
+	if !oauth2Ok {
 		return oauth2, errors.Errorf("Oauth2 backend error: missing remote options: %s", missingOpts)
 	}
 
