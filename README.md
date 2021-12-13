@@ -1561,13 +1561,17 @@ which must return a json similar to
     "sub": "<username>",
     "mqtt": {
         "topics": {
-            "read": ["/test/#", "/test/read/#],
-            "write": ["/test/#","/test/write/#]
+            "read": ["/test/#", "/test2/read/#],
+            "subscribe": ["/test/#", "/test2/read/#],
+            "write": ["/test/#","/test/write/#],
+            "deny": ["/deny0","/deny/#"],
         },
         "superuser": false
     }
 }
 ```
+The values in are used to check `MOSQ_ACL_NONE`, `MOSQ_ACL_READ`, `MOSQ_ACL_WRITE`, `MOSQ_ACL_READWRITE`,
+`MOSQ_ACL_SUBSCRIBE`, `MOSQ_ACL_DENY` which are defined in `backends/constants/constants.go`.
 
 To use client credentials pass the `client_id` and `client_secret` to mosquitto as the username and password respectively.
 
