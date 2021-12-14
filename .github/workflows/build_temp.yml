@@ -1,8 +1,9 @@
 name: Build docker images and publish to DockerHub
 
 on:
-  pull_request:
-    types: [opened, synchronize, closed, reopened]
+  push:
+    branches:
+      - thomastvedt/postgresql-fix
 env:
   MOSQUITTO_VERSION_1: 1.6.14
   MOSQUITTO_VERSION_2: 2.0.14
