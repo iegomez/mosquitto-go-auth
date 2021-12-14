@@ -9,7 +9,7 @@ env:
   MOSQUITTO_VERSION_2: 2.0.14
   MOSQUITTO_VERSION_SUFFIX: -mosquitto_
   DOCKERFILE_MOSQUITTO_VERSION: 1.6.14
-  DOCKERHUB_REPO: mosquitto-go-auth
+  DOCKERHUB_REPO: thomastvedt
 jobs:
   mosq_1:
     name: Build and publish with Mosquitto version 1.x
