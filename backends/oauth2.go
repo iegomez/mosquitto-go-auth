@@ -258,7 +258,7 @@ func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 			log.Debug(err)
 			return nil, err
 		}
-		log.Debugf("Using Token: %s", token)
+		log.Debugf("Using Token: %s", token.AccessToken)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
