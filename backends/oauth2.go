@@ -9,6 +9,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	go_oauth2 "golang.org/x/oauth2"
 	go_clientcredentials "golang.org/x/oauth2/clientcredentials"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -163,7 +164,7 @@ func (o *Oauth2) updateCache(cache *userState) error {
 	if o.cacheIsValid(cache) {
 		log.Debugf("using cached userinfo for user '%s' to authorize", cache.username)
 	} else {
-		log.Debugf("update userinfo for user '%s' using authorization server %s", cache.username, o.userInfoURL)
+		log.Debugf("update userinfo for user '%s' using user info url %s", cache.username, o.userInfoURL)
 
 		info, err := o.getUserInfo(cache.client)
 
@@ -250,18 +251,29 @@ func (o *Oauth2) createUserWithToken(accessToken, clientid string) (bool, error)
 
 func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 	req, _ := http.NewRequest("GET", o.userInfoURL, nil)
+	log.Debugf("Performing request: %s %s:%s%s", req.Method, req.URL.Scheme, req.URL.Host, req.URL.Path)
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Debug(err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bodyString := string(bodyBytes)
+	log.Debugf("Response: %s", bodyString)
+
 	info := UserInfo{}
 
-	err = json.NewDecoder(resp.Body).Decode(&info)
+	err = json.Unmarshal([]byte(bodyString), &info)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Debugf("hey")
 
 	return &info, nil
 }
