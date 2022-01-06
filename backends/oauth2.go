@@ -251,7 +251,15 @@ func (o *Oauth2) createUserWithToken(accessToken, clientid string) (bool, error)
 
 func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 	req, _ := http.NewRequest("GET", o.userInfoURL, nil)
-	log.Debugf("Performing request: %s %s:%s%s", req.Method, req.URL.Scheme, req.URL.Host, req.URL.Path)
+	log.Debugf("Performing request: %s %s://%s%s", req.Method, req.URL.Scheme, req.URL.Host, req.URL.Path)
+	if log.IsLevelEnabled(log.DebugLevel) {
+		token, err := client.Transport.(*go_oauth2.Transport).Source.Token()
+		if err != nil {
+			log.Debug(err)
+			return nil, err
+		}
+		log.Debugf("Using Token: %s", token)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Debug(err)
@@ -272,8 +280,6 @@ func (o *Oauth2) getUserInfo(client *http.Client) (*UserInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	log.Debugf("hey")
 
 	return &info, nil
 }
