@@ -90,8 +90,8 @@ func NewOauth2(authOpts map[string]string, logLevel log.Level) (*Oauth2, error) 
 	if scopes, ok := authOpts["oauth_scopes"]; ok {
 		oauth2.scopesSplit = strings.Split(strings.Replace(scopes, " ", "", -1), ",")
 	} else {
-		log.Infof("no scopes where specified, using scope `all`")
-		oauth2.scopesSplit = []string{"all"}
+		log.Infof("no scopes where specified")
+		oauth2.scopesSplit = []string{}
 	}
 
 	oauth2.userCache = make(map[string]userState)
