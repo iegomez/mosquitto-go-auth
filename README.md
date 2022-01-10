@@ -1580,9 +1580,9 @@ To  use the access token pass it to mosquitto as the username and use the passwo
 The following `auth_opt_` options are supported
 
 | Option           	   | default |  Mandatory  | Meaning					  						   |
-| ---------------------| ------- | :---------: | ----------------------------------------------------- |
+| ---------------------|---------| :---------: | ----------------------------------------------------- |
 | oauth_cache_duration |         | Y           | Duration in seconds after which a<br>request to oauth_userinfo_url is<br>performed to update users access right |
-| oauth_scopes         | all     | N           | Parameter is passed in request to<br>oauth_userinfo_url request<br>to obtain optional scopes |
+| oauth_scopes         |         | N           | Parameter is passed in request to<br>oauth_userinfo_url request<br>to obtain optional scopes |
 | oauth_token_url      |         | Y           | openid-connect Token Endpoint                         |
 | oauth_userinfo_url   |         | Y           | openid-connect Userinfo Endpoint                      |
 
