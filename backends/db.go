@@ -42,9 +42,6 @@ func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
 		return nil, fmt.Errorf("couldn't ping database %s: %s", engine, err)
 	}
 
-	// https://github.com/iegomez/mosquitto-go-auth/issues/218
-	// https://stackoverflow.com/questions/50338338/intermittent-connection-reset-by-peer-sql-postgres
-	// Possible fix to broken postgresql connections:
 	db.SetConnMaxLifetime(time.Minute)
 
 	return db, nil
