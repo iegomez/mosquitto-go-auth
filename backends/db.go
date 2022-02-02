@@ -19,7 +19,6 @@ func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
 		return nil, errors.Wrap(err, "database connection error")
 	}
 
-
 	if tries == 0 {
 		tries = 1
 	}
