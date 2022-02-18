@@ -1604,6 +1604,7 @@ mosquitto_sub --host localhost --port 1883 --id oauthbearer_mosquitto_sub -V mqt
   --topic "/test/test_topic" --username "${TOKEN}" -P "oauthbearer_empty_password" 
 ```
 
+A minimal example of using mosquitto with this plugin and keycloak can be found [here](https://github.com/tilmann-bartsch/mqtt-oauth2-test).
 
 
 

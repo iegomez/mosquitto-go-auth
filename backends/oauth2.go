@@ -107,7 +107,7 @@ func (o *Oauth2) GetUser(username, password, clientid string) (bool, error) {
 	if password == "oauthbearer_empty_password" {
 		return o.createUserWithToken(username, clientid)
 	} else {
-		return o.createUserWithCredentials(username, password, clientid)
+		return o.createUserWithClientCredentials(username, password, clientid)
 	}
 }
 
@@ -190,11 +190,12 @@ func (o *Oauth2) updateCache(cache *userState) error {
 	return nil
 }
 
-func (o *Oauth2) createUserWithCredentials(username, password, clientid string) (bool, error) {
+func (o *Oauth2) createUserWithClientCredentials(username, password, clientid string) (bool, error) {
 	clientcredentialsConfig := go_clientcredentials.Config{
 		ClientID:     username,
 		ClientSecret: password,
 		TokenURL:     o.tokenUrl,
+		Scopes:       o.scopesSplit,
 	}
 
 	clientcredentialsClient := clientcredentialsConfig.Client(context.Background())
