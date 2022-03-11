@@ -21,6 +21,7 @@ type Sqlite struct {
 	SuperuserQuery string
 	AclQuery       string
 	hasher         hashing.HashComparer
+	maxLifeTime    int64
 
 	connectTries int
 }
@@ -62,6 +63,14 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level, hasher hashing.Ha
 		sqlite.AclQuery = aclQuery
 	}
 
+	if maxLifeTime, ok := authOpts["sqlite_max_life_time"]; ok {
+		lifeTime, err := strconv.ParseInt(maxLifeTime, 10, 64)
+
+		if err == nil {
+			sqlite.maxLifeTime = lifeTime
+		}
+	}
+
 	//Exit if any mandatory option is missing.
 	if !sqliteOk {
 		return sqlite, errors.Errorf("sqlite backend error: missing options: %s", missingOptions)
@@ -84,7 +93,7 @@ func NewSqlite(authOpts map[string]string, logLevel log.Level, hasher hashing.Ha
 	}
 
 	var err error
-	sqlite.DB, err = OpenDatabase(connStr, "sqlite3", sqlite.connectTries)
+	sqlite.DB, err = OpenDatabase(connStr, "sqlite3", sqlite.connectTries, sqlite.maxLifeTime)
 
 	if err != nil {
 		return sqlite, errors.Errorf("sqlite backend error: couldn't open db %s: %s", connStr, err)

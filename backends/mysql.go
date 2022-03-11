@@ -36,6 +36,7 @@ type Mysql struct {
 	SocketPath           string
 	AllowNativePasswords bool
 	hasher               hashing.HashComparer
+	maxLifeTime          int64
 
 	connectTries int
 }
@@ -204,8 +205,16 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		}
 	}
 
+	if maxLifeTime, ok := authOpts["mysql_max_life_time"]; ok {
+		lifeTime, err := strconv.ParseInt(maxLifeTime, 10, 64)
+
+		if err == nil {
+			mysql.maxLifeTime = lifeTime
+		}
+	}
+
 	var err error
-	mysql.DB, err = OpenDatabase(msConfig.FormatDSN(), "mysql", mysql.connectTries)
+	mysql.DB, err = OpenDatabase(msConfig.FormatDSN(), "mysql", mysql.connectTries, mysql.maxLifeTime)
 
 	if err != nil {
 		return mysql, errors.Errorf("MySql backend error: couldn't open db: %s", err)
