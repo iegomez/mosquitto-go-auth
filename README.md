@@ -1142,6 +1142,7 @@ The following `auth_opt_` options are supported:
 | http_params_mode   | json      |     N     | Data type (json, form)             |
 | http_timeout       | 5         |     N     | Timeout in seconds                 |
 | http_user_agent    | mosquitto |     N     | User Agent to use in requests      |
+| http_method        | POST      |     N     | Http method used (POST, GET, PUT)  |
 
 #### Response mode
 
