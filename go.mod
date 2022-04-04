@@ -9,7 +9,7 @@ require (
 	github.com/golang/protobuf v1.4.2
 	github.com/gopherjs/gopherjs v0.0.0-20190328170749-bb2674552d8f // indirect
 	github.com/grpc-ecosystem/go-grpc-middleware v1.2.0
-	github.com/jmoiron/sqlx v1.2.0
+	github.com/jmoiron/sqlx v1.3.4
 	github.com/klauspost/compress v1.10.6 // indirect
 	github.com/lib/pq v1.5.2
 	github.com/mattn/go-sqlite3 v2.0.3+incompatible

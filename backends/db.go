@@ -12,7 +12,7 @@ import (
 // OpenDatabase opens the database and performs a ping to make sure the
 // database is up.
 // Taken from brocaar's lora-app-server: https://github.com/brocaar/lora-app-server
-func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
+func OpenDatabase(dsn, engine string, tries int, maxLifeTime int64) (*sqlx.DB, error) {
 
 	db, err := sqlx.Open(engine, dsn)
 	if err != nil {
@@ -39,6 +39,10 @@ func OpenDatabase(dsn, engine string, tries int) (*sqlx.DB, error) {
 	// Return last ping error when done trying.
 	if tries == 0 {
 		return nil, fmt.Errorf("couldn't ping database %s: %s", engine, err)
+	}
+
+	if maxLifeTime > 0 {
+		db.SetConnMaxLifetime(time.Duration(maxLifeTime) * time.Second)
 	}
 
 	return db, nil

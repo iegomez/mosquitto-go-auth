@@ -30,6 +30,7 @@ type Postgres struct {
 	SSLKey         string
 	SSLRootCert    string
 	hasher         hashing.HashComparer
+	maxLifeTime    int64
 
 	connectTries int
 }
@@ -149,8 +150,16 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		}
 	}
 
+	if maxLifeTime, ok := authOpts["pg_max_life_time"]; ok {
+		lifeTime, err := strconv.ParseInt(maxLifeTime, 10, 64)
+
+		if err == nil {
+			postgres.maxLifeTime = lifeTime
+		}
+	}
+
 	var err error
-	postgres.DB, err = OpenDatabase(connStr, "postgres", postgres.connectTries)
+	postgres.DB, err = OpenDatabase(connStr, "postgres", postgres.connectTries, postgres.maxLifeTime)
 
 	if err != nil {
 		return postgres, errors.Errorf("PG backend error: couldn't open db: %s", err)

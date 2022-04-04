@@ -599,6 +599,7 @@ The following `auth_opt_` options are supported:
 | pg_sslkey         	|                   |     N       | SSL/TLS Client Cert. Key	 								|
 | pg_sslrootcert    	|                   |     N       | SSL/TLS Root Cert			 								|
 | pg_connect_tries    	|        -1         |     N       | x < 0: try forever, x > 0: try x times						|
+| pg_max_life_time      |                   |     N       | connection max life time in seconds                         |
 
 Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
@@ -744,6 +745,7 @@ Supported options for `mysql` are:
 | mysql_protocol        	|       tcp         |     N       | Connection protocol											|
 | mysql_socket          	|                   |     N       | Unix socket path											|
 | mysql_connect_tries    	|        -1         |     N       | x < 0: try forever, x > 0: try x times						|
+| mysql_max_life_time       |                   |     N       | connection max life time on seconds                         |
 
 
 Finally, placeholders for mysql differ from those of postgres, changing from $1, $2, etc., to simply ?. These are some **example** queries for `mysql`:
@@ -825,6 +827,7 @@ The following `auth_opt_` options are supported:
 | sqlite_superquery     	|                   |     N       | SQL for superusers											|
 | sqlite_aclquery       	|                   |     N       | SQL for ACLs												|
 | sqlite_connect_tries	    |        -1         |     N       | x < 0: try forever, x > 0: try x times						|
+| sqlite_max_life_time      |                   |     N       | connection max life time in seconds                         |
 
 SQLite3 allows to connect to an in-memory db, or a single file one, so source maybe `memory` (not :memory:) or the path to a file db.
 
