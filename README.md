@@ -31,6 +31,7 @@ These are the backends that this plugin implements right now:
 * Custom (experimental)
 * gRPC
 * Javascript interpreter
+* Oauth2
 
 **Every backend offers user, superuser and acl checks, and include proper tests.**
 
@@ -50,7 +51,7 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 	- [Log level](#log-level)
 	- [Prefixes](#prefixes)
 	- [Backend options](#backend-options)
-    - [Registering checks](#registering-checks)
+	- [Registering checks](#registering-checks)
 - [Files](#files)
 	- [Passwords file](#passwords-file)
 	- [ACL file](#acl-file)
@@ -81,6 +82,8 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 	- [Testing gRPC](#testing-grpc)
 - [Javascript](#javascript)
 	- [Testing Javascript](#testing-javascript)
+- [Oauth2](#oauth2)
+	- [Console Clients](#console-clients) 
 - [Using with LoRa Server](#using-with-lora-server)
 - [Docker](#docker)
 	- [Prebuilt images](#prebuilt-images)
@@ -1529,6 +1532,83 @@ Notice the `password` will be passed to the script as given by `mosquitto`, leav
 #### Testing Javascript
 
 This backend has no special requirements as `javascript` test files are provided to test different scenarios.
+
+### Oauth2
+
+The `oauth2` backend allows mosquitto to authenticate and authorize a client via an oauth2/openid-connect authorization server. Clients can either
+ - hand over a `client_id` and a `client_secret` ([client_credentials-oauth2-specification](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4)), or 
+ - pass an `access_token` ([access_token-oauth2-specification](https://datatracker.ietf.org/doc/html/rfc6749#section-1.4))
+
+If mosquitto receives a `client_id` and `client_secret` it uses them to obtain an `access_token` from the authorization server before the old `access_token` expires with the following request
+```
+POST <auth_opt_oauth_token_url> HTTP/1.1
+Host: localhost
+Authorization: Basic dGVzdF9jbGllbnRfaWQ6dGVzdF9jbGllbnRfc2VjcmV0
+Content-Type: application/x-www-form-urlencoded
+grant_type=client_credentials
+```
+and expecting a response of the form
+```
+{"access_token":"<access_token>", "expires_in": 300, ...}
+```
+
+The authentication is then done by using the available `acces_token` by requesting
+```
+GET <auth_opt_oauth_userinfo_url> HTTP/1.1
+Host: localhost
+Authorization: Bearer access_token
+```
+which must return a json similar to
+```
+{
+    "sub": "<username>",
+    "mqtt": {
+        "topics": {
+            "read": ["/test/#", "/test2/read/#],
+            "subscribe": ["/test/#", "/test2/read/#],
+            "write": ["/test/#","/test/write/#],
+            "deny": ["/deny0","/deny/#"],
+        },
+        "superuser": false
+    }
+}
+```
+The values in are used to check `MOSQ_ACL_NONE`, `MOSQ_ACL_READ`, `MOSQ_ACL_WRITE`, `MOSQ_ACL_READWRITE`,
+`MOSQ_ACL_SUBSCRIBE`, `MOSQ_ACL_DENY` which are defined in `backends/constants/constants.go`.
+
+To use client credentials pass the `client_id` and `client_secret` to mosquitto as the username and password respectively.
+
+To  use the access token pass it to mosquitto as the username and use the password `oauthbearer_empty_password` since mosquitto doesn't allow empty passwords.
+
+The following `auth_opt_` options are supported
+
+| Option           	   | default |  Mandatory  | Meaning					  						   |
+| ---------------------|---------| :---------: | ----------------------------------------------------- |
+| oauth_cache_duration |         | Y           | Duration in seconds after which a<br>request to oauth_userinfo_url is<br>performed to update users access right |
+| oauth_scopes         |         | N           | Parameter is passed in request to<br>oauth_userinfo_url request<br>to obtain optional scopes |
+| oauth_token_url      |         | Y           | openid-connect Token Endpoint                         |
+| oauth_userinfo_url   |         | Y           | openid-connect Userinfo Endpoint                      |
+
+#### Console Clients
+If the authorization server is running use the following commands to test the plugin.
+##### client credentials
+```
+mosquitto_sub --host localhost --port 1883 --id clientcredentials_mosquitto_sub -V mqttv5 \
+  --topic /test/test_topic --username <client_id> -P <client_secret>
+```
+##### access token
+```
+basic_auth=$(printf "<client_id>:<client_secret>" | base64)
+TOKEN=$(curl --location --request POST "<oauth2_token_endpoint>" --header "Authorization: Basic ${basic_auth}"
+  --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' \\
+    | jq -r ".access_token")
+
+mosquitto_sub --host localhost --port 1883 --id oauthbearer_mosquitto_sub -V mqttv5 \
+  --topic "/test/test_topic" --username "${TOKEN}" -P "oauthbearer_empty_password" 
+```
+
+A minimal example of using mosquitto with this plugin and keycloak can be found [here](https://github.com/tilmann-bartsch/mqtt-oauth2-test).
+
 
 
 ### Using with LoRa Server
