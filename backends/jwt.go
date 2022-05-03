@@ -17,7 +17,7 @@ type tokenOptions struct {
 	skipUserExpiration bool
 	skipACLExpiration  bool
 	secret             string
-	userField          string
+	userFieldKey       string
 }
 
 type jwtChecker interface {
@@ -27,19 +27,13 @@ type jwtChecker interface {
 	Halt()
 }
 
-// Claims defines the struct containing the token claims.
-// StandardClaim's Subject field should contain the username, unless an opt is set to support Username field.
-type Claims struct {
-	jwtGo.StandardClaims
-	// If set, Username defines the identity of the user.
-	Username string `json:"username"`
-}
-
 const (
-	remoteMode = "remote"
-	localMode  = "local"
-	jsMode     = "js"
-	filesMode  = "files"
+	remoteMode        = "remote"
+	localMode         = "local"
+	jsMode            = "js"
+	filesMode         = "files"
+	claimsSubjectKey  = "sub"
+	claimsUsernameKey = "username"
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
@@ -69,9 +63,9 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 	}
 
 	if userField, ok := authOpts["jwt_userfield"]; ok && userField == "Username" {
-		options.userField = userField
+		options.userFieldKey = claimsUsernameKey
 	} else {
-		options.userField = "Subject"
+		options.userFieldKey = claimsSubjectKey
 	}
 
 	switch authOpts["jwt_mode"] {
@@ -125,9 +119,9 @@ func (o *JWT) Halt() {
 	o.checker.Halt()
 }
 
-func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*Claims, error) {
+func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*jwtGo.MapClaims, error) {
 
-	jwtToken, err := jwtGo.ParseWithClaims(tokenStr, &Claims{}, func(token *jwtGo.Token) (interface{}, error) {
+	jwtToken, err := jwtGo.ParseWithClaims(tokenStr, &jwtGo.MapClaims{}, func(token *jwtGo.Token) (interface{}, error) {
 		return []byte(secret), nil
 	})
 
@@ -147,21 +141,13 @@ func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*Claims,
 		return nil, errors.New("jwt invalid token")
 	}
 
-	claims, ok := jwtToken.Claims.(*Claims)
+	claims, ok := jwtToken.Claims.(*jwtGo.MapClaims)
 	if !ok {
-		log.Debugf("jwt error: expected *Claims, got %T", jwtToken.Claims)
+		log.Debugf("jwt error: expected *MapClaims, got %T", jwtToken.Claims)
 		return nil, errors.New("got strange claims")
 	}
 
 	return claims, nil
-}
-
-func getUsernameFromClaims(options tokenOptions, claims *Claims) string {
-	if options.userField == "Username" {
-		return claims.Username
-	}
-
-	return claims.Subject
 }
 
 func getUsernameForToken(options tokenOptions, tokenStr string, skipExpiration bool) (string, error) {
@@ -171,5 +157,25 @@ func getUsernameForToken(options tokenOptions, tokenStr string, skipExpiration b
 		return "", err
 	}
 
-	return getUsernameFromClaims(options, claims), nil
+	username, found := (*claims)[options.userFieldKey]
+	if !found {
+		return "", nil
+	}
+
+	usernameString, ok := username.(string)
+	if !ok {
+		log.Debugf("jwt error: username expected to be string, got %T", username)
+		return "", errors.New("got strange username")
+	}
+
+	return usernameString, nil
+}
+
+func getClaimsForToken(options tokenOptions, tokenStr string, skipExpiration bool) (map[string]interface{}, error) {
+	claims, err := getJWTClaims(options.secret, tokenStr, skipExpiration)
+	if err != nil {
+		return make(map[string]interface{}), err
+	}
+
+	return map[string]interface{}(*claims), nil
 }

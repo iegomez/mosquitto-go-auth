@@ -1488,6 +1488,7 @@ The `javascript` backend allows to run a JavaScript interpreter VM to conduct ch
 | js_user_script_path 		|				  |		Y		| Relative or absolute path to user check script		|
 | js_superuser_script_path	|				  |		Y		| Relative or absolute path to superuser check script	|
 | js_acl_script_path 		|				  |		Y		| Relative or absolute path to ACL check script			|
+| js_pass_claims	  	|    	false     |     N       | Pass all claims extracted from the token to check scripts		|
 
 This backend expects the user to define JS scripts that return a boolean result to the check in question.
 
@@ -1495,6 +1496,8 @@ The backend will pass `mosquitto` provided arguments along, that is:
 - `username`, `password` and `clientid` for `user` checks.
 - `username` for `superuser` checks.
 - `username`, `topic`, `clientid` and `acc` for `ACL` checks.
+If `js_pass_claims` option is set, an additional argument `claims` containing the claims data extracted
+from the JWT token is passed to all checks.
 
 
 This is a valid, albeit pretty useless, example script for ACL checks (see `test-files/jwt` dir for test scripts):

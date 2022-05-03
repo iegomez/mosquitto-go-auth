@@ -67,8 +67,8 @@ var notPresentJwtToken = jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims
 })
 
 var tkOptions = tokenOptions{
-	secret:    jwtSecret,
-	userField: "Username",
+	secret:       jwtSecret,
+	userFieldKey: "username",
 }
 
 func TestJWTClaims(t *testing.T) {
@@ -164,12 +164,13 @@ func TestJsJWTChecker(t *testing.T) {
 
 		Convey("Tokens may be pre-parsed and passed to the scripts", func() {
 			jsTokenOptions := tokenOptions{
-				parseToken: true,
-				secret:     jwtSecret,
-				userField:  "Username",
+				parseToken:   true,
+				secret:       jwtSecret,
+				userFieldKey: "username",
 			}
 
 			authOpts["jwt_js_user_script_path"] = "../test-files/jwt/parsed_user_script.js"
+			authOpts["jwt_js_pass_claims"] = "true"
 
 			checker, err = NewJsJWTChecker(authOpts, jsTokenOptions)
 			So(err, ShouldBeNil)
