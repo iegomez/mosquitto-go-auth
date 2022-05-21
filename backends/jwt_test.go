@@ -718,11 +718,48 @@ func TestJWTAllJsonServer(t *testing.T) {
 	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "json"
 	authOpts["jwt_response_mode"] = "json"
-	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 	authOpts["jwt_port"] = ""
 	authOpts["jwt_getuser_uri"] = "/user"
 	authOpts["jwt_superuser_uri"] = "/superuser"
 	authOpts["jwt_aclcheck_uri"] = "/acl"
+
+	parseTkOptions := tkOptions
+	parseTkOptions.parseToken = true
+
+	Convey("Given inconsistent auth options, NewRemoteJWTChecker should fail", t, func() {
+
+		Convey("Given jwt_host is not set, jwt_host_whitelist should be set and valid", func() {
+
+			authOpts["jwt_host_whitelist"] = ""
+
+			_, err := NewRemoteJWTChecker(authOpts, parseTkOptions, version)
+			So(err, ShouldNotBeNil)
+
+			authOpts["jwt_host_whitelist"] = "good-host:8000, bad_host"
+
+			_, err = NewRemoteJWTChecker(authOpts, parseTkOptions, version)
+			So(err, ShouldNotBeNil)
+
+		})
+
+		authOpts["jwt_host_whitelist"] = "*"
+
+		Convey("Given jwt_host is not set, jwt_parse_token should be true", func() {
+
+			_, err := NewRemoteJWTChecker(authOpts, tkOptions, version)
+			So(err, ShouldNotBeNil)
+
+		})
+	})
+
+	Convey("Given consistent auth options, NewRemoteJWTChecker should be created", t, func() {
+
+		authOpts["jwt_host_whitelist"] = "good-host:8000, 10.0.0.1:10, some.good.host, 10.0.0.2"
+		_, err := NewRemoteJWTChecker(authOpts, parseTkOptions, version)
+		So(err, ShouldBeNil)
+	})
+
+	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
@@ -1261,6 +1298,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	version := "2.0.0"
 
+	rightToken := token
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		err := r.ParseForm()
@@ -1273,7 +1311,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 		gToken := r.Header.Get("Authorization")
 		gToken = strings.TrimPrefix(gToken, "Bearer ")
 
-		if token != gToken {
+		if rightToken != gToken {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -1386,6 +1424,89 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 
 	})
 
+	serverHostAddr := strings.Replace(mockServer.URL, "http://", "", -1)
+
+	authOpts["jwt_host"] = ""
+	authOpts["jwt_parse_token"] = "true"
+	authOpts["jwt_secret"] = jwtSecret
+
+	tokenWithIss, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"iss":      serverHostAddr,
+		"aud":      "jwt-test",
+		"nbf":      nowSecondsSinceEpoch,
+		"exp":      expSecondsSinceEpoch,
+		"sub":      "user",
+		"username": username,
+	}).SignedString([]byte(jwtSecret))
+
+	wrongIssToken, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"iss":      serverHostAddr,
+		"aud":      "jwt-test",
+		"nbf":      nowSecondsSinceEpoch,
+		"exp":      expSecondsSinceEpoch,
+		"sub":      "user",
+		"username": "wrong_user",
+	}).SignedString([]byte(jwtSecret))
+
+	rightToken = tokenWithIss
+	Convey("Given empty jwt_host field and correct iss claim authorization should work", t, func() {
+
+		authOpts["jwt_host_whitelist"] = serverHostAddr + ", sometherhost"
+		hbWhitelistedHost, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("Given correct password/username and iss host is whitelisted, get user should return true", func() {
+
+			authenticated, err := hbWhitelistedHost.GetUser(tokenWithIss, "", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+		})
+
+		Convey("Given incorrect password/username, get user should return false", func() {
+
+			authenticated, err := hbWhitelistedHost.GetUser(wrongIssToken, "", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+
+		})
+
+		authOpts["jwt_port"] = "12345"
+		hbWhitelistedHostBadConfigPort, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("Given jwt_port is present in config, port from iss field should be used anyway", func() {
+
+			authenticated, err := hbWhitelistedHostBadConfigPort.GetUser(tokenWithIss, "", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+		})
+
+		authOpts["jwt_host_whitelist"] = "*"
+		hbAnyHost, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("Given correct password/username and all hosts are allowed, get user should return true", func() {
+
+			authenticated, err := hbAnyHost.GetUser(tokenWithIss, "", "")
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+
+		})
+
+		authOpts["jwt_host_whitelist"] = "otherhost1, otherhost2"
+		hbBadHost, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("Given host from iss is not whitelisted, get user should fail even if the credentials are correct", func() {
+
+			authenticated, err := hbBadHost.GetUser(tokenWithIss, "", "")
+			So(err, ShouldNotBeNil)
+			So(authenticated, ShouldBeFalse)
+
+		})
+	})
 }
 
 func TestJWTFormTextResponseServer(t *testing.T) {

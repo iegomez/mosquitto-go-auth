@@ -34,6 +34,7 @@ const (
 	filesMode         = "files"
 	claimsSubjectKey  = "sub"
 	claimsUsernameKey = "username"
+	claimsIssKey      = "iss"
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
@@ -178,4 +179,25 @@ func getClaimsForToken(options tokenOptions, tokenStr string, skipExpiration boo
 	}
 
 	return map[string]interface{}(*claims), nil
+}
+
+func getIssForToken(options tokenOptions, tokenStr string, skipExpiration bool) (string, error) {
+	claims, err := getJWTClaims(options.secret, tokenStr, skipExpiration)
+
+	if err != nil {
+		return "", err
+	}
+
+	iss, found := (*claims)[claimsIssKey]
+	if !found {
+		return "", nil
+	}
+
+	issString, ok := iss.(string)
+	if !ok {
+		log.Debugf("jwt error: iss expected to be string, got %T", iss)
+		return "", errors.New("got strange iss")
+	}
+
+	return issString, nil
 }

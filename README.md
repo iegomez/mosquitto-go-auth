@@ -880,21 +880,26 @@ The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM
 
 The following `auth_opt_` options are supported by the `jwt` backend when remote is set to true:
 
-| Option            | default   | Mandatory | Meaning                            |
-| ----------------- | --------- | :-------: | ---------------------------------- |
-| jwt_host          |           |     Y     | API server host name or ip         |
-| jwt_port          |           |     Y     | TCP port number                    |
-| jwt_getuser_uri   |           |     Y     | URI for check username/password    |
-| jwt_superuser_uri |           |     N     | URI for check superuser            |
-| jwt_aclcheck_uri  |           |     Y     | URI for check acl                  |
-| jwt_with_tls      | false     |     N     | Use TLS on connect                 |
-| jwt_verify_peer   | false     |     N     | Whether to verify peer for tls     |
-| jwt_response_mode | status    |     N     | Response type (status, json, text) |
-| jwt_params_mode   | json      |     N     | Data type (json, form)             |
-| jwt_user_agent    | mosquitto |     N     | User agent for requests            |
-| jwt_http_method   | POST      |     N     | Http method used (POST, GET, PUT)  |
+| Option             | default   | Mandatory | Meaning                                                       |
+| ------------------ | --------- | :-------: | ------------------------------------------------------------- |
+| jwt_host           |           |    Y/N    | API server host name or ip                                    |
+| jwt_port           |           |     Y     | TCP port number                                               |
+| jwt_getuser_uri    |           |     Y     | URI for check username/password                               |
+| jwt_superuser_uri  |           |     N     | URI for check superuser                                       |
+| jwt_aclcheck_uri   |           |     Y     | URI for check acl                                             |
+| jwt_with_tls       | false     |     N     | Use TLS on connect                                            |
+| jwt_verify_peer    | false     |     N     | Whether to verify peer for tls                                |
+| jwt_response_mode  | status    |     N     | Response type (status, json, text)                            |
+| jwt_params_mode    | json      |     N     | Data type (json, form)                                        |
+| jwt_user_agent     | mosquitto |     N     | User agent for requests                                       |
+| jwt_http_method    | POST      |     N     | Http method used (POST, GET, PUT)                             |
+| jwt_host_whitelist |           |    Y/N    | List of hosts that are eligible to be an authoritative server |
 
 URIs (like jwt_getuser_uri) are expected to be in the form `/path`. For example, if jwt_with_tls is `false`, jwt_host is `localhost`, jwt_port `3000` and jwt_getuser_uri is `/user`, mosquitto will send a http request to `http://localhost:3000/user` to get a response to check against. How data is sent (either json encoded or as form values) and received (as a simple http status code, a json encoded response or plain text), is given by options jwt_response_mode and jwt_params_mode.
+
+if the option `jwt_parse_token` is set to `true`, `jwt_host` can be omitted and the host will be taken from the `Issuer` (`iss` field) claim of the JWT token. In this case the option `jwt_host_whitelist` is mandatory and must contain
+either a comma-separated list of the valid hostnames/ip addresses (with or without `:<port>` part) or the `*` (asterisk) symbol. If the `Issuer` claim is not contained in this list of valid hosts, the authorization will fail. Special
+value `*` means "any host" and is intended for testing/development purposes only - NEVER use this in production!
 
 If the option `jwt_superuser_uri` is not set then `superuser` checks are disabled for this mode.
 
