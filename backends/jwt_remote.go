@@ -46,7 +46,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		verifyPeer:   false,
 		responseMode: "status",
 		paramsMode:   "json",
-		httpMethod:   "POST",
+		httpMethod:   h.MethodPost,
 		options:      options,
 	}
 
@@ -66,7 +66,8 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 	}
 
 	if httpMethod, ok := authOpts["jwt_http_method"]; ok {
-		if httpMethod == "POST" || httpMethod == "GET" || httpMethod == "PUT" {
+		switch httpMethod {
+		case h.MethodGet, h.MethodPut:
 			checker.httpMethod = httpMethod
 		}
 	}

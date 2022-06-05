@@ -103,6 +103,7 @@ func TestHTTPAllJsonServer(t *testing.T) {
 		hb, err := NewHTTP(authOpts, log.DebugLevel, version)
 		So(err, ShouldBeNil)
 		So(hb.UserAgent, ShouldEqual, "mosquitto-2.0.0")
+		So(hb.httpMethod, ShouldEqual, http.MethodPost)
 
 		Convey("Given custom user agent, it should override default one", func() {
 			customAuthOpts := make(map[string]string)
@@ -116,6 +117,34 @@ func TestHTTPAllJsonServer(t *testing.T) {
 			customHb, err := NewHTTP(customAuthOpts, log.DebugLevel, version)
 			So(err, ShouldBeNil)
 			So(customHb.UserAgent, ShouldEqual, "custom-user-agent")
+		})
+
+		Convey("Given http method GET, it should override the default POST one", func() {
+			customAuthOpts := make(map[string]string)
+
+			for k, v := range authOpts {
+				customAuthOpts[k] = v
+			}
+
+			customAuthOpts["http_method"] = "GET"
+
+			customHb, err := NewHTTP(customAuthOpts, log.DebugLevel, version)
+			So(err, ShouldBeNil)
+			So(customHb.httpMethod, ShouldEqual, http.MethodGet)
+		})
+
+		Convey("Given http method PUT, it should override the default POST one", func() {
+			customAuthOpts := make(map[string]string)
+
+			for k, v := range authOpts {
+				customAuthOpts[k] = v
+			}
+
+			customAuthOpts["http_method"] = "PUT"
+
+			customHb, err := NewHTTP(customAuthOpts, log.DebugLevel, version)
+			So(err, ShouldBeNil)
+			So(customHb.httpMethod, ShouldEqual, http.MethodPut)
 		})
 
 		Convey("Given correct password/username, get user should return true", func() {

@@ -46,7 +46,7 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level, version string) (HT
 		VerifyPeer:   false,
 		ResponseMode: "status",
 		ParamsMode:   "json",
-		httpMethod:   "POST",
+		httpMethod:   h.MethodPost,
 	}
 
 	missingOpts := ""
@@ -65,7 +65,8 @@ func NewHTTP(authOpts map[string]string, logLevel log.Level, version string) (HT
 	}
 
 	if httpMethod, ok := authOpts["http_method"]; ok {
-		if httpMethod == "POST" || httpMethod == "GET" || httpMethod == "PUT" {
+		switch httpMethod {
+		case h.MethodGet, h.MethodPut:
 			http.httpMethod = httpMethod
 		}
 	}
@@ -218,10 +219,9 @@ func (o HTTP) httpRequest(uri, username string, dataMap map[string]interface{}, 
 	var err error
 
 	if o.ParamsMode == "form" {
-		if o.httpMethod != "POST" {
-			log.Errorf("error form param only supported for POST.")
-			err = fmt.Errorf("form only supported for POST, error code: %d",
-				500)
+		if o.httpMethod != h.MethodPost && o.httpMethod != h.MethodPut {
+			log.Errorf("error form param only supported for POST/PUT.")
+			err = fmt.Errorf("form only supported for POST/PUT, error code: %d", 500)
 			return false, err
 		}
 
