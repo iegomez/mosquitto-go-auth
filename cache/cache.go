@@ -225,11 +225,7 @@ func (s *redisStore) checkRecord(ctx context.Context, record string, expirationT
 	}
 
 	if isMovedError(err) {
-		err = s.client.ReloadState(ctx)
-		// This should not happen, ever!
-		if err == bes.SingleClientError {
-			return false, false
-		}
+		s.client.ReloadState(ctx)
 
 		//Retry once.
 		present, granted, err = s.getAndRefresh(ctx, record, expirationTime)
@@ -299,10 +295,7 @@ func (s *redisStore) setRecord(ctx context.Context, record, granted string, expi
 
 	// If record was moved, reload and retry.
 	if isMovedError(err) {
-		err = s.client.ReloadState(ctx)
-		if err != nil {
-			return err
-		}
+		s.client.ReloadState(ctx)
 
 		//Retry once.
 		err = s.set(ctx, record, granted, expirationTime)

@@ -2,7 +2,6 @@ package backends
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,17 +23,15 @@ type RedisClient interface {
 	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *goredis.StatusCmd
 	SAdd(ctx context.Context, key string, members ...interface{}) *goredis.IntCmd
 	Expire(ctx context.Context, key string, expiration time.Duration) *goredis.BoolCmd
-	ReloadState(ctx context.Context) error
+	ReloadState(ctx context.Context)
 }
 
 type SingleRedisClient struct {
 	*goredis.Client
 }
 
-var SingleClientError = errors.New("unsupported reload state operation for Redis single client")
-
-func (c SingleRedisClient) ReloadState(ctx context.Context) error {
-	return SingleClientError
+func (c SingleRedisClient) ReloadState(ctx context.Context) {
+	// NO-OP
 }
 
 type Redis struct {
@@ -147,11 +144,7 @@ func (o Redis) GetUser(username, password, _ string) (bool, error) {
 
 	//If using Redis Cluster, reload state and attempt once more.
 	if isMovedError(err) {
-		err = o.conn.ReloadState(o.ctx)
-		if err != nil {
-			log.Debugf("redis reload state error: %s", err)
-			return false, err
-		}
+		o.conn.ReloadState(o.ctx)
 
 		//Retry once.
 		ok, err = o.getUser(username, password)
@@ -191,11 +184,7 @@ func (o Redis) GetSuperuser(username string) (bool, error) {
 
 	//If using Redis Cluster, reload state and attempt once more.
 	if isMovedError(err) {
-		err = o.conn.ReloadState(o.ctx)
-		if err != nil {
-			log.Debugf("redis reload state error: %s", err)
-			return false, err
-		}
+		o.conn.ReloadState(o.ctx)
 
 		//Retry once.
 		ok, err = o.getSuperuser(username)
@@ -231,11 +220,7 @@ func (o Redis) CheckAcl(username, topic, clientid string, acc int32) (bool, erro
 
 	//If using Redis Cluster, reload state and attempt once more.
 	if isMovedError(err) {
-		err = o.conn.ReloadState(o.ctx)
-		if err != nil {
-			log.Debugf("redis reload state error: %s", err)
-			return false, err
-		}
+		o.conn.ReloadState(o.ctx)
 
 		//Retry once.
 		ok, err = o.checkAcl(username, topic, clientid, acc)
