@@ -9,7 +9,9 @@ ARG MOSQUITTO_VERSION
 ARG LWS_VERSION
 
 # Get mosquitto build dependencies.
-RUN set -ex; apt-get update; apt-get install -y wget build-essential cmake libssl-dev libcjson-dev
+RUN set -ex; \
+    apt-get update; \
+    apt-get install -y wget build-essential cmake libssl-dev libcjson-dev
 
 # Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
 RUN set -ex; \
@@ -35,13 +37,17 @@ RUN set -ex; \
 
 WORKDIR /app
 
-RUN set -ex; mkdir -p mosquitto/auth mosquitto/conf.d
+RUN mkdir -p mosquitto/auth mosquitto/conf.d
 
-RUN set -ex; wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
-RUN set -ex; tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz
+RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
+
+RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
 # Build mosquitto.
-RUN set -ex; cd mosquitto-${MOSQUITTO_VERSION}; make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes; make install;
+RUN set -ex; \
+    cd mosquitto-${MOSQUITTO_VERSION}; \
+    make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes; \
+    make install;
 
 # Use golang:latest as a builder for the Mosquitto Go Auth plugin.
 FROM --platform=$BUILDPLATFORM golang:latest AS go_auth_builder
@@ -59,7 +65,8 @@ COPY --from=tonistiigi/xx:golang / /
 RUN go env
 
 # Install needed libc and gcc for target platform.
-RUN set -ex; if [ ! -z "$TARGETPLATFORM" ]; then \
+RUN set -ex; \
+  if [ ! -z "$TARGETPLATFORM" ]; then \
     case "$TARGETPLATFORM" in \
   "linux/arm64") \
     apt update && apt install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
@@ -77,20 +84,24 @@ WORKDIR /app
 COPY --from=mosquitto_builder /usr/local/include/ /usr/local/include/
 
 COPY ./ ./
-RUN set -ex; go build -buildmode=c-archive go-auth.go; \
+RUN set -ex; \
+    go build -buildmode=c-archive go-auth.go; \
     go build -buildmode=c-shared -o go-auth.so; \
 	  go build pw-gen/pw.go
 
 #Start from a new image.
 FROM debian:stable-slim
 
-RUN set -ex; apt update; apt install -y libc-ares2 openssl uuid tini wget libssl-dev libcjson-dev
+RUN set -ex; \
+    apt update; \
+    apt install -y libc-ares2 openssl uuid tini wget libssl-dev libcjson-dev
 
 RUN mkdir -p /var/lib/mosquitto /var/log/mosquitto
-RUN groupadd mosquitto \
-    && useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto \
-    && chown -R mosquitto:mosquitto /var/log/mosquitto/ \
-    && chown -R mosquitto:mosquitto /var/lib/mosquitto/
+RUN set -ex; \
+    groupadd mosquitto; \
+    useradd -s /sbin/nologin mosquitto -g mosquitto -d /var/lib/mosquitto; \
+    chown -R mosquitto:mosquitto /var/log/mosquitto/; \
+    chown -R mosquitto:mosquitto /var/lib/mosquitto/
 
 #Copy confs, plugin so and mosquitto binary.
 COPY --from=mosquitto_builder /app/mosquitto/ /mosquitto/
@@ -105,7 +116,7 @@ COPY --from=mosquitto_builder /usr/local/bin/mosquitto_sub /usr/bin/mosquitto_su
 COPY --from=mosquitto_builder /usr/local/bin/mosquitto_pub /usr/bin/mosquitto_pub
 COPY --from=mosquitto_builder /usr/local/bin/mosquitto_rr /usr/bin/mosquitto_rr
 
-RUN set -ex; ldconfig;
+RUN ldconfig;
 
 EXPOSE 1883 1884
 
