@@ -105,13 +105,9 @@ COPY --from=mosquitto_builder /usr/local/bin/mosquitto_sub /usr/bin/mosquitto_su
 COPY --from=mosquitto_builder /usr/local/bin/mosquitto_pub /usr/bin/mosquitto_pub
 COPY --from=mosquitto_builder /usr/local/bin/mosquitto_rr /usr/bin/mosquitto_rr
 
-EXPOSE 1883 1884
-
-#RUN set -ex; echo "mosquitto_sub -t '\$SYS/#' -C 1 -p 1883 | grep -v Error || exit 1" > /healthcheck.sh
 RUN set -ex; ldconfig;
 
-#HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
-#    CMD ["/bin/sh", "-c", "/healthcheck.sh"]
+EXPOSE 1883 1884
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD [ "/usr/sbin/mosquitto" ,"-c", "/etc/mosquitto/mosquitto.conf" ]
