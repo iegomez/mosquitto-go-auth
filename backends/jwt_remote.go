@@ -185,7 +185,7 @@ func (o *remoteJWTChecker) GetUser(token string) (bool, error) {
 		}
 	}
 
-	return o.jwtRequest(o.host, o.userUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.userUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) GetSuperuser(token string) (bool, error) {
@@ -212,7 +212,7 @@ func (o *remoteJWTChecker) GetSuperuser(token string) (bool, error) {
 		}
 	}
 
-	return o.jwtRequest(o.host, o.superuserUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.superuserUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
@@ -240,14 +240,14 @@ func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (b
 		urlValues.Add("username", username)
 	}
 
-	return o.jwtRequest(o.host, o.aclUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.aclUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) Halt() {
 	// NO-OP
 }
 
-func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[string]interface{}, urlValues url.Values) (bool, error) {
+func (o *remoteJWTChecker) jwtRequest(uri, token string, dataMap map[string]interface{}, urlValues url.Values) (bool, error) {
 
 	// Don't do the request if the client is nil.
 	if o.client == nil {
@@ -260,8 +260,7 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 		tlsStr = "https://"
 	}
 
-	var err error
-	host, err = o.getHost(token)
+	host, err := o.getHost(token)
 	if err != nil {
 		return false, err
 	}
