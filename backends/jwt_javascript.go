@@ -16,6 +16,8 @@ type jsJWTChecker struct {
 	superuserScript string
 	aclScript       string
 
+	passClaims bool
+
 	options tokenOptions
 
 	runner *js.Runner
@@ -79,6 +81,10 @@ func NewJsJWTChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		return nil, errors.New("missing jwt_js_acl_script_path")
 	}
 
+	if passClaims, ok := authOpts["jwt_js_pass_claims"]; ok && passClaims == "true" {
+		checker.passClaims = true
+	}
+
 	checker.runner = js.NewRunner(checker.stackDepthLimit, checker.msMaxDuration)
 
 	return checker, nil
@@ -90,14 +96,10 @@ func (o *jsJWTChecker) GetUser(token string) (bool, error) {
 	}
 
 	if o.options.parseToken {
-		username, err := getUsernameForToken(o.options, token, o.options.skipUserExpiration)
-
-		if err != nil {
-			log.Printf("jwt get user error: %s", err)
+		var err error
+		if params, err = o.addDataFromJWT(params, token, o.options.skipUserExpiration); err != nil {
 			return false, err
 		}
-
-		params["username"] = username
 	}
 
 	granted, err := o.runner.RunScript(o.userScript, params)
@@ -108,20 +110,37 @@ func (o *jsJWTChecker) GetUser(token string) (bool, error) {
 	return granted, err
 }
 
+func (o *jsJWTChecker) addDataFromJWT(params map[string]interface{}, token string, skipExpiration bool) (map[string]interface{}, error) {
+	claims, err := getClaimsForToken(o.options, token, skipExpiration)
+
+	if err != nil {
+		log.Printf("jwt get claims error: %s", err)
+		return nil, err
+	}
+
+	if o.passClaims {
+		params["claims"] = claims
+	}
+
+	if username, found := claims[o.options.userFieldKey]; found {
+		params["username"] = username.(string)
+	} else {
+		params["username"] = ""
+	}
+
+	return params, nil
+}
+
 func (o *jsJWTChecker) GetSuperuser(token string) (bool, error) {
 	params := map[string]interface{}{
 		"token": token,
 	}
 
 	if o.options.parseToken {
-		username, err := getUsernameForToken(o.options, token, o.options.skipUserExpiration)
-
-		if err != nil {
-			log.Printf("jwt get user error: %s", err)
+		var err error
+		if params, err = o.addDataFromJWT(params, token, o.options.skipUserExpiration); err != nil {
 			return false, err
 		}
-
-		params["username"] = username
 	}
 
 	granted, err := o.runner.RunScript(o.superuserScript, params)
@@ -141,14 +160,10 @@ func (o *jsJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool,
 	}
 
 	if o.options.parseToken {
-		username, err := getUsernameForToken(o.options, token, o.options.skipACLExpiration)
-
-		if err != nil {
-			log.Printf("jwt get user error: %s", err)
+		var err error
+		if params, err = o.addDataFromJWT(params, token, o.options.skipACLExpiration); err != nil {
 			return false, err
 		}
-
-		params["username"] = username
 	}
 
 	granted, err := o.runner.RunScript(o.aclScript, params)

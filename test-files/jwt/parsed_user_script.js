@@ -1,8 +1,14 @@
-function checkUser(token, username) {
+function checkUser(token, username, claims) {
+    if(claims.username != username) {
+        return false;
+    }
+    if(claims.iss != "jwt-test") {
+        return false;
+    }
     if(username == "test") {
         return true;
     }
     return false;
 }
 
-checkUser(token, username);
+checkUser(token, username, claims);

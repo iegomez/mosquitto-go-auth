@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	h "net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -17,14 +18,15 @@ import (
 )
 
 type remoteJWTChecker struct {
-	userUri      string
-	superuserUri string
-	aclUri       string
-	userAgent    string
-	host         string
-	port         string
-	withTLS      bool
-	verifyPeer   bool
+	userUri       string
+	superuserUri  string
+	aclUri        string
+	userAgent     string
+	host          string
+	port          string
+	hostWhitelist []string
+	withTLS       bool
+	verifyPeer    bool
 
 	paramsMode   string
 	httpMethod   string
@@ -39,6 +41,10 @@ type Response struct {
 	Ok    bool   `json:"ok"`
 	Error string `json:"error"`
 }
+
+const (
+	whitelistMagicForAnyHost = "*"
+)
 
 func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, version string) (jwtChecker, error) {
 	var checker = &remoteJWTChecker{
@@ -97,9 +103,34 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 
 	if hostname, ok := authOpts["jwt_host"]; ok {
 		checker.host = hostname
+	} else if options.parseToken {
+		checker.host = ""
 	} else {
 		remoteOk = false
 		missingOpts += " jwt_host"
+	}
+
+	if hostWhitelist, ok := authOpts["jwt_host_whitelist"]; ok {
+		if hostWhitelist == whitelistMagicForAnyHost {
+			log.Warning(
+				"Backend host whitelisting is turned off. This is not secure and should not be used in " +
+					"the production environment")
+			checker.hostWhitelist = append(checker.hostWhitelist, whitelistMagicForAnyHost)
+		} else {
+			for _, host := range strings.Split(hostWhitelist, ",") {
+				strippedHost := strings.TrimSpace(host)
+				/* Not-so-strict check if we have a valid value (domain name or ip address with optional
+				port) as a part of the host whitelist. TODO: Consider using more robust check, i.e.
+				using "govalidator" or similar package instead. */
+				if matched, _ := regexp.MatchString(`^[a-zA-Z0-9][a-zA-Z0-9-\.]+[a-zA-Z0-9](?:\:[0-9]+)?$`, strippedHost); !matched {
+					return nil, errors.Errorf("JWT backend error: bad host %s in jwt_host_whitelist", strippedHost)
+				}
+				checker.hostWhitelist = append(checker.hostWhitelist, strippedHost)
+			}
+		}
+	} else if checker.host == "" {
+		remoteOk = false
+		missingOpts += " jwt_host_whitelist"
 	}
 
 	if port, ok := authOpts["jwt_port"]; ok {
@@ -154,7 +185,7 @@ func (o *remoteJWTChecker) GetUser(token string) (bool, error) {
 		}
 	}
 
-	return o.jwtRequest(o.host, o.userUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.userUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) GetSuperuser(token string) (bool, error) {
@@ -181,7 +212,7 @@ func (o *remoteJWTChecker) GetSuperuser(token string) (bool, error) {
 		}
 	}
 
-	return o.jwtRequest(o.host, o.superuserUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.superuserUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
@@ -209,14 +240,14 @@ func (o *remoteJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (b
 		urlValues.Add("username", username)
 	}
 
-	return o.jwtRequest(o.host, o.aclUri, token, dataMap, urlValues)
+	return o.jwtRequest(o.aclUri, token, dataMap, urlValues)
 }
 
 func (o *remoteJWTChecker) Halt() {
 	// NO-OP
 }
 
-func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[string]interface{}, urlValues url.Values) (bool, error) {
+func (o *remoteJWTChecker) jwtRequest(uri, token string, dataMap map[string]interface{}, urlValues url.Values) (bool, error) {
 
 	// Don't do the request if the client is nil.
 	if o.client == nil {
@@ -229,13 +260,18 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 		tlsStr = "https://"
 	}
 
-	fullURI := fmt.Sprintf("%s%s%s", tlsStr, o.host, uri)
-	if o.port != "" {
-		fullURI = fmt.Sprintf("%s%s:%s%s", tlsStr, o.host, o.port, uri)
+	host, err := o.getHost(token)
+	if err != nil {
+		return false, err
+	}
+
+	fullURI := fmt.Sprintf("%s%s%s", tlsStr, host, uri)
+	// If "host" variable already has port set, do not use the value of jwt_port option from config.
+	if !strings.Contains(host, ":") && o.port != "" {
+		fullURI = fmt.Sprintf("%s%s:%s%s", tlsStr, host, o.port, uri)
 	}
 
 	var resp *h.Response
-	var err error
 	var req *h.Request
 
 	switch o.paramsMode {
@@ -322,4 +358,42 @@ func (o *remoteJWTChecker) jwtRequest(host, uri, token string, dataMap map[strin
 
 	log.Debugf("jwt request approved for %s", token)
 	return true, nil
+}
+
+func (o *remoteJWTChecker) getHost(token string) (string, error) {
+	if o.host != "" {
+		return o.host, nil
+	}
+
+	// Actually this should never happen because of configuration sanity check. TODO: consider removing this condition.
+	if !o.options.parseToken {
+		errorString := fmt.Sprintf("impossible to obtain host for the authorization request - token parsing is turned off")
+		return "", errors.New(errorString)
+	}
+
+	iss, err := getIssForToken(o.options, token, o.options.skipUserExpiration)
+	if err != nil {
+		errorString := fmt.Sprintf("cannot obtain host for the authorization request from token %s: %s", token, err)
+		return "", errors.New(errorString)
+	}
+
+	if !o.isHostWhitelisted(iss) {
+		errorString := fmt.Sprintf("host %s obtained from host is not whitelisted; rejecting", iss)
+		return "", errors.New(errorString)
+	}
+
+	return iss, nil
+}
+
+func (o *remoteJWTChecker) isHostWhitelisted(host string) bool {
+	if len(o.hostWhitelist) == 1 && o.hostWhitelist[0] == whitelistMagicForAnyHost {
+		return true
+	}
+
+	for _, whitelistedHost := range o.hostWhitelist {
+		if whitelistedHost == host {
+			return true
+		}
+	}
+	return false
 }
