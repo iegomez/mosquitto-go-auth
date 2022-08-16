@@ -1,5 +1,5 @@
 # Define Mosquitto version
-ARG MOSQUITTO_VERSION=2.0.14
+ARG MOSQUITTO_VERSION=2.0.15
 # Define libwebsocket version
 ARG LWS_VERSION=4.2.2
 
