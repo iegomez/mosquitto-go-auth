@@ -1,7 +1,7 @@
 # Define Mosquitto version
-ARG MOSQUITTO_VERSION=2.0.9
+ARG MOSQUITTO_VERSION=2.0.15
 # Define libwebsocket version
-ARG LWS_VERSION=2.4.2
+ARG LWS_VERSION=4.2.2
 
 # Use debian:stable-slim as a builder for Mosquitto and dependencies.
 FROM debian:stable-slim as mosquitto_builder
@@ -31,7 +31,8 @@ RUN set -ex; \
         -DLWS_WITH_HTTP2=OFF \
         -DLWS_WITH_SHARED=OFF \
         -DLWS_WITH_ZIP_FOPS=OFF \
-        -DLWS_WITH_ZLIB=OFF; \
+        -DLWS_WITH_ZLIB=OFF \
+        -DLWS_WITH_EXTERNAL_POLL=ON; \
     make -j "$(nproc)"; \
     rm -rf /root/.cmake
 
