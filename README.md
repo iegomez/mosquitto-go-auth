@@ -251,7 +251,7 @@ include_dir /etc/mosquitto/conf.d
 Create some conf file (e.g., `go-auth.conf`) at your preferred location, e.g. `/etc/mosquitto/conf.d/`, and register the plugin's shared object path and desired backends with:
 
 ```
-auth_plugin /etc/mosquitto/conf.d/go-auth.so
+auth_plugin /mosquitto/go-auth.so
 
 auth_opt_backends files, postgres, jwt
 ```
