@@ -182,7 +182,17 @@ This will fetch all the go dependecies and then build `go-auth.so` shared object
 make
 ```
 
-This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/local/include`, which is true for a manually built `mosquitto` version in debian based systems (and probably others too), or manually built or installed through brew (```brew install mosquitto```) `mosquitto` version in MacOS.
+This assumes that `mosquitto.h`, `mosquitto_plugin.h` and `mosquitto_broker.h` are located at `/usr/include` or `/usr/local/include`
+on MacOS or debian-based systems (and probably other linux systems too).
+
+On debian-based systems you can install the header files via apt (```apt install mosquitto-dev libmosquitto-dev```). They will be placed under `/usr/include`.
+
+On MacOS you can install the header files via homebrew (```brew install mosquitto```). MacOS on ARM hardware will place the header
+files under `/opt/homebrew/include` and on x86_64 (Intel) hardware under `/usr/local/homebrew/include`. You have to either copy these headers under `/usr/local/include`,
+create a symlink or configure `make` to include homebrew's include path too.
+
+You can also just download the header files at https://github.com/eclipse/mosquitto/tree/master/include (**change versions accordingly**)
+and place them under `/usr/local/include`.
 
 If this doesn't work for your distribution or OS version, please check `Makefile` `CFLAGS` and `LDFLAGS` and adjust accordingly.
 File an issue or open a PR if you wish to contribute correct flags for your system.
