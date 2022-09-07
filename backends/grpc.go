@@ -172,25 +172,32 @@ func setup(hostname string, caCert, tlsCert, tlsKey []byte, withBlock bool) ([]g
 		nsOpts = append(nsOpts, grpc.WithBlock())
 	}
 
-	if len(caCert) == 0 && len(tlsCert) == 0 && len(tlsKey) == 0 {
+	if len(caCert) == 0 {
 		nsOpts = append(nsOpts, grpc.WithInsecure())
 		log.WithField("server", hostname).Warning("creating insecure grpc client")
 	} else {
 		log.WithField("server", hostname).Info("creating grpc client")
-		cert, err := tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, errors.Wrap(err, "load x509 keypair error")
-		}
 
 		caCertPool := x509.NewCertPool()
 		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.Wrap(err, "append ca cert to pool error")
+			return nil, errors.New("append ca cert to pool error")
+		}
+		tlsConfig := &tls.Config{
+			RootCAs: caCertPool,
 		}
 
-		nsOpts = append(nsOpts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{
-			Certificates: []tls.Certificate{cert},
-			RootCAs:      caCertPool,
-		})))
+		if len(tlsCert) != 0 && len(tlsKey) != 0 {
+			cert, err := tls.X509KeyPair(tlsCert, tlsKey)
+			if err != nil {
+				return nil, errors.Wrap(err, "load x509 keypair error")
+			}
+			certificates := []tls.Certificate{cert}
+			tlsConfig.Certificates = certificates
+		} else if len(tlsCert) != 0 || len(tlsKey) != 0 {
+			log.Warn("gRPC backend warning: mutual TLS was disabled due to missing client certificate or client key")
+		}
+
+		nsOpts = append(nsOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
 	}
 
 	return nsOpts, nil
