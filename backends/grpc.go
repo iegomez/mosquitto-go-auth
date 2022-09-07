@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"google.golang.org/grpc/credentials/insecure"
 	"strconv"
 	"time"
 
@@ -173,7 +174,7 @@ func setup(hostname string, caCert, tlsCert, tlsKey []byte, withBlock bool) ([]g
 	}
 
 	if len(caCert) == 0 {
-		nsOpts = append(nsOpts, grpc.WithInsecure())
+		nsOpts = append(nsOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		log.WithField("server", hostname).Warning("creating insecure grpc client")
 	} else {
 		log.WithField("server", hostname).Info("creating grpc client")
