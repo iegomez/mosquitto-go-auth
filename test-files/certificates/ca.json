@@ -1,0 +1,11 @@
+{
+  "CN": "Mosquitto Go Auth Test Root CA",
+  "CA": {
+    "expiry": "87600h",
+    "pathlen": 1
+  },
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}

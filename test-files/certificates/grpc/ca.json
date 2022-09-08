@@ -1,0 +1,11 @@
+{
+  "CN": "Mosquitto Go Auth Test gRPC Intermediate CA",
+  "CA": {
+    "expiry": "87600h",
+    "pathlen": 0
+  },
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}

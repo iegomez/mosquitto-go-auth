@@ -1,0 +1,12 @@
+{
+  "CN": "Mosquitto Go Auth Test DB Server",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "hosts": [
+    "localhost",
+    "127.0.0.1",
+    "db.mosquitto-go-auth.invalid"
+  ]
+}
