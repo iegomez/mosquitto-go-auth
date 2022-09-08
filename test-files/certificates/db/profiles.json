@@ -1,16 +1,14 @@
 {
   "signing": {
     "default": {
-      "expiry": "87600h"
+      "expiry": "1h"
     },
     "profiles": {
       "ca": {
         "usages": [
-          "signing",
-          "cert sign",
-          "crl sign"
+          "cert sign"
         ],
-        "expiry": "87600h",
+        "expiry": "1h",
         "ca_constraint": {
           "is_ca": true,
           "max_path_len": 0,
@@ -19,21 +17,18 @@
       },
       "server": {
         "usages": [
-          "signing",
-          "digital signing",
           "key encipherment",
           "server auth"
         ],
-        "expiry": "87600h"
+        "expiry": "1h"
       },
       "client": {
         "usages": [
           "signing",
-          "digital signature",
           "key encipherment",
           "client auth"
         ],
-        "expiry": "87600h"
+        "expiry": "1h"
       }
     }
   }
