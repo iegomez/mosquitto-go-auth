@@ -208,3 +208,110 @@ func TestMysql(t *testing.T) {
 	})
 
 }
+
+func TestMysqlTls(t *testing.T) {
+	authOpts := make(map[string]string)
+	authOpts["mysql_host"] = "localhost"
+	authOpts["mysql_port"] = "3306"
+	authOpts["mysql_protocol"] = "tcp"
+	authOpts["mysql_allow_native_passwords"] = "true"
+	authOpts["mysql_dbname"] = "go_auth_test"
+	authOpts["mysql_user"] = "go_auth_test_tls"
+	authOpts["mysql_password"] = "go_auth_test_tls"
+
+	authOpts["mysql_userquery"] = "SELECT password_hash FROM test_user WHERE username = ? limit 1"
+	authOpts["mysql_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
+	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND (rw >= ? or rw = 3)"
+
+	Convey("Given custom ssl disabled, it should fail", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(mysql.DB, ShouldBeNil)
+	})
+
+	authOpts["mysql_sslmode"] = "custom"
+	authOpts["mysql_sslrootcert"] = "/test-files/certificates/ca.pem"
+
+	Convey("Given custom ssl enabled, it should work without a client certificate", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeNil)
+
+		rows, err := mysql.DB.Query("SHOW status like 'Ssl_cipher';")
+		So(err, ShouldBeNil)
+		So(rows.Next(), ShouldBeTrue)
+
+		var variableName string
+		var variableValue string
+		err = rows.Scan(&variableName, &variableValue)
+		So(err, ShouldBeNil)
+
+		So(variableName, ShouldEqual, "Ssl_cipher")
+		So(variableValue, ShouldNotBeBlank)
+	})
+}
+
+func TestMysqlMutualTls(t *testing.T) {
+	authOpts := make(map[string]string)
+	authOpts["mysql_host"] = "localhost"
+	authOpts["mysql_port"] = "3306"
+	authOpts["mysql_protocol"] = "tcp"
+	authOpts["mysql_allow_native_passwords"] = "true"
+	authOpts["mysql_dbname"] = "go_auth_test"
+	authOpts["mysql_user"] = "go_auth_test_mutual_tls"
+	authOpts["mysql_password"] = "go_auth_test_mutual_tls"
+
+	authOpts["mysql_userquery"] = "SELECT password_hash FROM test_user WHERE username = ? limit 1"
+	authOpts["mysql_superquery"] = "select count(*) from test_user where username = ? and is_admin = true"
+	authOpts["mysql_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = ? AND test_acl.test_user_id = test_user.id AND (rw >= ? or rw = 3)"
+
+	authOpts["mysql_sslmode"] = "custom"
+	authOpts["mysql_sslrootcert"] = "/test-files/certificates/ca.pem"
+
+	Convey("Given custom ssl enabled and no client certificate is given, it should fail", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(mysql.DB, ShouldBeNil)
+	})
+
+	authOpts["mysql_sslcert"] = "/test-files/certificates/db/unauthorized-second-client.pem"
+	authOpts["mysql_sslkey"] = "/test-files/certificates/db/unauthorized-second-client-key.pem"
+
+	Convey("Given custom ssl enabled and unauthorized client certificate is given, it should fail", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(mysql.DB, ShouldBeNil)
+	})
+
+	authOpts["mysql_sslcert"] = "/test-files/certificates/grpc/client.pem"
+	authOpts["mysql_sslkey"] = "/test-files/certificates/grpc/client-key.pem"
+
+	Convey("Given custom ssl enabled and invalid client certificate is given, it should fail", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldContainSubstring, "invalid connection")
+		So(mysql.DB, ShouldBeNil)
+	})
+
+	authOpts["mysql_sslcert"] = "/test-files/certificates/db/client.pem"
+	authOpts["mysql_sslkey"] = "/test-files/certificates/db/client-key.pem"
+
+	Convey("Given custom ssl enabled and client certificate is given, it should work", t, func() {
+		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
+		So(err, ShouldBeNil)
+
+		rows, err := mysql.DB.Query("SHOW status like 'Ssl_cipher';")
+		So(err, ShouldBeNil)
+		So(rows.Next(), ShouldBeTrue)
+
+		var variableName string
+		var variableValue string
+		err = rows.Scan(&variableName, &variableValue)
+		So(err, ShouldBeNil)
+
+		So(variableName, ShouldEqual, "Ssl_cipher")
+		So(variableValue, ShouldNotBeBlank)
+	})
+}
