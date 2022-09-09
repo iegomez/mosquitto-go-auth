@@ -51,7 +51,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		SuperuserQuery: "",
 		AclQuery:       "",
 		hasher:         hasher,
-		connectTries:   -1,
 	}
 
 	if host, ok := authOpts["pg_host"]; ok {
