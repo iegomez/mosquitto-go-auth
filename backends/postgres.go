@@ -101,10 +101,21 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	useSslClientCertificate := false
 
 	if sslmode, ok := authOpts["pg_sslmode"]; ok {
-		postgres.SSLMode = sslmode
-		checkSSL = true
-	} else {
-		postgres.SSLMode = "disable"
+		switch sslmode {
+		case "verify-full":
+			fallthrough
+		case "verify-ca":
+			fallthrough
+		case "require":
+			postgres.SSLMode = sslmode
+			checkSSL = true
+			break
+		case "disable":
+			// disable already set
+			break
+		default:
+			log.Warn("PG backend warning: TLS was disabled due to unknown sslmode (pg_sslmode)")
+		}
 	}
 
 	if sslCert, ok := authOpts["pg_sslcert"]; ok {
@@ -117,8 +128,9 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		useSslClientCertificate = true
 	}
 
-	if sslCert, ok := authOpts["pg_sslrootcert"]; ok {
-		postgres.SSLCert = sslCert
+	if sslRootCert, ok := authOpts["pg_sslrootcert"]; ok {
+		postgres.SSLRootCert = sslRootCert
+		checkSSL = true
 	} else {
 		if checkSSL {
 			log.Warn("PG backend warning: TLS was disabled due to missing root certificate (pg_sslrootcert)")
@@ -135,10 +147,13 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
 	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
-		connStr = fmt.Sprintf("%s sslmode=verify-ca sslrootcert=%s", connStr, postgres.SSLRootCert)
-	} else if postgres.SSLMode == "require" {
+		fmt.Printf("%s sslmode=%s sslrootcert=%s\n", connStr, postgres.SSLMode, postgres.SSLRootCert)
+		connStr = fmt.Sprintf("%s sslmode=%s sslrootcert=%s", connStr, postgres.SSLMode, postgres.SSLRootCert)
+	} else if postgres.SSLMode == "require" && checkSSL {
+		fmt.Printf("%s sslmode=require\n", connStr)
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	} else {
+		fmt.Printf("%s sslmode=disable\n", connStr)
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
