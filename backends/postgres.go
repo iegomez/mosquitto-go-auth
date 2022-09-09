@@ -98,11 +98,12 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		postgres.AclQuery = aclQuery
 	}
 
-	checkSSL := true
+	checkSSL := false
 	useSslClientCertificate := false
 
 	if sslmode, ok := authOpts["pg_sslmode"]; ok {
 		postgres.SSLMode = sslmode
+		checkSSL = true
 	} else {
 		postgres.SSLMode = "disable"
 	}
@@ -142,7 +143,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
-	if useSslClientCertificate {
+	if checkSSL && useSslClientCertificate {
 		if postgres.SSLCert != "" && postgres.SSLKey != "" {
 			connStr = fmt.Sprintf("%s sslcert=%s sslkey=%s", connStr, postgres.SSLCert, postgres.SSLKey)
 		} else {
