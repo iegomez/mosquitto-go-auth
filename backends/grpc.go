@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"fmt"
 	"google.golang.org/grpc/credentials/insecure"
+	"io/ioutil"
 	"strconv"
 	"time"
 
@@ -54,9 +55,9 @@ func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
 		}
 	}
 
-	caCert := []byte(authOpts["grpc_ca_cert"])
-	tlsCert := []byte(authOpts["grpc_tls_cert"])
-	tlsKey := []byte(authOpts["grpc_tls_key"])
+	caCert := authOpts["grpc_ca_cert"]
+	tlsCert := authOpts["grpc_tls_cert"]
+	tlsKey := authOpts["grpc_tls_key"]
 	addr := fmt.Sprintf("%s:%s", authOpts["grpc_host"], authOpts["grpc_port"])
 	withBlock := authOpts["grpc_fail_on_dial_error"] == "true"
 
@@ -157,7 +158,7 @@ func (o *GRPC) Halt() {
 	}
 }
 
-func setup(hostname string, caCert, tlsCert, tlsKey []byte, withBlock bool) ([]grpc.DialOption, error) {
+func setup(hostname string, caCert string, tlsCert string, tlsKey string, withBlock bool) ([]grpc.DialOption, error) {
 	logrusEntry := log.NewEntry(log.StandardLogger())
 	logrusOpts := []grpc_logrus.Option{
 		grpc_logrus.WithLevels(grpc_logrus.DefaultCodeToLevel),
@@ -179,23 +180,27 @@ func setup(hostname string, caCert, tlsCert, tlsKey []byte, withBlock bool) ([]g
 	} else {
 		log.WithField("server", hostname).Info("creating grpc client")
 
+		caCertBytes, err := ioutil.ReadFile(caCert)
+		if err != nil {
+			return nil, errors.Wrap(err, fmt.Sprintf("could not load grpc ca certificate (grpc_ca_cert) from file (%s)", caCert))
+		}
 		caCertPool := x509.NewCertPool()
-		if !caCertPool.AppendCertsFromPEM(caCert) {
-			return nil, errors.New("append ca cert to pool error")
+		if !caCertPool.AppendCertsFromPEM(caCertBytes) {
+			return nil, errors.New("append ca cert to pool error. Maybe the ca file (grpc_ca_cert) does not contain a valid x509 certificate")
 		}
 		tlsConfig := &tls.Config{
 			RootCAs: caCertPool,
 		}
 
 		if len(tlsCert) != 0 && len(tlsKey) != 0 {
-			cert, err := tls.X509KeyPair(tlsCert, tlsKey)
+			cert, err := tls.LoadX509KeyPair(tlsCert, tlsKey)
 			if err != nil {
 				return nil, errors.Wrap(err, "load x509 keypair error")
 			}
 			certificates := []tls.Certificate{cert}
 			tlsConfig.Certificates = certificates
 		} else if len(tlsCert) != 0 || len(tlsKey) != 0 {
-			log.Warn("gRPC backend warning: mutual TLS was disabled due to missing client certificate or client key")
+			log.Warn("gRPC backend warning: mutual TLS was disabled due to missing client certificate (grpc_tls_cert) or client key (grpc_tls_key)")
 		}
 
 		nsOpts = append(nsOpts, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
