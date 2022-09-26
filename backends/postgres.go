@@ -136,8 +136,8 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	}
 
-	if postgres.SSLMode == "disabled" {
-		connStr = fmt.Sprintf("%s sslmode=disabled", connStr)
+	if postgres.SSLMode == "disable" {
+		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
 	if len(postgres.SSLRootCert) > 0 {
