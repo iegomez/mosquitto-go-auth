@@ -98,8 +98,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		postgres.AclQuery = aclQuery
 	}
 
-	checkSSL := true
-
 	if sslmode, ok := authOpts["pg_sslmode"]; ok {
 		postgres.SSLMode = sslmode
 	} else {
@@ -108,20 +106,14 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 
 	if sslCert, ok := authOpts["pg_sslcert"]; ok {
 		postgres.SSLCert = sslCert
-	} else {
-		checkSSL = false
 	}
 
 	if sslKey, ok := authOpts["pg_sslkey"]; ok {
 		postgres.SSLKey = sslKey
-	} else {
-		checkSSL = false
 	}
 
 	if sslCert, ok := authOpts["pg_sslrootcert"]; ok {
 		postgres.SSLCert = sslCert
-	} else {
-		checkSSL = false
 	}
 
 	//Exit if any mandatory option is missing.
@@ -132,12 +124,32 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	//Build the dsn string and try to connect to the db.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
-	if (postgres.SSLMode == "verify-ca" || postgres.SSLMode == "verify-full") && checkSSL {
-		connStr = fmt.Sprintf("%s sslmode=verify-ca sslcert=%s sslkey=%s sslrootcert=%s", connStr, postgres.SSLCert, postgres.SSLKey, postgres.SSLRootCert)
-	} else if postgres.SSLMode == "require" {
+	if postgres.SSLMode == "verify-ca" {
+		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
+	}
+
+	if postgres.SSLMode == "verify-full" {
+		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
+	}
+
+	if postgres.SSLMode == "require" {
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
-	} else {
-		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
+	}
+
+	if postgres.SSLMode == "disabled" {
+		connStr = fmt.Sprintf("%s sslmode=disabled", connStr)
+	}
+
+	if len(postgres.SSLRootCert) > 0 {
+		connStr = fmt.Sprintf("%s sslrootcert=%s", connStr, postgres.SSLRootCert)
+	}
+
+	if len(postgres.SSLKey) > 0 {
+		connStr = fmt.Sprintf("%s sslkey=%s", connStr, postgres.SSLKey)
+	}
+
+	if len(postgres.SSLCert) > 0 {
+		connStr = fmt.Sprintf("%s sslcert=%s", connStr, postgres.SSLCert)
 	}
 
 	if tries, ok := authOpts["pg_connect_tries"]; ok {
