@@ -125,9 +125,6 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
 	switch postgres.SSLMode {
-	case "disable":
-		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
-
 	case "require":
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 
@@ -135,9 +132,12 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
 
 	case "verify-full":
+		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
+
+	case "disable":
 		fallthrough
 	default:
-		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
+		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	}
 
 	if postgres.SSLRootCert != "" {
