@@ -124,31 +124,31 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	//Build the dsn string and try to connect to the db.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
-	if postgres.SSLMode == "verify-ca" {
-		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
-	}
+	switch postgres.SSLMode {
+	case "disable":
+		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 
-	if postgres.SSLMode == "verify-full" {
+	case "require":
+		connStr = fmt.Sprintf("%s sslmode=require", connStr)
+
+	case "verify-ca":
+		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
+
+	case "verify-full":
+		fallthrough
+	default:
 		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
 	}
 
-	if postgres.SSLMode == "require" {
-		connStr = fmt.Sprintf("%s sslmode=require", connStr)
-	}
-
-	if postgres.SSLMode == "disable" {
-		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
-	}
-
-	if len(postgres.SSLRootCert) > 0 {
+	if postgres.SSLRootCert != "" {
 		connStr = fmt.Sprintf("%s sslrootcert=%s", connStr, postgres.SSLRootCert)
 	}
 
-	if len(postgres.SSLKey) > 0 {
+	if postgres.SSLKey != "" {
 		connStr = fmt.Sprintf("%s sslkey=%s", connStr, postgres.SSLKey)
 	}
 
-	if len(postgres.SSLCert) > 0 {
+	if postgres.SSLCert != "" {
 		connStr = fmt.Sprintf("%s sslcert=%s", connStr, postgres.SSLCert)
 	}
 
