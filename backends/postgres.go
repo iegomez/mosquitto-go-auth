@@ -98,6 +98,14 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	}
 
 	if sslmode, ok := authOpts["pg_sslmode"]; ok {
+		switch sslmode {
+		case "verify-full":
+		case "verify-ca":
+		case "require":
+		case "disable":
+		default:
+			log.Warnf("PG backend warning: using unknown pg_sslmode: '%s'", sslmode)
+		}
 		postgres.SSLMode = sslmode
 	} else {
 		postgres.SSLMode = "disable"
@@ -126,13 +134,10 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	switch postgres.SSLMode {
 	case "require":
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
-
 	case "verify-ca":
 		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
-
 	case "verify-full":
 		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
-
 	case "disable":
 		fallthrough
 	default:
