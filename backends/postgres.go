@@ -99,10 +99,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 
 	if sslmode, ok := authOpts["pg_sslmode"]; ok {
 		switch sslmode {
-		case "verify-full":
-		case "verify-ca":
-		case "require":
-		case "disable":
+		case "verify-full", "verify-ca", "require", "disable":
 		default:
 			log.Warnf("PG backend warning: using unknown pg_sslmode: '%s'", sslmode)
 		}
