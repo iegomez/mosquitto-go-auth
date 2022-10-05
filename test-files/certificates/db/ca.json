@@ -1,0 +1,11 @@
+{
+  "CN": "Mosquitto Go Auth Test DB Intermediate CA",
+  "CA": {
+    "expiry": "1h",
+    "pathlen": 0
+  },
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "signing": {
+    "default": {
+      "expiry": "1h"
+    },
+    "profiles": {
+      "ca": {
+        "usages": [
+          "cert sign"
+        ],
+        "expiry": "1h",
+        "ca_constraint": {
+          "is_ca": true,
+          "max_path_len": 0,
+          "max_path_len_zero": true
+        }
+      },
+      "server": {
+        "usages": [
+          "key encipherment",
+          "server auth"
+        ],
+        "expiry": "1h"
+      },
+      "client": {
+        "usages": [
+          "signing",
+          "key encipherment",
+          "client auth"
+        ],
+        "expiry": "1h"
+      }
+    }
+  }
+}

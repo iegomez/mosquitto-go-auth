@@ -1409,8 +1409,8 @@ The following `auth_opt_` options are supported:
 | grpc_host                 |                   |      Y      | gRPC server hostname   		   |
 | grpc_port                 |                   |      Y      | gRPC server port number        |
 | grpc_ca_cert   	        |                   |      N      | gRPC server CA cert path	   |
-| grpc_tls_cert 	        |                   |      N      | gRPC server TLS cert path      |
-| grpc_tls_key  	        |                   |      N      | gRPC server TLS key path       |
+| grpc_tls_cert 	        |                   |      N      | gRPC client TLS cert path      |
+| grpc_tls_key  	        |                   |      N      | gRPC client TLS key path       |
 | grpc_disable_superuser    |       false       |      N      | disable superuser checks       |
 | grpc_fail_on_dial_error   |       false       |      N      | fail to init on dial error     |
 | grpc_dial_timeout_ms      |       500         |      N      | dial timeout in ms             |

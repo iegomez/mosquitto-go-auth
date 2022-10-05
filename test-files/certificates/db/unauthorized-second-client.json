@@ -1,0 +1,8 @@
+{
+  "CN": "Mosquitto Go Auth Test DB Second Client",
+  "key": {
+    "algo": "rsa",
+    "size": 2048
+  },
+  "hosts": [""]
+}

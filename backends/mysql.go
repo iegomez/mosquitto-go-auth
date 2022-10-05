@@ -117,6 +117,7 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	}
 
 	customSSL := false
+	useSslClientCertificate := false
 
 	if sslmode, ok := authOpts["mysql_sslmode"]; ok {
 		if sslmode == "custom" {
@@ -127,20 +128,21 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 
 	if sslCert, ok := authOpts["mysql_sslcert"]; ok {
 		mysql.SSLCert = sslCert
-	} else {
-		customSSL = false
+		useSslClientCertificate = true
 	}
 
 	if sslKey, ok := authOpts["mysql_sslkey"]; ok {
 		mysql.SSLKey = sslKey
-	} else {
-		customSSL = false
+		useSslClientCertificate = true
 	}
 
 	if sslRootCert, ok := authOpts["mysql_sslrootcert"]; ok {
 		mysql.SSLRootCert = sslRootCert
 	} else {
-		customSSL = false
+		if customSSL {
+			log.Warn("MySQL backend warning: TLS was disabled due to missing root certificate (mysql_sslrootcert)")
+			customSSL = false
+		}
 	}
 
 	//If the protocol is a unix socket, we need to set the address as the socket path. If it's tcp, then set the address using host and port.
@@ -179,17 +181,26 @@ func NewMysql(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 			return mysql, errors.Errorf("Mysql failed to append root CA pem error: %s", err)
 		}
-		clientCert := make([]tls.Certificate, 0, 1)
-		certs, err := tls.LoadX509KeyPair(mysql.SSLCert, mysql.SSLKey)
-		if err != nil {
-			return mysql, errors.Errorf("Mysql load key and cert error: %s", err)
-		}
-		clientCert = append(clientCert, certs)
 
-		err = mq.RegisterTLSConfig("custom", &tls.Config{
-			RootCAs:      rootCertPool,
-			Certificates: clientCert,
-		})
+		tlsConfig := &tls.Config{
+			RootCAs: rootCertPool,
+		}
+
+		if useSslClientCertificate {
+			if mysql.SSLCert != "" && mysql.SSLKey != "" {
+				clientCert := make([]tls.Certificate, 0, 1)
+				certs, err := tls.LoadX509KeyPair(mysql.SSLCert, mysql.SSLKey)
+				if err != nil {
+					return mysql, errors.Errorf("Mysql load key and cert error: %s", err)
+				}
+				clientCert = append(clientCert, certs)
+				tlsConfig.Certificates = clientCert
+			} else {
+				log.Warn("MySQL backend warning: mutual TLS was disabled due to missing client certificate (mysql_sslcert) or client key (mysql_sslkey)")
+			}
+		}
+
+		err = mq.RegisterTLSConfig("custom", tlsConfig)
 		if err != nil {
 			return mysql, errors.Errorf("Mysql register TLS config error: %s", err)
 		}

@@ -199,3 +199,88 @@ func TestPostgres(t *testing.T) {
 	})
 
 }
+
+func TestPostgresTls(t *testing.T) {
+	authOpts := make(map[string]string)
+	authOpts["pg_host"] = "localhost"
+	authOpts["pg_port"] = "5432"
+	authOpts["pg_dbname"] = "go_auth_test"
+	authOpts["pg_user"] = "go_auth_test_tls"
+	authOpts["pg_password"] = "go_auth_test_tls"
+	authOpts["pg_userquery"] = "SELECT password_hash FROM test_user WHERE username = $1 limit 1"
+	authOpts["pg_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
+	authOpts["pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND (rw = $2 or rw = 3)"
+
+	Convey("Given custom ssl disabled, it should fail", t, func() {
+		postgres, err := NewPostgres(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "postgres"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldContainSubstring, "pg_hba.conf rejects connection")
+		So(postgres.DB, ShouldBeNil)
+	})
+
+	authOpts["pg_sslmode"] = "verify-full"
+	authOpts["pg_sslrootcert"] = "/test-files/certificates/ca.pem"
+
+	Convey("Given custom ssl enabled, it should work without a client certificate", t, func() {
+		postgres, err := NewPostgres(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "postgres"))
+		So(err, ShouldBeNil)
+
+		rows, err := postgres.DB.Query("SELECT cipher FROM pg_stat_activity JOIN pg_stat_ssl USING(pid);")
+		So(err, ShouldBeNil)
+		So(rows.Next(), ShouldBeTrue)
+
+		var sslCipher string
+		err = rows.Scan(&sslCipher)
+		So(err, ShouldBeNil)
+		So(sslCipher, ShouldNotBeBlank)
+	})
+}
+
+func TestPostgresMutualTls(t *testing.T) {
+	authOpts := make(map[string]string)
+	authOpts["pg_host"] = "localhost"
+	authOpts["pg_port"] = "5432"
+	authOpts["pg_dbname"] = "go_auth_test"
+	authOpts["pg_user"] = "go_auth_test_mutual_tls"
+	authOpts["pg_password"] = "go_auth_test_mutual_tls"
+	authOpts["pg_userquery"] = "SELECT password_hash FROM test_user WHERE username = $1 limit 1"
+	authOpts["pg_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
+	authOpts["pg_aclquery"] = "SELECT test_acl.topic FROM test_acl, test_user WHERE test_user.username = $1 AND test_acl.test_user_id = test_user.id AND (rw = $2 or rw = 3)"
+
+	authOpts["pg_sslmode"] = "verify-full"
+	authOpts["pg_sslrootcert"] = "/test-files/certificates/ca.pem"
+
+	Convey("Given custom ssl enabled and no client certificate is given, it should fail", t, func() {
+		postgres, err := NewPostgres(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "postgres"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldEqual, "PG backend error: couldn't open db: couldn't ping database postgres: pq: connection requires a valid client certificate")
+		So(postgres.DB, ShouldBeNil)
+	})
+
+	authOpts["pg_sslcert"] = "/test-files/certificates/grpc/client.pem"
+	authOpts["pg_sslkey"] = "/test-files/certificates/grpc/client-key.pem"
+
+	Convey("Given custom ssl enabled and invalid client certificate is given, it should fail", t, func() {
+		postgres, err := NewPostgres(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "postgres"))
+		So(err, ShouldBeError)
+		So(err.Error(), ShouldEqual, "PG backend error: couldn't open db: couldn't ping database postgres: pq: connection requires a valid client certificate")
+		So(postgres.DB, ShouldBeNil)
+	})
+
+	authOpts["pg_sslcert"] = "/test-files/certificates/db/client.pem"
+	authOpts["pg_sslkey"] = "/test-files/certificates/db/client-key.pem"
+
+	Convey("Given custom ssl enabled and client certificate is given, it should work", t, func() {
+		postgres, err := NewPostgres(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "postgres"))
+		So(err, ShouldBeNil)
+
+		rows, err := postgres.DB.Query("SELECT cipher FROM pg_stat_activity JOIN pg_stat_ssl USING(pid);")
+		So(err, ShouldBeNil)
+		So(rows.Next(), ShouldBeTrue)
+
+		var sslCipher string
+		err = rows.Scan(&sslCipher)
+		So(err, ShouldBeNil)
+		So(sslCipher, ShouldNotBeBlank)
+	})
+}

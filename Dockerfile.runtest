@@ -6,7 +6,10 @@ FROM debian:stable-slim as builder
 #Change them for your needs.
 ENV MOSQUITTO_VERSION=1.6.10
 ENV PLUGIN_VERSION=0.6.1
-ENV GO_VERSION=1.13.8
+ENV GO_VERSION=1.18
+# Used in run-test-in-docker.sh to check if the script
+# is actually run in a container
+ENV MOSQUITTO_GO_AUTH_TEST_RUNNING_IN_A_CONTAINER=true
 
 WORKDIR /app
 
@@ -67,6 +70,10 @@ RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
     ln -s /bin/true /usr/bin/systemctl && \
     apt-get install -y mongodb-org && \
     rm -f /usr/bin/systemctl
+
+# Install CFSSL to generate test certificates required for tests
+RUN export PATH=$PATH:/usr/local/go/bin && go install github.com/cloudflare/cfssl/cmd/cfssl@v1.6.2 && cp ~/go/bin/cfssl /usr/local/bin
+RUN export PATH=$PATH:/usr/local/go/bin && go install github.com/cloudflare/cfssl/cmd/cfssljson@v1.6.2 && cp ~/go/bin/cfssljson /usr/local/bin
 
 # Pre-compilation of test for speed-up latest re-run
 RUN export PATH=$PATH:/usr/local/go/bin && go test -c ./backends -o /dev/null
