@@ -47,7 +47,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	var postgres = Postgres{
 		Host:           "localhost",
 		Port:           "5432",
-		SSLMode:        "disable",
+		SSLMode:        "verify-full",
 		SuperuserQuery: "",
 		AclQuery:       "",
 		hasher:         hasher,
@@ -105,7 +105,7 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 		}
 		postgres.SSLMode = sslmode
 	} else {
-		postgres.SSLMode = "disable"
+		postgres.SSLMode = "verify-full"
 	}
 
 	if sslCert, ok := authOpts["pg_sslcert"]; ok {
@@ -129,16 +129,16 @@ func NewPostgres(authOpts map[string]string, logLevel log.Level, hasher hashing.
 	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s port=%s", postgres.User, postgres.Password, postgres.DBName, postgres.Host, postgres.Port)
 
 	switch postgres.SSLMode {
+	case "disable":
+		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
 	case "require":
 		connStr = fmt.Sprintf("%s sslmode=require", connStr)
 	case "verify-ca":
 		connStr = fmt.Sprintf("%s sslmode=verify-ca", connStr)
 	case "verify-full":
-		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
-	case "disable":
 		fallthrough
 	default:
-		connStr = fmt.Sprintf("%s sslmode=disable", connStr)
+		connStr = fmt.Sprintf("%s sslmode=verify-full", connStr)
 	}
 
 	if postgres.SSLRootCert != "" {
