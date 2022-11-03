@@ -617,6 +617,10 @@ Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Op
 	require - Always SSL (skip verification)
 	verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
 	verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
+	
+From *mosquitto go auth* version 2.0.0 on `verify-full` will be the default sslmode instead of `disable`. You may have
+to disable transport layer security if the postgres database server doesn't support encryption and has a certificate
+signed by a trusted CA. 
 
 Queries work pretty much the same as in jpmen's plugin, so here's his discription (with some little changes) about them:
 
