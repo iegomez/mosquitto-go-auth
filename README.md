@@ -594,22 +594,22 @@ The `postgres`  backend allows to specify queries for user, superuser and acl ch
 
 The following `auth_opt_` options are supported:
 
-| Option         		| default           |  Mandatory  | Meaning                  	 								|
-| --------------------- | ----------------- | :---------: | ----------------------------------------------------------- |
-| pg_host           	| 	 localhost      |             | hostname/address			 								|
-| pg_port           	| 		5432        |             | TCP port					 								|
-| pg_user           	|                   |     Y       | username					 								|
-| pg_password       	|                   |     Y       | password					 								|
-| pg_dbname         	|                   |     Y       | database name				 								|
-| pg_userquery      	|                   |     Y       | SQL for users				 								|
-| pg_superquery     	|                   |     N       | SQL for superusers			 								|
-| pg_aclquery       	|                   |     N       | SQL for ACLs				 								|
-| pg_sslmode        	|     disable       |     N       | SSL/TLS mode.				 								|
-| pg_sslcert        	|                   |     N       | SSL/TLS Client Cert.		 								|
-| pg_sslkey         	|                   |     N       | SSL/TLS Client Cert. Key	 								|
-| pg_sslrootcert    	|                   |     N       | SSL/TLS Root Cert			 								|
-| pg_connect_tries    	|        -1         |     N       | x < 0: try forever, x > 0: try x times						|
-| pg_max_life_time      |                   |     N       | connection max life time in seconds                         |
+| Option           | default     | Mandatory | Meaning                                |
+|------------------|-------------|:---------:|----------------------------------------|
+| pg_host          | localhost   |           | hostname/address                       |
+| pg_port          | 5432        |           | TCP port                               |
+| pg_user          |             |     Y     | username                               |
+| pg_password      |             |     Y     | password                               |
+| pg_dbname        |             |     Y     | database name                          |
+| pg_userquery     |             |     Y     | SQL for users                          |
+| pg_superquery    |             |     N     | SQL for superusers                     |
+| pg_aclquery      |             |     N     | SQL for ACLs                           |
+| pg_sslmode       | verify-full |     N     | SSL/TLS mode.                          |
+| pg_sslcert       |             |     N     | SSL/TLS Client Cert.                   |
+| pg_sslkey        |             |     N     | SSL/TLS Client Cert. Key               |
+| pg_sslrootcert   |             |     N     | SSL/TLS Root Cert                      |
+| pg_connect_tries | -1          |     N     | x < 0: try forever, x > 0: try x times |
+| pg_max_life_time |             |     N     | connection max life time in seconds    |
 
 Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Options for sslmode are:
 
@@ -617,6 +617,10 @@ Depending on the sslmode given, sslcert, sslkey and sslrootcert will be used. Op
 	require - Always SSL (skip verification)
 	verify-ca - Always SSL (verify that the certificate presented by the server was signed by a trusted CA)
 	verify-full - Always SSL (verify that the certification presented by the server was signed by a trusted CA and the server host name matches the one in the certificate)
+	
+From *mosquitto go auth* version 2.0.0 on `verify-full` will be the default sslmode instead of `disable`. You may have
+to disable transport layer security if the postgres database server doesn't support encryption and has a certificate
+signed by a trusted CA. 
 
 Queries work pretty much the same as in jpmen's plugin, so here's his discription (with some little changes) about them:
 
