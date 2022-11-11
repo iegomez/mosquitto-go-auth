@@ -24,6 +24,7 @@ func TestPostgres(t *testing.T) {
 	//Initialize Postgres with some test values (omit tls).
 	authOpts["pg_dbname"] = "go_auth_test"
 	authOpts["pg_user"] = "go_auth_test"
+	authOpts["pg_sslmode"] = "disable"
 	authOpts["pg_password"] = "go_auth_test"
 	authOpts["pg_userquery"] = "SELECT password_hash FROM test_user WHERE username = $1 limit 1"
 	authOpts["pg_superquery"] = "select count(*) from test_user where username = $1 and is_admin = true"
@@ -204,6 +205,7 @@ func TestPostgresTls(t *testing.T) {
 	authOpts := make(map[string]string)
 	authOpts["pg_host"] = "localhost"
 	authOpts["pg_port"] = "5432"
+	authOpts["pg_sslmode"] = "disable"
 	authOpts["pg_dbname"] = "go_auth_test"
 	authOpts["pg_user"] = "go_auth_test_tls"
 	authOpts["pg_password"] = "go_auth_test_tls"
