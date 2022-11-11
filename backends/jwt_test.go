@@ -254,6 +254,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 		// Give necessary postgres options.
 		authOpts["jwt_pg_host"] = "localhost"
 		authOpts["jwt_pg_port"] = "5432"
+		authOpts["jwt_pg_sslmode"] = "disable"
 		authOpts["jwt_pg_dbname"] = "go_auth_test"
 		authOpts["jwt_pg_user"] = "go_auth_test"
 		authOpts["jwt_pg_password"] = "go_auth_test"
@@ -265,6 +266,7 @@ func TestLocalPostgresJWT(t *testing.T) {
 		pgAuthOpts := make(map[string]string)
 		pgAuthOpts["pg_host"] = "localhost"
 		pgAuthOpts["pg_port"] = "5432"
+		pgAuthOpts["pg_sslmode"] = "disable"
 		pgAuthOpts["pg_dbname"] = "go_auth_test"
 		pgAuthOpts["pg_user"] = "go_auth_test"
 		pgAuthOpts["pg_password"] = "go_auth_test"
