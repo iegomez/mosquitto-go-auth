@@ -22,7 +22,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: golang:latest
-          options: -e MOSQUITTO_VERSION=${{ MOSQUITTO_VERSION }} -v ${{ github.workspace }}:/usr/src -w /usr/src
+          options: -e MOSQUITTO_VERSION=${{ env.MOSQUITTO_VERSION }} -v ${{ github.workspace }}:/usr/src -w /usr/src
           run: |
             /usr/src/mosquitto-go-auth/.github/workflows/scripts/build.sh
       - name: zip
