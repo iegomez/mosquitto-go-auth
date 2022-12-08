@@ -14,7 +14,7 @@ cp go-auth.so pw /usr/src/output/linux-amd64
 make clean
 export CGO_ENABLED=1
 export GOARCH=arm64
-#export CC=aarch64-linux-gnu-gcc
+export CC=aarch64-linux-gnu-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-arm64
 
@@ -23,7 +23,7 @@ make clean
 export CGO_ENABLED=1
 export GOARCH=arm
 export GOARM=7
-#export CC=arm-linux-gnueabi-gcc
+export CC=arm-linux-gnueabi-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-armv7
 
@@ -32,6 +32,6 @@ make clean
 export CGO_ENABLED=1
 export GOARCH=arm
 export GOARM=6
-#export CC=arm-linux-gnueabi-gcc
+export CC=arm-linux-gnueabi-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-armv6
