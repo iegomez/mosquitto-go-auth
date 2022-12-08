@@ -1,8 +1,9 @@
 name: Build Linux Binaries
 
 on:
-  release:
-    types: [published]
+  push:
+    tags:
+     - "v*.*.*"
 env:
   MOSQUITTO_VERSION: 2.0.15
 jobs:
