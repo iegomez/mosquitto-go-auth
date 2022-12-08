@@ -1,7 +1,7 @@
 #!/bin/bash
 
 apt-get update
-apt-get install -y gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-i386 linux-libc-dev-x32-cross gcc-multilib
+apt-get install -y gcc-multilib
 cd /usr/src/mosquitto-$MOSQUITTO_VERSION/include
 cp *.h /usr/include
 cd /usr/src/mosquitto-go-auth
