@@ -1,0 +1,44 @@
+name: Build Linux Binaries
+
+on:
+  release:
+    types: [published]
+env:
+  MOSQUITTO_VERSION: 2.0.15
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: download mosquitto
+        run: |
+          curl -o mosquitto.tgz https://mosquitto.org/files/source/mosquitto-${{ env.MOSQUITTO_VERISON }}.tar.gz
+          tar -zxf mosquitto.tgz
+          mkdir -p output/linux-amd64 output/linux-arm64 output/linux-armv7 output/linux-armv6 output/linux-x86
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          path: mosquitto-go-auth
+      - name: run build
+        uses: addnab/docker-run-action@v3
+        with:
+          image: golang:latest
+          options: -e MOSQUITTO_VERSION=${{ MOSQUITTO_VERSION }} -v ${{ github.workspace }}:/usr/src -w /usr/src
+          run: |
+            /usr/src/mosquitto-go-auth/.github/workflows/scripts/build.sh
+      - name: zip
+        run: |
+          cd ${{ github.workspace }}/output
+          zip -r linux-amd64.zip linux-amd64
+          zip -r linux-arm64.zip linux-arm64
+          zip -r linux-armv7.zip linux-armv7
+          zip -r linux-armv6.zip linux-armv6
+          zip -r linux-x86.zip linux-x86
+      - name: Release files
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            output/linux-amd64.zip
+            output/linux-arm64.zip
+            output/linux-armv6.zip
+            output/linux-armv7.zip
+            output/linux-x86.zip
