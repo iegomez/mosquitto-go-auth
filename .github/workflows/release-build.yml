@@ -12,7 +12,7 @@ jobs:
     steps:
       - name: download mosquitto
         run: |
-          curl -o mosquitto.tgz https://mosquitto.org/files/source/mosquitto-${{ env.MOSQUITTO_VERISON }}.tar.gz
+          curl -o mosquitto.tgz https://mosquitto.org/files/source/mosquitto-${{ env.MOSQUITTO_VERSION }}.tar.gz
           tar -zxf mosquitto.tgz
           mkdir -p output/linux-amd64 output/linux-arm64 output/linux-armv7 output/linux-armv6 output/linux-x86
       - name: Checkout
