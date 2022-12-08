@@ -1,9 +1,7 @@
 #!/bin/bash
 
 apt-get update
-apt-get install -y gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
-  gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu libc6-dev-i386 \
-  linux-libc-dev-x32-cross gcc-multilib
+apt-get install -y gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 cd /usr/src/mosquitto-$MOSQUITTO_VERSION/include
 cp *.h /usr/include
 cd /usr/src/mosquitto-go-auth
@@ -16,7 +14,7 @@ cp go-auth.so pw /usr/src/output/linux-amd64
 make clean
 export CGO_ENABLED=1
 export GOARCH=arm64
-export CC=aarch64-linux-gnu-gcc
+#export CC=aarch64-linux-gnu-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-arm64
 
@@ -25,7 +23,7 @@ make clean
 export CGO_ENABLED=1
 export GOARCH=arm
 export GOARM=7
-export CC=arm-linux-gnueabi-gcc
+#export CC=arm-linux-gnueabi-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-armv7
 
@@ -34,16 +32,6 @@ make clean
 export CGO_ENABLED=1
 export GOARCH=arm
 export GOARM=6
-export CC=arm-linux-gnueabi-gcc
+#export CC=arm-linux-gnueabi-gcc
 make
 cp go-auth.so pw /usr/src/output/linux-armv6
-
-
-# build x86 Linux
-make clean
-export CGO_ENABLED=1
-export GOARCH=386
-export GOARM=
-export CC=gcc
-make
-cp go-auth.so pw /usr/src/output/linux-x86

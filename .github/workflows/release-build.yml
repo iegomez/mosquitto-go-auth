@@ -13,7 +13,7 @@ jobs:
         run: |
           curl -o mosquitto.tgz https://mosquitto.org/files/source/mosquitto-${{ env.MOSQUITTO_VERSION }}.tar.gz
           tar -zxf mosquitto.tgz
-          mkdir -p output/linux-amd64 output/linux-arm64 output/linux-armv7 output/linux-armv6 output/linux-x86
+          mkdir -p output/linux-amd64 output/linux-arm64 output/linux-armv7 output/linux-armv6
       - name: Checkout
         uses: actions/checkout@v3
         with:
@@ -32,7 +32,6 @@ jobs:
           zip -r linux-arm64.zip linux-arm64
           zip -r linux-armv7.zip linux-armv7
           zip -r linux-armv6.zip linux-armv6
-          zip -r linux-x86.zip linux-x86
       - name: Release files
         uses: softprops/action-gh-release@v1
         with:
@@ -41,4 +40,3 @@ jobs:
             output/linux-arm64.zip
             output/linux-armv6.zip
             output/linux-armv7.zip
-            output/linux-x86.zip
