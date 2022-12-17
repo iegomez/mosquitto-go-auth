@@ -1572,6 +1572,9 @@ Prebuilt images are provided on Dockerhub under [iegomez/mosquitto-go-auth](http
 To run the latest image, use the following command and replace `/conf` with the location of your `.conf` files:
 `docker run -it -p 1884:1884 -p 1883:1883 -v /conf:/etc/mosquitto iegomez/mosquitto-go-auth`
 
+You should also add the neccesary configuration to your .conf and update the path of the shared object:
+```auth_plugin /mosquitto/go-auth.so```
+
 #### Building images
 
 This project provides a Dockerfile for building a Docker container that contains `mosquitto` and the `mosquitto-go-auth` plug-in.
