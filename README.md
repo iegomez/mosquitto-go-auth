@@ -108,9 +108,9 @@ First, install dependencies (tested on Debian 9 and later, Linux Mint 18, 19 and
 Download mosquitto and extract it (**change versions accordingly**):
 
 ```
-wget http://mosquitto.org/files/source/mosquitto-1.6.10.tar.gz
-tar xzvf mosquitto-1.6.10.tar.gz
-cd mosquitto-1.6.10
+wget http://mosquitto.org/files/source/mosquitto-2.0.15.tar.gz
+tar xzvf mosquitto-2.0.15.tar.gz
+cd mosquitto-2.0.15
 ```
 
 Modify config.mk, setting websockets support. Then build mosquitto, add a mosquitto user and set ownership for /var/log/mosquitto and /var/lib/mosquitto/ (default log and persistence locations).
@@ -129,7 +129,7 @@ Finally, you may create a service for mosquitto. Create the file /etc/systemd/sy
 
 ```
 [Unit]
-Description=Mosquitto MQTT v3.1/v3.1.1 server
+Description=Mosquitto MQTT v3.1/v5 server
 Wants=network.target
 Documentation=http://mosquitto.org/documentation/
 
@@ -148,35 +148,21 @@ WantedBy=multi-user.target
 If you are running another distro or need more details on building mosquitto, please check the offical mosquitto docs.
 
 #### Building the plugin
+
 Only Linux (tested in Debian, Ubuntu and Mint ùs) and MacOS are supported.
 
 Before attempting to build the plugin, make sure you have go installed on the system.
-The minimum required GO version for the current release is 1.13.8.
+The minimum required Go version for the current release is 1.18.
 To check which version (if any) of Go is installed on the system, simply run the following:
 
 ```
 go version
 ```
 
-If Go is not installed or the installed version is older than 1.13.8, please update it.
-You can retrieve and install the latest version of Go from the official [Go download website](https://golang.org/dl/):
+If Go is not installed or the installed version is older than 1.18, please update it.
+You can retrieve and install the latest version of Go from the official [Go download website](https://go.dev/dl/) which also have installation instructions.
 
-```
-# Update the following as per your system configuration
-export GO_VERSION=1.16.4
-export GO_OS=linux
-export GO_ARCH=amd64
-
-wget https://dl.google.com/go/go${GO_VERSION}.${GO_OS}-${GO_ARCH}.tar.gz -O golang.tar.gz
-sudo tar -C /usr/local -xzf golang.tar.gz
-export PATH=$PATH:/usr/local/go/bin
-rm golang.tar.gz
-
-# Prints the Go version
-go version
-```
-
-This will fetch all the go dependecies and then build `go-auth.so` shared object:
+This will fetch the go dependecies and then build the `go-auth.so` shared object:
 
 ```
 make
@@ -196,7 +182,6 @@ and place them under `/usr/local/include`.
 
 If this doesn't work for your distribution or OS version, please check `Makefile` `CFLAGS` and `LDFLAGS` and adjust accordingly.
 File an issue or open a PR if you wish to contribute correct flags for your system.
-
 
 #### Raspberry Pi
 
@@ -248,7 +233,6 @@ make
 make install
 ```
 
-
 ### Configuration
 
 The plugin is configured in [Mosquitto's](https://mosquitto.org/) configuration file (typically `mosquitto.conf`).
@@ -275,13 +259,11 @@ There are 2 types of caches supported: an in memory one using [go-cache](https:/
 Set `cache` option to true to use a cache (defaults to false when missing) and `cache_type` to set the type of the cache. By default the plugin will use `go-cache` unless explicitly told to use Redis.
 Set `cache_reset` to flush the cache on mosquitto startup (**hydrating `go-cache` on startup is not yet supported**).
 
-
 **Update v1.2:**
 Set `cache_refresh` to refresh expiration each time a record is found in the cache (defaults to false).
 Before v1.2 cache was always refreshed upon check.
 In order to prevent security issues, where an attacker would frequently check on a topic to keep their granted status,
 even when revoked in the underlying backend, this has been turned into an option that defaults to no refreshing.
-
 
 Finally, set expiration times in seconds for authentication (`auth`) and authorization (`acl`) caches:
 
@@ -327,6 +309,7 @@ Notice that if `cache_mode` is not provided or isn't equal to `cluster`, cache w
 There are 3 options for password hashing available: `PBKDF2` (default), `Bcrypt` and `Argon2ID`. Every backend that needs one -that's all but `grpc`, `http` and `custom`- gets a hasher and whether it uses specific options or general ones depends on the auth opts passed.
 
 Provided options define what hasher each backend will use:
+
 - If there are general hashing options available but no backend ones, then every backend will use those general ones for its hasher.
 - If there are no options available in general and none for a given backend either, that backend will use defaults (see `hashing/hashing.go` for default values).
 - If there are options for a given backend but no general ones, the backend will use its own hasher and any backend that doesn't register a hasher will use defaults.
@@ -434,7 +417,6 @@ Prefixes must meet the declared backends order and number. If amounts don't matc
 
 Underscores (\_) are not allowed in the prefixes, as a username's prefix will be checked against the first underscore's index. Of course, if a username has no underscore or valid prefix, it'll be checked against all backends.
 
-
 #### Superuser checks
 
 By default `superuser` checks are supported and enabled in all backends but `Files` (see details below). They may be turned off per backend by either setting individual disable options or not providing necessary options such as queries for DB backends, or for all of them by setting this global option to `true`:
@@ -482,12 +464,10 @@ If you're using prior versions then `MOSQ_ACL_SUBSCRIBE` is not available and yo
 Any other options with a leading ```auth_opt_``` are handed to the plugin and used by the backends.
 Individual backends have their options described in the sections below.
 
-
 #### Testing
 
 As of now every backend has proper but really ugly tests in place: they expect services running for each backend, and are also pretty outdated and cumbersome to work with in general.
-This issue captures these concerns and a basic plan to refactor tests: https://github.com/iegomez/mosquitto-go-auth/issues/67.
-
+This issue captures these concerns and a basic plan to refactor tests: <https://github.com/iegomez/mosquitto-go-auth/issues/67>.
 
 You may run all tests (see Testing X for each backend's testing requirements) like this:
 
@@ -502,6 +482,7 @@ By default, when the option is not present, all checks for that backend will be 
 For `user` and `acl` checks, at least one backend needs to be registered, either explicitly or by default.
 
 You may register which checks a backend will perform with the option `auth_opt_backend_register` followed by comma separated values of the registered checks, e.g.:
+
 ```
 auth_opt_http_register user
 auth_opt_files_register user, acl
@@ -509,7 +490,6 @@ auth_opt_redis_register superuser
 ```
 
 Possible values for checks are `user`, `superuser` and `acl`. Any other value will result in an error on plugin initialization.
-
 
 ### Files
 
@@ -558,7 +538,6 @@ test1:PBKDF2$sha512$100000$2WQHK5rjNN+oOT+TZAsWAw==$TDf4Y6J+9BdnjucFQ0ZUWlTwzncT
 test2:PBKDF2$sha512$100000$o513B9FfaKTL6xalU+UUwA==$mAUtjVg1aHkDpudOnLKUQs8ddGtKKyu+xi07tftd5umPKQKnJeXf1X7RpoL/Gj/ZRdpuBu5GWZ+NZ2rYyAsi1g==
 ```
 
-
 #### ACL file
 
 ```
@@ -585,8 +564,6 @@ Furthermore, if this is **the only backend registered**, then providing no `ACLs
 #### Testing Files
 
 Proper test files are provided in the repo (see test-files dir) and are needed in order to test this backend.
-
-
 
 ### PostgreSQL
 
@@ -713,8 +690,6 @@ topic character varying (200) not null,
 rw int not null);
 ```
 
-
-
 ### Mysql
 
 The `mysql` backend works almost exactly as the `postgres` one, except for a few configurations and that options start with `mysql_` instead of `pg_`.
@@ -775,7 +750,6 @@ Superuser query:
 ```sql
 SELECT COUNT(*) FROM account WHERE username = ? AND super = 1
 ```
-
 
 Acl query:
 
@@ -874,8 +848,6 @@ For instructions on how to set a backend specific hasher or use the general one,
 
 There are no requirements, as the tests create (and later delete) the DB and tables, or just use a temporary in memory one.
 
-
-
 ### JWT
 
 The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM interpreter or an ACL file. Global otions for JWT are:
@@ -928,8 +900,8 @@ Set these options only if you intend to keep the plugin synced with your JWT ser
 
 When response mode is set to `json`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a json response, consisting of two fields:
 
-Ok: 		bool
-Error:	string
+- Ok: bool
+- Error: string
 
 If either the status is different from 2XX or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
@@ -937,16 +909,17 @@ When response mode is set to `status`, the backend expects the URIs to return a 
 
 When response mode is set to `text`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
 
-
 ##### Params mode
 
 When params mode is set to `json`, the backend will send a json encoded string with the relevant data. For example, for acl check, this will get sent:
 
+```json
 {
-	"topic": "mock/topic",
-	"clientid": "mock_client",
-	"acc": 1 		//1 is read, 2 is write, 3 is readwrite, 4 is subscribe
+ "topic":    "mock/topic",
+ "clientid": "mock_client",
+ "acc": 1   // 1 is read, 2 is write, 3 is readwrite, 4 is subscribe
 }
+```
 
 When set to `form`, it will send params like a regular html form post, so acc will be a string instead of an int.
 
@@ -1006,7 +979,6 @@ initMqttClient(applicationID, mode, devEUI) {
     return mqttClient;
   }
 ```
-
 
 #### Local mode
 
@@ -1130,7 +1102,6 @@ i.e. like the `passwords` file for regular `Files` backend but without actual pa
 If you run into the case where you want to grant some general access but only to valid registered users,
 and find that duplicating rules for each of them in ACLs file is really a pain, please open an issue for discussion.
 
-
 #### Password hashing
 
 Since JWT needs not to check passwords, there's no need to configure a `hasher`.
@@ -1142,8 +1113,6 @@ If `prefixes` are enabled the client should prefix their JWT tokens with the `pr
 #### Testing JWT
 
 This backend expects the same test DBs from the Postgres and Mysql test suites.
-
-
 
 ### HTTP
 
@@ -1170,8 +1139,8 @@ The following `auth_opt_` options are supported:
 
 When response mode is set to `json`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a json response, consisting of two fields:
 
-Ok: 		bool
-Error:	string
+- Ok: bool
+- Error: string
 
 If either the status is different from 2XX or `Ok` is false, auth will fail (not authenticated/authorized). In the latter case, an `Error` message stating why it failed will be included.
 
@@ -1179,25 +1148,23 @@ When response mode is set to `status`, the backend expects the URIs to return a 
 
 When response mode is set to `text`, the backend expects the URIs to return a status code (if not 2XX, unauthorized) and a plain text response of simple "ok" when authenticated/authorized, and any other message (possibly an error message explaining failure to authenticate/authorize) when not.
 
-
 #### Params mode
 
 When params mode is set to `json`, the backend will send a json encoded string with the relevant data. For example, for user authentication, this will get sent:
 
+```json
 {
-	"username": "user",
-	"password": "pass",
-	"clientid": "clientid"
+ "username": "user",
+ "password": "pass",
+ "clientid": "clientid"
 }
+```
 
 When set to `form`, it will send params like a regular html form post.
-
 
 #### Testing HTTP
 
 This backend has no special requirements as the http servers are specially mocked to test different scenarios.
-
-
 
 ### Redis
 
@@ -1266,19 +1233,19 @@ These rules consis of a "topic" string and an int "acc", where 1 means read only
 Example user:
 
 ```json
-	{ "_id" : ObjectId("5a4e760f708ba1a1601fa40f"),
-		"username" : "test",
-		"password" : "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw==",
-		"superuser" : true,
-		"acls" : [
-			{ "topic" : "test/topic/1", "acc" : 1 },
+ { "_id" : ObjectId("5a4e760f708ba1a1601fa40f"),
+  "username" : "test",
+  "password" : "PBKDF2$sha512$100000$os24lcPr9cJt2QDVWssblQ==$BK1BQ2wbwU1zNxv3Ml3wLuu5//hPop3/LvaPYjjCwdBvnpwusnukJPpcXQzyyjOlZdieXTx6sXAcX4WnZRZZnw==",
+  "superuser" : true,
+  "acls" : [
+   { "topic" : "test/topic/1", "acc" : 1 },
             { "topic" : "test/topic/1", "acc" : 4 },
-			{ "topic" : "single/topic/+", "acc" : 1},
-			{ "topic" : "hierarchy/#", "acc" : 1 },
-			{ "topic" : "write/test", "acc" : 2 },
-			{ "topic" : "test/readwrite/1", "acc" : 3 }
-		]
-	}
+   { "topic" : "single/topic/+", "acc" : 1},
+   { "topic" : "hierarchy/#", "acc" : 1 },
+   { "topic" : "write/test", "acc" : 2 },
+   { "topic" : "test/readwrite/1", "acc" : 3 }
+  ]
+ }
 ```
 
 Common acls are just like user ones, but live in their own collection and are applicable to any user. Pattern matching against username or clientid acls should be included here.
@@ -1286,8 +1253,8 @@ Common acls are just like user ones, but live in their own collection and are ap
 Example acls:
 
 ```json
-	{ "_id" : ObjectId("5a4e760f708ba1a1601fa411"), "topic" : "pattern/%u", "acc" : 1 }
-	{ "_id" : ObjectId("5a4e760f708ba1a1601fa413"), "topic" : "pattern/%c", "acc" : 1 }
+ { "_id" : ObjectId("5a4e760f708ba1a1601fa411"), "topic" : "pattern/%u", "acc" : 1 }
+ { "_id" : ObjectId("5a4e760f708ba1a1601fa413"), "topic" : "pattern/%c", "acc" : 1 }
 ```
 
 Options for `mongo` are not mandatory and are the following:
@@ -1549,23 +1516,22 @@ checkAcl(username, topic, clientid, acc);
 
 Notice the `password` will be passed to the script as given by `mosquitto`, leaving any hashing to the script.
 
-
 #### Testing Javascript
 
 This backend has no special requirements as `javascript` test files are provided to test different scenarios.
-
 
 ### Using with LoRa Server
 
 See the official [MQTT authentication & authorization guide](https://www.loraserver.io/guides/mqtt-authentication/) for isntructions on using the plugin with the LoRa Server project.
 
-
 ### Docker
 
 #### Support and issues
+
 Please be aware that, since Docker isn't actively used by the maintainer of this project, support for issues regarding Docker, the provided images and building Docker images is very limited and usually driven by other contributors.
 
 Only images for x86_64/AMD64 and ARMv7 have been tested. ARMv6 and ARM64 hardware was not available to the contributor creating the build workflow.
+
 #### Prebuilt images
 
 Prebuilt images are provided on Dockerhub under [iegomez/mosquitto-go-auth](https://hub.docker.com/r/iegomez/mosquitto-go-auth).
