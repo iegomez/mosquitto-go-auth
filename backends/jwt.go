@@ -35,6 +35,7 @@ const (
 	claimsSubjectKey  = "sub"
 	claimsUsernameKey = "username"
 	claimsIssKey      = "iss"
+	goBkn             = "go-bkn" //added for go backend
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
@@ -82,6 +83,9 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 	case filesMode:
 		jwt.mode = filesMode
 		checker, err = NewFilesJWTChecker(authOpts, logLevel, hasher, options)
+	case goBkn:
+		jwt.mode = goBkn
+		checker, err = NewGoBckChecker(authOpts, options) //mode for go bckend
 	default:
 		err = errors.New("unknown JWT mode")
 	}
@@ -95,27 +99,27 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 	return jwt, nil
 }
 
-//GetUser authenticates a given user.
+// GetUser authenticates a given user.
 func (o *JWT) GetUser(token, password, clientid string) (bool, error) {
 	return o.checker.GetUser(token)
 }
 
-//GetSuperuser checks if the given user is a superuser.
+// GetSuperuser checks if the given user is a superuser.
 func (o *JWT) GetSuperuser(token string) (bool, error) {
 	return o.checker.GetSuperuser(token)
 }
 
-//CheckAcl checks user authorization.
+// CheckAcl checks user authorization.
 func (o *JWT) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	return o.checker.CheckAcl(token, topic, clientid, acc)
 }
 
-//GetName returns the backend's name
+// GetName returns the backend's name
 func (o *JWT) GetName() string {
 	return "JWT"
 }
 
-//Halt closes any db connection.
+// Halt closes any db connection.
 func (o *JWT) Halt() {
 	o.checker.Halt()
 }
