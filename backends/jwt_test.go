@@ -1682,11 +1682,13 @@ func TestJWTGo(t *testing.T) {
 }
 
 func TestNewGoBckChecker(t *testing.T) {
+	var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
 	authOpts := make(map[string]string)
 	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert.pem"
 	authOpts["jwt_go_allowed_role"] = "user"
 	authOpts["jwt_go_allowed_iss"] = "https://server21.cloudflareaccess.com"
-	Convey("Creating Go Cheker should succeed", t, func() {
+	authOpts["jwt_go_kid"] = "7d3bb68ae53ff5fdf0ef2acaf2ee2af5437056725ad6f8d545f7d53f06423461"
+	Convey("Creating Go Cheker should succeed using certificate file", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(token)
@@ -1694,7 +1696,7 @@ func TestNewGoBckChecker(t *testing.T) {
 		So(userResponse, ShouldBeTrue)
 
 	})
-	Convey("Creating Go Cheker should succeed", t, func() {
+	Convey("Creating Go Cheker should succeed usign expired token", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(tokenExpired)
@@ -1703,7 +1705,7 @@ func TestNewGoBckChecker(t *testing.T) {
 
 	})
 	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert_err.pem"
-	Convey("Creating Go Cheker should succeed", t, func() {
+	Convey("Creating Go Cheker should succeed using corrupted cert file", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(token)
@@ -1711,25 +1713,40 @@ func TestNewGoBckChecker(t *testing.T) {
 		So(userResponse, ShouldBeFalse)
 
 	})
-	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert.pem"
-	authOpts["jwt_go_privcert_path_HMAC"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/secret"
-	var HMACToken = "72a03be6ce42a128fc3a61524a023dbb"
-	Convey("Creating Go Cheker should succeed", t, func() {
+	delete(authOpts, "jwt_go_pubcert_path_RSA")
+	authOpts["jwt_go_public_cert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
-		userResponse, err := checker.GetUser(HMACToken)
+		userResponse, err := checker.GetUser(token)
 		So(err, ShouldBeNil)
-		So(userResponse, ShouldBeFalse)
-
+		So(userResponse, ShouldBeTrue)
 	})
-	/*
-		authOpts["jwt_go_allowed_role"] = "users"
-		Convey("Creating Go Cheker should succeed", t, func() {
-			checker, err := NewGoBckChecker(authOpts, tkOptions)
-			So(err, ShouldBeNil)
-			userResponse, err := checker.GetUser("tyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ")
-			So(err, ShouldNotBeNil)
-			So(userResponse, ShouldBeFalse)
 
-		})*/
+}
+
+func TestGetPublicCertFromURL(t *testing.T) {
+	var url = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+	var kid = "7d3bb68ae53ff5fdf0ef2acaf2ee2af5437056725ad6f8d545f7d53f06423461"
+	var w_kid = "8d3bb68ae53ff5fdf0ef2acaf2ee2af5437056725ad6f8d545f7d53f06423461"
+	nStr := "29190059552910642827432658773211830255807858291632810015149776126577167218327353411296205178146580951391121299399442977353863416078491835372559789982254391396155516074485511368414519588218100387301955833783983829490001101333339382649806680044107288515614243395330065811293837270239016477207679824396285121871761066723777814479604186724185005092882460946833509062503984967311882091567289039856164495115768659246024371285278436281428487878644862704778675598794895132437154646562582881529372308425181931718157769063895138107431449194736849615104249462676492871264690649204067255834633015532389777178190863288863240732387"
+	n := new(big.Int)
+	n.SetString(nStr, 10)
+	expectedPubKey := &rsa.PublicKey{
+		N: n,
+		E: 65537,
+	}
+	Convey("getting certificate from url", t, func() {
+		certificate, err := getPubCertFromURL(url, kid)
+		So(certificate, ShouldNotBeNil)
+		So(certificate.N.Cmp(expectedPubKey.N), ShouldEqual, 0)
+		So(certificate.E, ShouldEqual, expectedPubKey.E)
+		So(err, ShouldBeNil)
+	})
+	Convey("getting the certificate from url wrong kid", t, func() {
+		certificate, err := getPubCertFromURL(url, w_kid)
+		So(certificate, ShouldBeNil)
+		So(err, ShouldResemble, fmt.Errorf("error kid not found"))
+	})
+
 }
