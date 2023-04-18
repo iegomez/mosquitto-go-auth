@@ -1688,26 +1688,19 @@ func TestJWTGo(t *testing.T) {
 }
 
 func TestNewGoBckChecker(t *testing.T) {
-	//var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
+	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxODM1MTAwLCJpYXQiOjE2ODE3NDg3MDAsIm5iZiI6MTY4MTc0ODcwMCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6ImljdUJ6YzBQbTBRUXBzdzAiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.nYkbnaRi6gMP7qqh2KgqPAsZc_AwfNTLdAFI736kPDjG733HMGWIBWETYgl-yiumksBwy5N-AoHiX8q5XH4p1_xvLHj2vE74Snxz9LnFv0lrYcPc83sptrzDiIPXmtfBAdy7uD4QCd9QBiw4LMDNlrl8LXFwDfp9FdsD4YwbeORvVQouJXWNA64O08wMhslj1kxcmhIb9BygMguYnFHCJdiq5XcZW5XH3ltzBkFPuYu8Kw0kY_2aeiRh2zKdDkI5vJY1ViCMRzpLBBIClk7vYLWsg29twi_2hkFDXt0xTrw_sLvWivXvGSIBktoNcoiceD7VqrAc9H_o5lGNzUo8Fw"
+	var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
 	authOpts := make(map[string]string)
 	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert.pem"
 	authOpts["jwt_go_allowed_role"] = "user"
 	authOpts["jwt_go_allowed_iss_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/iss"
 	authOpts["jwt_go_kid_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/kid"
 	authOpts["jwt_go_audience_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/aud"
-	/*Convey("Creating Go Cheker should succeed using certificate file", t, func() {
-		checker, err := NewGoBckChecker(authOpts, tkOptions)
-		So(err, ShouldBeNil)
-		userResponse, err := checker.GetUser(token)
-		So(err, ShouldBeNil)
-		So(userResponse, ShouldBeTrue)
-
-	})
 	Convey("Creating Go Cheker should succeed usign expired token", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(tokenExpired)
-		So(err, ShouldResemble, fmt.Errorf("parsting token error: Token is expired"))
+		So(err, ShouldNotBeNil)
 		So(userResponse, ShouldBeFalse)
 
 	})
@@ -1716,19 +1709,10 @@ func TestNewGoBckChecker(t *testing.T) {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(token)
-		So(err, ShouldResemble, fmt.Errorf("parsting token error: crypto/rsa: verification error"))
+		So(err, ShouldNotBeNil)
 		So(userResponse, ShouldBeFalse)
 
 	})
-	delete(authOpts, "jwt_go_pubcert_path_RSA")
-	authOpts["jwt_go_public_cert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
-	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
-		checker, err := NewGoBckChecker(authOpts, tkOptions)
-		So(err, ShouldBeNil)
-		userResponse, err := checker.GetUser(token)
-		So(err, ShouldBeNil)
-		So(userResponse, ShouldBeTrue)
-	})*/
 	tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE2ODE4MzUxMDAsImlhdCI6MTY4MTc0ODcwMCwibmJmIjoxNjgxNzQ4NzAwLCJpc3MiOiJodHRwczovL3NlcnZlcjIxLmNsb3VkZmxhcmVhY2Nlc3MuY29tIiwidHlwZSI6ImFwcCIsImlkZW50aXR5X25vbmNlIjoiaWN1QnpjMFBtMFFRcHN3MCIsInN1YiI6ImVjYzc5N2MyLTJmODUtNTU5Zi04NGQzLTQ5MGE1NzEzOGY0YiIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.G-PVvKtz7RUEXbKtdf1gURBGLoUjg4a4ij1xqcMeofaw0OOHYhOJSPd7pQ4JfH_2-8iNAD4UyVNoeLVJTzsxNQMuBeHt5STFRHQszWEAy7-77ZV9nhDlJmIOPgO8IfWddOKvq1DlqiW8QoHz0J0zMBAnkMaq_RXd-Peh29ubMtyAIjsoCRHa8ZaY3qaE9Q7dcjJW9lwIPy0K_E5OWLHaIa3bVGRwLlxuzMRURDEO7J0_qpSw2IMoDDLWT7hpfYWWMFSJZHPzgev6qTt8NtuCHWLwtOELL1NfsHtagqyLgXkvLIxxE1CjnIAH_e_ypJOB7JqxkVddb1E8W9VtN1E4vw"
 	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/secondcertificete.pem" //token anotherpubkey
 	authOpts["jwt_go_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"

@@ -35,7 +35,7 @@ const (
 	claimsSubjectKey  = "sub"
 	claimsUsernameKey = "username"
 	claimsIssKey      = "iss"
-	goBkn             = "go-bkn" //added for go backend
+	goBkn             = "gobkn" //added for go backend
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
