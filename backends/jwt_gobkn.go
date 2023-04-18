@@ -11,19 +11,19 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 type goJWTChecker struct {
-	pubCertRsa      *rsa.PublicKey
 	pubCertRsaPath  string
-	privCertHMAC    []byte
 	issuerURL       string
-	kid             string
 	options         tokenOptions
-	allowedRoles    string
-	allowedIssuer   string
-	allowedAudience string
+	allowedRoles    []string
+	allowedIssuer   []string
 	parsedToken     *jwtGo.Token
+	pubCertRsa      []*rsa.PublicKey
+	kid             []string
+	allowedAudience []string
 }
 
 func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtChecker, error) {
@@ -31,11 +31,26 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		options: options,
 	}
 	//kid to load the public certificate
-	if kid, ok := authOpts["jwt_go_kid"]; ok {
-		checker.kid = kid
+	if kidPath, ok := authOpts["jwt_go_kid_path"]; ok {
+		data, err := extractDataFromFile(kidPath)
+		if err != nil {
+			return nil, err
+		}
+		checker.kid = append(checker.kid, data...) //append a slice to a slice
 	} else {
 		log.Debug("please specify kid")
 		return nil, fmt.Errorf("not specified kid")
+	}
+	//audience to verify if the certificate is for me
+	if audPath, ok := authOpts["jwt_go_audience_path"]; ok {
+		data, err := extractDataFromFile(audPath)
+		if err != nil {
+			return nil, err
+		}
+		checker.allowedAudience = append(checker.allowedAudience, data...)
+	} else {
+		log.Debug("please specify audience")
+		return nil, fmt.Errorf("not specified audience")
 	}
 	//public certificate path has to be in the pem format
 	if pubCertPath, ok := authOpts["jwt_go_pubcert_path_RSA"]; ok {
@@ -51,55 +66,39 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 			log.Debugf("Error in certificate conversion %s", err)
 			return nil, err
 		} else {
-			checker.pubCertRsa = pubCertConverted
+			checker.pubCertRsa = append(checker.pubCertRsa, pubCertConverted)
 		}
 	}
-	//
-	if privateKeypath, ok := authOpts["jwt_go_privcert_path_HMAC"]; ok {
-		log.Debugf("Path given to go-auth: -> " + privateKeypath)
-		data, err := os.ReadFile(privateKeypath)
+	//link to public certificate
+	if link, ok := authOpts["jwt_go_pubcert_link"]; ok {
+		checker.issuerURL = link
+		pubCertExtracted, err := getPubCertFromURL(link, checker.kid)
 		if err != nil {
-			log.Debugf("Error during file reading %s", err)
-			return nil, err
-		} else {
-			checker.privCertHMAC = data
+			return nil, fmt.Errorf("error during public cert extracting")
 		}
-	}
-	//path to public certificate
-	if link, ok := authOpts["jwt_go_public_cert_link"]; ok {
-		if checker.pubCertRsa == nil && checker.pubCertRsaPath == "" {
-			checker.issuerURL = link
-			//execute the code if the public cert is empty
-			if checker.kid == "" {
-				log.Debug("kid empty")
-				return nil, fmt.Errorf("kid emplty")
-			}
-			pubCertExtracted, err := getPubCertFromURL(link, checker.kid)
-			if err != nil {
-				return nil, fmt.Errorf("error during public cert extracting")
-			}
-			checker.pubCertRsa = pubCertExtracted
-		} else {
-			log.Debug("pubCertrsa already decoded or pubCertRsaPath specified")
-			return nil, fmt.Errorf("pubCertrsa already decoded or pubCertRsaPath specified")
-		}
+		checker.pubCertRsa = append(checker.pubCertRsa, pubCertExtracted)
 
 	}
 	//kid value to extract the key
 	if checker.pubCertRsa == nil {
+		log.Debug("please provide at least one source of certificate")
 		return nil, fmt.Errorf("empty public certificate")
 	}
 
 	//allowed role from token claims
 	if roles, ok := authOpts["jwt_go_allowed_role"]; ok {
-		checker.allowedRoles = roles
+		checker.allowedRoles = append(checker.allowedRoles, roles)
 	} else {
 		log.Debug("please specify allowed rules")
 		return nil, fmt.Errorf("not specified rule")
 	}
 	//allowed issuer
-	if iss, ok := authOpts["jwt_go_allowed_iss"]; ok {
-		checker.allowedIssuer = iss
+	if issPath, ok := authOpts["jwt_go_allowed_iss_path"]; ok {
+		data, err := extractDataFromFile(issPath)
+		if err != nil {
+			return nil, err
+		}
+		checker.allowedIssuer = append(checker.allowedIssuer, data...)
 	} else {
 		log.Debug("please specify Iss")
 		return nil, fmt.Errorf("not specified iss")
@@ -119,7 +118,7 @@ func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	//params := map[string]interface{}{
 	//	"token": token,
 	//}
-	valid, err := o.VerifyJWTSignature(token, o.pubCertRsa, o.privCertHMAC)
+	valid, err := o.VerifyJWTSignature(token, o.pubCertRsa)
 	if err != nil || valid == false {
 		log.Debugf("go error : #{err}")
 		return false, err
@@ -133,30 +132,28 @@ func (o *goJWTChecker) Halt() {
 }
 
 // VerifyJWTSignature Function to check if the signature is valid
-func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey *rsa.PublicKey, privKey []byte) (bool, error) {
+func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, error) {
 	// Parse the token
-	token, err := jwtGo.Parse(tokenStr, func(token *jwtGo.Token) (interface{}, error) {
-		// Check the sign method
-		if _, ok := token.Method.(*jwtGo.SigningMethodRSA); ok {
-			log.Debugf("Signing method RSA")
-			return publicKey, nil
+	var err error
+	var token *jwtGo.Token
+	for _, publicKeyFor := range publicKey {
+		token, err = jwtGo.Parse(tokenStr, func(token *jwtGo.Token) (interface{}, error) {
+			// Check the sign method
+			if _, ok := token.Method.(*jwtGo.SigningMethodRSA); ok {
+				log.Debugf("Signing method RSA")
+				return publicKeyFor, nil
+			}
+			return nil, fmt.Errorf("sign method not valid")
+		})
+		if token.Valid {
+			o.parsedToken = token
+			return true, nil
 		}
-		return nil, fmt.Errorf("sign method not valid")
-	})
-
+	}
 	if err != nil {
-		return false, fmt.Errorf("parsting token error: %v", err)
+		log.Debug("error from looping the pub certs: ", err)
 	}
-
-	// check the token if valid
-	if token.Valid {
-
-		o.parsedToken = token
-		return true, nil
-	} else {
-		return false, fmt.Errorf("non valid Token")
-	}
-
+	return false, err
 }
 
 // StringToRSAPublicKey returns *rsa.PublicKey type variable
@@ -184,21 +181,26 @@ func (o *goJWTChecker) CheckClaims() (bool, error) {
 	var ok bool
 	if claims, ok = o.parsedToken.Claims.(jwtGo.MapClaims); ok {
 		if iss, ok := claims["iss"].(string); ok {
-			if iss == o.allowedIssuer {
-				log.Debug("iss claim ok")
-			} else {
-				log.Debug("iss claim ! ok")
-				return false, nil
+			//checking the allowed issuer if there is more than one
+			for _, allowedIss := range o.allowedIssuer {
+				if iss == allowedIss {
+					log.Debug("iss claim ok")
+				} else {
+					log.Debug("iss claim ! ok")
+					return false, nil
+				}
 			}
 		} else {
 			log.Debug("iss claim not a string")
 		}
 		if aud, ok := claims["aud"].(string); ok {
-			if aud == o.allowedAudience {
-				log.Debug("audience ok")
-			} else {
-				log.Debug("oudience ! ok")
-				return false, fmt.Errorf("not allowed audience")
+			for _, allowedAudience := range o.allowedAudience {
+				if aud == allowedAudience { //implement audition key
+					log.Debug("audience ok")
+				} else {
+					log.Debug("audience ! ok")
+					return false, fmt.Errorf("not allowed audience")
+				}
 			}
 		}
 	} else {
@@ -208,10 +210,12 @@ func (o *goJWTChecker) CheckClaims() (bool, error) {
 		if rules, ok := custom["rules"].([]interface{}); ok {
 			found := false
 			for _, r := range rules {
-				if r == o.allowedRoles {
-					found = true
-					log.Debug("user role found")
-					return found, nil
+				for _, allowedRoles := range o.allowedRoles {
+					if r == allowedRoles {
+						found = true
+						log.Debug("user role found")
+						return found, nil
+					}
 				}
 			}
 			if !found {
@@ -254,7 +258,7 @@ type publicCert struct {
 }
 
 // get a public certificate from a JSON via URL
-func getPubCertFromURL(url string, kid string) (*rsa.PublicKey, error) {
+func getPubCertFromURL(url string, kid []string) (*rsa.PublicKey, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error during get request")
@@ -282,10 +286,27 @@ func getPubCertFromURL(url string, kid string) (*rsa.PublicKey, error) {
 
 	//extract the public key from the selected kid
 	for _, certs := range DecodedJson.PublicCerts {
-		if certs.Kid == kid {
-			//returns the public key requested and the error from the called function
-			return StringToRSAPublicKey([]byte(certs.Cert))
+		for _, loopedKid := range kid {
+			if certs.Kid == loopedKid {
+				//returns the public key requested and the error from the called function
+				return StringToRSAPublicKey([]byte(certs.Cert))
+			}
 		}
 	}
 	return nil, fmt.Errorf("error kid not found")
+}
+
+// extract data from path, returns []string divider is \n
+func extractDataFromFile(path string) ([]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	str := string(data)
+	values := strings.Split(str, "\n")
+	var stringSlice []string
+	for _, value := range values {
+		stringSlice = append(stringSlice, value)
+	}
+	return stringSlice, nil
 }
