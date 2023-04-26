@@ -118,11 +118,12 @@ func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	//params := map[string]interface{}{
 	//	"token": token,
 	//}
-	valid, err := o.VerifyJWTSignature(token, o.pubCertRsa)
+	valid, parsedToken, err := o.VerifyJWTSignature(token, o.pubCertRsa)
 	if err != nil || valid == false {
 		log.Debugf("go error : #{err}")
 		return false, err
 	}
+	o.parsedToken = parsedToken
 	parsed, err := o.CheckClaims()
 	return parsed, err
 }
@@ -132,7 +133,7 @@ func (o *goJWTChecker) Halt() {
 }
 
 // VerifyJWTSignature Function to check if the signature is valid
-func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, error) {
+func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwtGo.Token, error) {
 	// Parse the token
 	var err error
 	var token *jwtGo.Token
@@ -148,8 +149,7 @@ func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.Publ
 		})
 		if token != nil {
 			if token.Valid {
-				o.parsedToken = token
-				return true, nil
+				return true, token, nil
 			}
 		} else {
 			log.Debugf("token not valid skipped check if token.valid")
@@ -158,7 +158,7 @@ func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.Publ
 	if err != nil {
 		log.Debug("error from looping the pub certs: ", err)
 	}
-	return false, err
+	return false, nil, err
 }
 
 // StringToRSAPublicKey returns *rsa.PublicKey type variable

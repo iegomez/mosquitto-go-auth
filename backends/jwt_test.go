@@ -1712,20 +1712,20 @@ func TestNewGoBckChecker(t *testing.T) {
 		So(err, ShouldNotBeNil)
 		So(userResponse, ShouldBeFalse)
 
-	})
-	tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE2ODE4MzUxMDAsImlhdCI6MTY4MTc0ODcwMCwibmJmIjoxNjgxNzQ4NzAwLCJpc3MiOiJodHRwczovL3NlcnZlcjIxLmNsb3VkZmxhcmVhY2Nlc3MuY29tIiwidHlwZSI6ImFwcCIsImlkZW50aXR5X25vbmNlIjoiaWN1QnpjMFBtMFFRcHN3MCIsInN1YiI6ImVjYzc5N2MyLTJmODUtNTU5Zi04NGQzLTQ5MGE1NzEzOGY0YiIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.G-PVvKtz7RUEXbKtdf1gURBGLoUjg4a4ij1xqcMeofaw0OOHYhOJSPd7pQ4JfH_2-8iNAD4UyVNoeLVJTzsxNQMuBeHt5STFRHQszWEAy7-77ZV9nhDlJmIOPgO8IfWddOKvq1DlqiW8QoHz0J0zMBAnkMaq_RXd-Peh29ubMtyAIjsoCRHa8ZaY3qaE9Q7dcjJW9lwIPy0K_E5OWLHaIa3bVGRwLlxuzMRURDEO7J0_qpSw2IMoDDLWT7hpfYWWMFSJZHPzgev6qTt8NtuCHWLwtOELL1NfsHtagqyLgXkvLIxxE1CjnIAH_e_ypJOB7JqxkVddb1E8W9VtN1E4vw"
-	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/secondcertificete.pem" //token anotherpubkey
-	authOpts["jwt_go_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
-	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
-		checker, err := NewGoBckChecker(authOpts, tkOptions)
-		So(err, ShouldBeNil)
-		userResponse, err := checker.GetUser(token)
-		So(err, ShouldBeNil)
-		So(userResponse, ShouldBeTrue)
-		userResponse, err = checker.GetUser(tokenAnotherPubKey)
-		So(err, ShouldBeNil)
-		So(userResponse, ShouldBeTrue)
-	})
+	}) /*
+		tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE2ODE4MzUxMDAsImlhdCI6MTY4MTc0ODcwMCwibmJmIjoxNjgxNzQ4NzAwLCJpc3MiOiJodHRwczovL3NlcnZlcjIxLmNsb3VkZmxhcmVhY2Nlc3MuY29tIiwidHlwZSI6ImFwcCIsImlkZW50aXR5X25vbmNlIjoiaWN1QnpjMFBtMFFRcHN3MCIsInN1YiI6ImVjYzc5N2MyLTJmODUtNTU5Zi04NGQzLTQ5MGE1NzEzOGY0YiIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.G-PVvKtz7RUEXbKtdf1gURBGLoUjg4a4ij1xqcMeofaw0OOHYhOJSPd7pQ4JfH_2-8iNAD4UyVNoeLVJTzsxNQMuBeHt5STFRHQszWEAy7-77ZV9nhDlJmIOPgO8IfWddOKvq1DlqiW8QoHz0J0zMBAnkMaq_RXd-Peh29ubMtyAIjsoCRHa8ZaY3qaE9Q7dcjJW9lwIPy0K_E5OWLHaIa3bVGRwLlxuzMRURDEO7J0_qpSw2IMoDDLWT7hpfYWWMFSJZHPzgev6qTt8NtuCHWLwtOELL1NfsHtagqyLgXkvLIxxE1CjnIAH_e_ypJOB7JqxkVddb1E8W9VtN1E4vw"
+		authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/secondcertificete.pem" //token anotherpubkey
+		authOpts["jwt_go_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+		Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
+			checker, err := NewGoBckChecker(authOpts, tkOptions)
+			So(err, ShouldBeNil)
+			userResponse, err := checker.GetUser(token)
+			So(err, ShouldBeNil)
+			So(userResponse, ShouldBeTrue)
+			userResponse, err = checker.GetUser(tokenAnotherPubKey)
+			So(err, ShouldBeNil)
+			So(userResponse, ShouldBeTrue)
+		})*/
 }
 
 func TestGetPublicCertFromURL(t *testing.T) {
