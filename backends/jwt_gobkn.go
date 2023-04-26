@@ -14,6 +14,7 @@ import (
 	"strings"
 )
 
+// goJWTChecker main struct
 type goJWTChecker struct {
 	pubCertRsaPath  string
 	issuerURL       string
@@ -24,6 +25,29 @@ type goJWTChecker struct {
 	pubCertRsa      []*rsa.PublicKey
 	kid             []string
 	allowedAudience []string
+}
+
+// MainJSON main structure of cloudflare JSON
+type MainJSON struct {
+	Keys        []keys       `json:"keys"`
+	PublicCert  publicCert   `json:"public_cert"`
+	PublicCerts []publicCert `json:"public_certs"`
+}
+
+// structure of keys field
+type keys struct {
+	Kid string `json:"kid"`
+	Kty string `json:"kty"`
+	Alg string `json:"alg"`
+	Use string `json:"use"`
+	E   string `json:"e"`
+	N   string `json:"n"`
+}
+
+// structure of both publicCert fields
+type publicCert struct {
+	Kid  string `json:"kid"`
+	Cert string `json:"cert"`
 }
 
 func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtChecker, error) {
@@ -118,13 +142,13 @@ func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	//params := map[string]interface{}{
 	//	"token": token,
 	//}
-	valid, parsedToken, err := o.VerifyJWTSignature(token, o.pubCertRsa)
+	valid, parsedTokenReturn, err := VerifyJWTSignature(token, o.pubCertRsa)
 	if err != nil || valid == false {
 		log.Debugf("go error : #{err}")
 		return false, err
 	}
-	o.parsedToken = parsedToken
-	parsed, err := o.CheckClaims()
+	o.parsedToken = parsedTokenReturn
+	parsed, err := CheckClaims(parsedTokenReturn, o.allowedIssuer, o.allowedAudience, o.allowedRoles)
 	return parsed, err
 }
 
@@ -133,7 +157,7 @@ func (o *goJWTChecker) Halt() {
 }
 
 // VerifyJWTSignature Function to check if the signature is valid
-func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwtGo.Token, error) {
+func VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwtGo.Token, error) {
 	// Parse the token
 	var err error
 	var token *jwtGo.Token
@@ -154,9 +178,10 @@ func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.Publ
 		} else {
 			log.Debugf("token not valid skipped check if token.valid")
 		}
-	}
-	if err != nil {
-		log.Debug("error from looping the pub certs: ", err)
+
+		if err != nil {
+			log.Debug("error from looping the pub certs: ", err)
+		}
 	}
 	return false, nil, err
 }
@@ -181,13 +206,13 @@ func StringToRSAPublicKey(publicKeyStr []byte) (*rsa.PublicKey, error) {
 }
 
 // CheckClaims check if claims are ok like iss and user role
-func (o *goJWTChecker) CheckClaims() (bool, error) {
+func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudience []string, allowedRoles []string) (bool, error) {
 	var claims jwtGo.MapClaims
 	var ok bool
-	if claims, ok = o.parsedToken.Claims.(jwtGo.MapClaims); ok {
+	if claims, ok = parsedToken.Claims.(jwtGo.MapClaims); ok {
 		if iss, ok := claims["iss"].(string); ok {
 			//checking the allowed issuer if there is more than one
-			for _, allowedIss := range o.allowedIssuer {
+			for _, allowedIss := range allowedIssuer {
 				if iss == allowedIss {
 					log.Debug("iss claim ok")
 				} else {
@@ -199,7 +224,7 @@ func (o *goJWTChecker) CheckClaims() (bool, error) {
 			log.Debug("iss claim not a string")
 		}
 		if aud, ok := claims["aud"].(string); ok {
-			for _, allowedAudience := range o.allowedAudience {
+			for _, allowedAudience := range allowedAudience {
 				if aud == allowedAudience { //implement audition key
 					log.Debug("audience ok")
 				} else {
@@ -215,7 +240,7 @@ func (o *goJWTChecker) CheckClaims() (bool, error) {
 		if rules, ok := custom["rules"].([]interface{}); ok {
 			found := false
 			for _, r := range rules {
-				for _, allowedRoles := range o.allowedRoles {
+				for _, allowedRoles := range allowedRoles {
 					if r == allowedRoles {
 						found = true
 						log.Debug("user role found")
@@ -237,29 +262,6 @@ func (o *goJWTChecker) CheckClaims() (bool, error) {
 	}
 
 	return false, fmt.Errorf("unpredict exit")
-}
-
-// MainJSON main structure of cloudflare JSON
-type MainJSON struct {
-	Keys        []keys       `json:"keys"`
-	PublicCert  publicCert   `json:"public_cert"`
-	PublicCerts []publicCert `json:"public_certs"`
-}
-
-// structure of keys field
-type keys struct {
-	Kid string `json:"kid"`
-	Kty string `json:"kty"`
-	Alg string `json:"alg"`
-	Use string `json:"use"`
-	E   string `json:"e"`
-	N   string `json:"n"`
-}
-
-// structure of both publicCert fields
-type publicCert struct {
-	Kid  string `json:"kid"`
-	Cert string `json:"cert"`
 }
 
 // get a public certificate from a JSON via URL
