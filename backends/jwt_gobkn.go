@@ -143,11 +143,16 @@ func (o *goJWTChecker) VerifyJWTSignature(tokenStr string, publicKey []*rsa.Publ
 				log.Debugf("Signing method RSA")
 				return publicKeyFor, nil
 			}
+			log.Debugf("sign method not valid")
 			return nil, fmt.Errorf("sign method not valid")
 		})
-		if token.Valid {
-			o.parsedToken = token
-			return true, nil
+		if token != nil {
+			if token.Valid {
+				o.parsedToken = token
+				return true, nil
+			}
+		} else {
+			log.Debugf("token not valid skipped check if token.valid")
 		}
 	}
 	if err != nil {
