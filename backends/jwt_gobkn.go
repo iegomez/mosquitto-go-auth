@@ -16,12 +16,13 @@ import (
 
 // goJWTChecker main struct
 type goJWTChecker struct {
-	pubCertRsaPath  string
-	issuerURL       string
-	options         tokenOptions
-	allowedRoles    []string
-	allowedIssuer   []string
-	parsedToken     *jwtGo.Token
+	pubCertRsaPath string
+	issuerURL      string
+	options        tokenOptions
+	allowedRoles   []string
+	allowedIssuer  []string
+	parsedToken    *jwtGo.Token
+	//pubCertRsa allowed PublicCert for rs256 verification
 	pubCertRsa      []*rsa.PublicKey
 	kid             []string
 	allowedAudience []string
@@ -56,7 +57,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	}
 	//kid to load the public certificate
 	if kidPath, ok := authOpts["jwt_go_kid_path"]; ok {
-		data, err := extractDataFromFile(kidPath)
+		data, err := ExtractDataFromFile(kidPath)
 		if err != nil {
 			return nil, err
 		}
@@ -67,7 +68,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	}
 	//audience to verify if the certificate is for me
 	if audPath, ok := authOpts["jwt_go_audience_path"]; ok {
-		data, err := extractDataFromFile(audPath)
+		data, err := ExtractDataFromFile(audPath)
 		if err != nil {
 			return nil, err
 		}
@@ -96,7 +97,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	//link to public certificate
 	if link, ok := authOpts["jwt_go_pubcert_link"]; ok {
 		checker.issuerURL = link
-		pubCertExtracted, err := getPubCertFromURL(link, checker.kid)
+		pubCertExtracted, err := GetPubCertFromURL(link, checker.kid)
 		if err != nil {
 			return nil, fmt.Errorf("error during public cert extracting")
 		}
@@ -118,7 +119,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	}
 	//allowed issuer
 	if issPath, ok := authOpts["jwt_go_allowed_iss_path"]; ok {
-		data, err := extractDataFromFile(issPath)
+		data, err := ExtractDataFromFile(issPath)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +143,7 @@ func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	//params := map[string]interface{}{
 	//	"token": token,
 	//}
-	valid, parsedTokenReturn, err := VerifyJWTSignature(token, o.pubCertRsa)
+	valid, parsedTokenReturn, err := VerifyJWTSignatureAndParse(token, o.pubCertRsa)
 	if err != nil || valid == false {
 		log.Debugf("go error : #{err}")
 		return false, err
@@ -156,8 +157,8 @@ func (o *goJWTChecker) Halt() {
 	// NO-OP
 }
 
-// VerifyJWTSignature Function to check if the signature is valid
-func VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwtGo.Token, error) {
+// VerifyJWTSignatureAndParse Function to check if the signature is valid given a slice of publicKey (if too much could be slow) gives back if is valid and the parsed token
+func VerifyJWTSignatureAndParse(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwtGo.Token, error) {
 	// Parse the token
 	var err error
 	var token *jwtGo.Token
@@ -186,7 +187,7 @@ func VerifyJWTSignature(tokenStr string, publicKey []*rsa.PublicKey) (bool, *jwt
 	return false, nil, err
 }
 
-// StringToRSAPublicKey returns *rsa.PublicKey type variable
+// StringToRSAPublicKey returns *rsa.PublicKey type variable given a slice of byte
 func StringToRSAPublicKey(publicKeyStr []byte) (*rsa.PublicKey, error) {
 	// Parse the PEM pub key
 	block, _ := pem.Decode(publicKeyStr)
@@ -264,8 +265,8 @@ func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudien
 	return false, fmt.Errorf("unpredict exit")
 }
 
-// get a public certificate from a JSON via URL
-func getPubCertFromURL(url string, kid []string) (*rsa.PublicKey, error) {
+// GetPubCertFromURL get a public certificate from a JSON via URL
+func GetPubCertFromURL(url string, kid []string) (*rsa.PublicKey, error) {
 	response, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("error during get request")
@@ -303,8 +304,8 @@ func getPubCertFromURL(url string, kid []string) (*rsa.PublicKey, error) {
 	return nil, fmt.Errorf("error kid not found")
 }
 
-// extract data from path, returns []string divider is \n
-func extractDataFromFile(path string) ([]string, error) {
+// ExtractDataFromFile , returns []string divider is \n
+func ExtractDataFromFile(path string) ([]string, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
