@@ -150,24 +150,38 @@ func (o *goJWTChecker) GetSuperuser(token string) (bool, error) {
 
 func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	log.Debugf(topic)
+	_, parsedTokenReturn, err := VerifyJWTSignatureAndParse(token, o.pubCertRsa) //extract claims from parsed token
+	if err != nil {
+		return false, err
+	}
 	//extract claims from parsed token
-	if claims, ok := o.parsedToken.Claims.(jwtGo.MapClaims); ok {
+	if claims, ok := parsedTokenReturn.Claims.(jwtGo.MapClaims); ok {
 		//extract custom claim
 		if custom, ok := claims["custom"].(map[string]interface{}); ok {
 			//extract rules
 			if rules, ok := custom["rules"].([]interface{}); ok {
 				//loop through all the rules from the token
-				for _, r := range rules {
+				for _, currentRule := range rules {
 					//loop drought all the rules from the acl
-					for i, allowedRoles := range o.aclRules {
+					for currentAllowedRole, rolePerTopic := range o.aclRules {
 						//if the rule from the token is equal to the rule from the acl
-						if r == i {
+						if currentRule == currentAllowedRole {
 							//loop through all the allowed roles from the acl
-							for _, allowedTopic := range allowedRoles {
-								//if the allowed topic from the acl is equal to the topic OR # for all topics
+							for _, allowedTopic := range rolePerTopic {
+								//if the allowed topic from the acl is 100% equal to the topic OR # for all topics
 								if allowedTopic == topic || allowedTopic == "#" {
 									return true, nil
 								}
+								//if the allowed topic contains a / it means that we are allowed only for some subtopics
+								if strings.Contains(allowedTopic, "/") {
+									mainTopicAllowed := strings.Split(allowedTopic, "/")
+									mainTopicRecived := strings.Split(topic, "/")
+									//if the main topic is equal
+									if mainTopicAllowed[0] == mainTopicRecived[0] {
+										
+									}
+								}
+
 							}
 							log.Debugf("acl not passed, no allowed topic")
 						}
