@@ -19,13 +19,14 @@ type goJWTChecker struct {
 	pubCertRsaPath string
 	issuerURL      string
 	options        tokenOptions
-	allowedRoles   []string
-	allowedIssuer  []string
-	parsedToken    *jwtGo.Token
+	//allowedRoles   []string
+	allowedIssuer []string
+	parsedToken   *jwtGo.Token
 	//pubCertRsa allowed PublicCert for rs256 verification
 	pubCertRsa      []*rsa.PublicKey
 	kid             []string
 	allowedAudience []string
+	aclRules        map[string][]string
 }
 
 // MainJSON main structure of cloudflare JSON
@@ -77,6 +78,17 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		log.Debug("please specify audience")
 		return nil, fmt.Errorf("not specified audience")
 	}
+	//acl rule verify the user permissions based on role
+	if aclPath, ok := authOpts["jwt_go_acl_path"]; ok {
+		data, err := ExtractACLFromFile(aclPath)
+		if err != nil {
+			return nil, err
+		}
+		checker.aclRules = data
+	} else {
+		log.Debug("please specify acl")
+		return nil, fmt.Errorf("not specified acl")
+	}
 	//public certificate path has to be in the pem format
 	if pubCertPath, ok := authOpts["jwt_go_pubcert_path_RSA"]; ok {
 		log.Debugf("Path given to go-auth: -> " + pubCertPath)
@@ -109,14 +121,15 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		log.Debug("please provide at least one source of certificate")
 		return nil, fmt.Errorf("empty public certificate")
 	}
-
-	//allowed role from token claims
-	if roles, ok := authOpts["jwt_go_allowed_role"]; ok {
-		checker.allowedRoles = append(checker.allowedRoles, roles)
-	} else {
-		log.Debug("please specify allowed rules")
-		return nil, fmt.Errorf("not specified rule")
-	}
+	/*
+		//allowed role from token claims
+		if roles, ok := authOpts["jwt_go_allowed_role"]; ok {
+			checker.allowedRoles = append(checker.allowedRoles, roles)
+		} else {
+			log.Debug("please specify allowed rules")
+			return nil, fmt.Errorf("not specified rule")
+		}
+	*/
 	//allowed issuer
 	if issPath, ok := authOpts["jwt_go_allowed_iss_path"]; ok {
 		data, err := ExtractDataFromFile(issPath)
@@ -136,20 +149,56 @@ func (o *goJWTChecker) GetSuperuser(token string) (bool, error) {
 }
 
 func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
-	return true, nil
+	log.Debugf(topic)
+	//extract claims from parsed token
+	if claims, ok := o.parsedToken.Claims.(jwtGo.MapClaims); ok {
+		//extract custom claim
+		if custom, ok := claims["custom"].(map[string]interface{}); ok {
+			//extract rules
+			if rules, ok := custom["rules"].([]interface{}); ok {
+				//loop through all the rules from the token
+				for _, r := range rules {
+					//loop drought all the rules from the acl
+					for i, allowedRoles := range o.aclRules {
+						//if the rule from the token is equal to the rule from the acl
+						if r == i {
+							//loop through all the allowed roles from the acl
+							for _, allowedTopic := range allowedRoles {
+								//if the allowed topic from the acl is equal to the topic OR # for all topics
+								if allowedTopic == topic || allowedTopic == "#" {
+									return true, nil
+								}
+							}
+							log.Debugf("acl not passed, no allowed topic")
+						}
+					}
+				}
+			} else {
+				log.Debug("rules claim not found")
+				return false, fmt.Errorf("rules claim not found")
+			}
+		} else {
+			log.Debug("custom claim not found")
+			return false, fmt.Errorf("custom claim not found")
+		}
+	}
+
+	return false, nil
 }
 
 func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	//params := map[string]interface{}{
 	//	"token": token,
 	//}
+	//Verify the token and if valid parse it and return the parsed token
 	valid, parsedTokenReturn, err := VerifyJWTSignatureAndParse(token, o.pubCertRsa)
 	if err != nil || valid == false {
 		log.Debugf("go error : #{err}")
 		return false, err
 	}
 	o.parsedToken = parsedTokenReturn
-	parsed, err := CheckClaims(parsedTokenReturn, o.allowedIssuer, o.allowedAudience, o.allowedRoles)
+	//Check the claims for allowed issuer and audience
+	parsed, err := CheckClaims(parsedTokenReturn, o.allowedIssuer, o.allowedAudience)
 	return parsed, err
 }
 
@@ -207,26 +256,16 @@ func StringToRSAPublicKey(publicKeyStr []byte) (*rsa.PublicKey, error) {
 }
 
 // CheckClaims check if claims are ok like iss and user role
-func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudience []string, allowedRoles []string) (bool, error) {
+func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudience []string) (bool, error) {
 	var claims jwtGo.MapClaims
 	var ok bool
+	var audok = false
+	var issok = false
 	if claims, ok = parsedToken.Claims.(jwtGo.MapClaims); ok {
-		if iss, ok := claims["iss"].(string); ok {
-			//checking the allowed issuer if there is more than one
-			for _, allowedIss := range allowedIssuer {
-				if iss == allowedIss {
-					log.Debug("iss claim ok")
-				} else {
-					log.Debug("iss claim ! ok")
-					return false, nil
-				}
-			}
-		} else {
-			log.Debug("iss claim not a string")
-		}
-		if aud, ok := claims["aud"].(string); ok {
-			for _, allowedAudience := range allowedAudience {
-				if aud == allowedAudience { //implement audition key
+		if aud, ok := claims["aud"].([]interface{}); ok {
+			for _, allowedAud := range allowedAudience {
+				if aud[0] == allowedAud { //implement audition key
+					audok = true
 					log.Debug("audience ok")
 				} else {
 					log.Debug("audience ! ok")
@@ -237,31 +276,24 @@ func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudien
 	} else {
 		log.Debug("unable to access claim field")
 	}
-	if custom, ok := claims["custom"].(map[string]interface{}); ok {
-		if rules, ok := custom["rules"].([]interface{}); ok {
-			found := false
-			for _, r := range rules {
-				for _, allowedRoles := range allowedRoles {
-					if r == allowedRoles {
-						found = true
-						log.Debug("user role found")
-						return found, nil
-					}
-				}
+	if iss, ok := claims["iss"].(string); ok {
+		//checking the allowed issuer if there is more than one
+		for _, allowedIss := range allowedIssuer {
+			if iss == allowedIss {
+				issok = true
+				log.Debug("iss claim ok")
+			} else {
+				log.Debug("iss claim ! ok")
+				return false, nil
 			}
-			if !found {
-				log.Debug("user user role not found")
-				return found, nil
-			}
-		} else {
-			log.Debug("rules claim not found")
-			return false, fmt.Errorf("rules claim not found")
 		}
 	} else {
-		log.Debug("custom claim not found")
-		return false, fmt.Errorf("custom claim not found")
+		log.Debug("iss claim not a string")
 	}
 
+	if issok && audok {
+		return true, nil
+	}
 	return false, fmt.Errorf("unpredict exit")
 }
 
@@ -317,4 +349,33 @@ func ExtractDataFromFile(path string) ([]string, error) {
 		stringSlice = append(stringSlice, value)
 	}
 	return stringSlice, nil
+}
+
+// ExtractACLFromFile , returns map[string][]string divider between role and topic is :, the divider between topics is ,
+func ExtractACLFromFile(path string) (map[string][]string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	str := string(data)
+	roleToTopic := make(map[string][]string)
+	lines := strings.Split(str, "\n")
+	for _, line := range lines {
+		if line != "" {
+			//Split the linr by the colon separator
+			parts := strings.Split(line, ":")
+			//Exctract the role and trim the spaces
+			role := strings.TrimSpace(parts[0])
+			//Extract the topics and trim the spaces
+			topics := strings.Split(strings.TrimSpace(parts[1]), ",")
+			//Trim the spaces from the topics
+			for i, topic := range topics {
+				topics[i] = strings.TrimSpace(topic)
+			}
+			//add the role and the topics to the map
+			roleToTopic[role] = topics
+		}
+	}
+
+	return roleToTopic, nil
 }
