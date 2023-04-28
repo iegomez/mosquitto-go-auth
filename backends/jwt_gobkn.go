@@ -58,6 +58,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	}
 	//kid to load the public certificate
 	if kidPath, ok := authOpts["jwt_go_kid_path"]; ok {
+		//extract data from file
 		data, err := ExtractDataFromFile(kidPath)
 		if err != nil {
 			return nil, err
@@ -178,7 +179,7 @@ func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool,
 									mainTopicRecived := strings.Split(topic, "/")
 									//if the main topic is equal
 									if mainTopicAllowed[0] == mainTopicRecived[0] {
-										
+
 									}
 								}
 
@@ -212,7 +213,7 @@ func (o *goJWTChecker) GetUser(token string) (bool, error) {
 	}
 	o.parsedToken = parsedTokenReturn
 	//Check the claims for allowed issuer and audience
-	parsed, err := CheckClaims(parsedTokenReturn, o.allowedIssuer, o.allowedAudience)
+	parsed, err := CheckAudiIssClaims(parsedTokenReturn, o.allowedIssuer, o.allowedAudience)
 	return parsed, err
 }
 
@@ -269,8 +270,8 @@ func StringToRSAPublicKey(publicKeyStr []byte) (*rsa.PublicKey, error) {
 	return rsaPublicKey, nil
 }
 
-// CheckClaims check if claims are ok like iss and user role
-func CheckClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudience []string) (bool, error) {
+// CheckAudiIssClaims check if claims are ok like iss and user role
+func CheckAudiIssClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowedAudience []string) (bool, error) {
 	var claims jwtGo.MapClaims
 	var ok bool
 	var audok = false
@@ -320,7 +321,8 @@ func GetPubCertFromURL(url string, kid []string) (*rsa.PublicKey, error) {
 	defer func(Body io.ReadCloser) {
 		err := Body.Close()
 		if err != nil {
-
+			log.Errorf("error during body close %e", err)
+			return
 		}
 	}(response.Body)
 
@@ -365,8 +367,41 @@ func ExtractDataFromFile(path string) ([]string, error) {
 	return stringSlice, nil
 }
 
-// ExtractACLFromFile , returns map[string][]string divider between role and topic is :, the divider between topics is ,
-func ExtractACLFromFile(path string) (map[string][]string, error) {
+/*
+ExtractACLFromFile , returns map[string][]string divider between role and topic is :, the divider between topics is ,
+data example: role1:$SYS/#, topic1, topic2/#
+
+	role2:topic1/uno, topic1/due
+
+data structure saved: map[
+
+			role1:[$SYS/# topic1 topic2/#]
+			role2:[topic1 topic2]
+	   ]
+
+data structure to implement now
+
+	topics := map[string]map[string][]string{
+	        "$SYS": {
+	            "status":     {"#"},
+	            "connections": {"#"},
+	        },
+	        "luci": {
+	            "soggiorno":  {"on", "off"},
+	            "cucina":     {"on", "off", "dimmer"},
+	            "camera letto": {"on", "off", "intensita"},
+	        },
+	        "prese": {
+	            "soggiorno":  {"on", "off"},
+	            "cucina":     {"on", "off"},
+	            "camera letto": {"on", "off", "timer"},
+	        },
+	    }
+
+			source string:
+				user1:$SYS/status/
+*/
+func ExtractACLFromFile(path string) (map[string]interface{}, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
