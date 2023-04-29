@@ -48,8 +48,9 @@ type keys struct {
 }
 
 type AclRule struct {
-	topic    string
-	subtopic []AclRule
+	topic      string
+	permission int32
+	subtopic   []AclRule
 }
 
 // structure of both publicCert fields
@@ -156,13 +157,15 @@ func (o *goJWTChecker) GetSuperuser(token string) (bool, error) {
 }
 
 func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
+	//acc=1 -> subscribe, acc=2 -> publish, acc=4 -> pubsub
 	log.Debugf("topic: " + topic)
 	log.Debugf("client id: " + clientid)
 	log.Debugf("acc: " + strconv.Itoa(int(acc)))
 	log.Debugf("token: tha same as the login")
-	if topic == "#" && acc == 4 {
-		return true, nil
-	}
+
+	//if topic == "#" && acc == 4 {
+	//	return true, nil
+	//}
 	_, parsedTokenReturn, err := VerifyJWTSignatureAndParse(token, o.pubCertRsa) //extract claims from parsed token
 	if err != nil {
 		return false, err
@@ -202,7 +205,8 @@ func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool,
 		for _, rule := range rules {
 			//if the rule from the token is in the acl
 			if role == rule {
-				if checkSubtopics(topicParts, aclStruct) {
+				//topic parts is the actual topic to check, aclStruct is the structure to search into
+				if checkSubtopics(topicParts, aclStruct, acc) {
 					log.Debugf("User Allowed Via ACL!!!!!")
 					return true, nil
 				}
@@ -386,39 +390,58 @@ func ExtractACLFromFileNew(path string) (map[string][]AclRule, error) {
 	}
 	buffer := make(map[string][]AclRule)
 	textExtractedString := string(textExtracted)
+	var selectedPermission int32
 	//split beteween lines
 	singleLines := strings.Split(textExtractedString, "\n")
 	for _, currentLine := range singleLines {
 		if currentLine != "" {
 			//split the role and the topics and trim the spaces
-			roleAndTopics := strings.Split(currentLine, ":")
-			role := strings.TrimSpace(roleAndTopics[0])
+			rolePermisisonAndTopics := strings.Split(currentLine, ":")
+			roleAndPermission := strings.Split(rolePermisisonAndTopics[0], ",")
+			role := strings.TrimSpace(roleAndPermission[0])
+			permission := strings.TrimSpace(roleAndPermission[1])
+			switch permission {
+			case "R":
+				selectedPermission = 1
+				break
+			case "W":
+				selectedPermission = 2
+				break
+			case "RW":
+				selectedPermission = 4
+				break
+			default:
+				log.Debugf("error, permission %s not valid", permission)
+				return nil, fmt.Errorf("permission not valid")
+
+			}
 			//extract the topics and trim the spaces
-			TopicsFromString(roleAndTopics[1], role, buffer)
+			TopicsFromString(rolePermisisonAndTopics[1], role, selectedPermission, buffer)
 		}
 	}
 	return buffer, nil
 }
 
 // addSubtopic , adds a subtopic to a topic
-func addSubtopic(subtopics []AclRule, subtopic []string) []AclRule {
+func addSubtopic(subtopics []AclRule, subtopic []string, permission int32) []AclRule {
 	if len(subtopic) == 0 {
 		return subtopics
 	}
-
 	var topicExists bool
 	for i := range subtopics {
 		if subtopics[i].topic == subtopic[0] {
-			subtopics[i].subtopic = addSubtopic(subtopics[i].subtopic, subtopic[1:])
+			subtopics[i].subtopic = addSubtopic(subtopics[i].subtopic, subtopic[1:], permission)
 			topicExists = true
 			break
 		}
 	}
 
 	if !topicExists {
+		strings.TrimSpace(subtopic[0])
 		AclRuleBuffer := new(AclRule)
 		AclRuleBuffer.topic = subtopic[0]
-		AclRuleBuffer.subtopic = addSubtopic(nil, subtopic[1:])
+		AclRuleBuffer.permission = permission
+		AclRuleBuffer.subtopic = addSubtopic(nil, subtopic[1:], permission)
 		subtopics = append(subtopics, *AclRuleBuffer)
 	}
 
@@ -426,21 +449,24 @@ func addSubtopic(subtopics []AclRule, subtopic []string) []AclRule {
 }
 
 // TopicsFromString , returns a map of topics and subtopics from a string example topic1/topic2/topic3,topic4/topic5
-func TopicsFromString(topic string, role string, buffer map[string][]AclRule) map[string][]AclRule {
+func TopicsFromString(topic string, role string, permission int32, buffer map[string][]AclRule) map[string][]AclRule {
 	//from here reusable if you have a string
 	topics := strings.Split(strings.TrimSpace(topic), ",")
 	for _, currentExaminedTopic := range topics {
 		//split the topic and the subtopics
 		currentExaminedTopicSplitted := strings.Split(currentExaminedTopic, "/")
 		//Add topic to buffer
+		//if we have only the main topic
 		if len(currentExaminedTopicSplitted) == 1 {
+			strings.TrimSpace(currentExaminedTopicSplitted[0])
 			AclRuleBuffer := new(AclRule)
 			AclRuleBuffer.topic = currentExaminedTopicSplitted[0]
 			AclRuleBuffer.subtopic = nil
+			AclRuleBuffer.permission = permission
 			buffer[role] = append(buffer[role], *AclRuleBuffer)
 		} else {
-			//Add subtopic to buffer
-			subtopicBuffer := addSubtopic(buffer[role], currentExaminedTopicSplitted)
+			//if we have subtopics
+			subtopicBuffer := addSubtopic(buffer[role], currentExaminedTopicSplitted, permission)
 			buffer[role] = subtopicBuffer
 		}
 	}
@@ -448,34 +474,57 @@ func TopicsFromString(topic string, role string, buffer map[string][]AclRule) ma
 }
 
 // checkSubtopics checks if the given topics are covered by the given ACL rules
-func checkSubtopics(topics []string, aclStructs []AclRule) bool {
-	// Se la slice di topics è vuota, allora abbiamo trovato la regola corretta
+func checkSubtopics(topics []string, aclStructs []AclRule, requiredPermission int32) bool {
+	// if the slice topic is empty we found the correct one
 	if len(topics) == 0 {
 		return true
 	}
-	// Prendiamo il primo sotto-topic dalla slice
+	// take the first subtopic of the slice
 	subtopic := topics[0]
-
-	// Controlliamo se c'è una regola che copre tutti i topic utilizzando il carattere jolly #
+	//check if there is a rule that covers all the topic #
 	for _, aclStruct := range aclStructs {
-		if aclStruct.topic == "#" {
+		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission) {
 			return true
 		}
 	}
-	// Cerchiamo il sotto-topic all'interno delle strutture AclRule
+	//search in the aclrule the subtopic
 	for _, aclStruct := range aclStructs {
-		// Se il sotto-topic corrisponde alla wildcard "#", allora tutti i sotto-topics successivi sono permessi
-		if aclStruct.topic == "#" {
+		//if # is found all the subtopic is ok
+		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission) {
 			return true
 		}
 
-		// Se il sotto-topic corrisponde, continuamo a cercare nella gerarchia dei sotto-topics
-		if aclStruct.topic == subtopic {
-			// Continuiamo la ricerca nella gerarchia dei sotto-topics
-			return checkSubtopics(topics[1:], aclStruct.subtopic)
+		//if the subtopic matches we can continue the research
+		if aclStruct.topic == subtopic && checkPermission(requiredPermission, aclStruct.permission) {
+			// Continue the research in the subtopic
+			return checkSubtopics(topics[1:], aclStruct.subtopic, requiredPermission)
 		}
 	}
 
-	// Se non abbiamo trovato il sotto-topic corrispondente, allora la regola non è valida
+	// if no matching rule is found we return false
+	return false
+}
+
+func checkPermission(required int32, given int32) bool {
+	switch required {
+	case 1:
+		if given == 1 || given == 4 {
+			return true
+		}
+		break
+	case 2:
+		if given == 2 || given == 4 {
+			return true
+		}
+		break
+	case 4:
+		if given == 4 {
+			return true
+		}
+		break
+	default:
+		return false
+
+	}
 	return false
 }
