@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -26,7 +27,7 @@ type goJWTChecker struct {
 	pubCertRsa      []*rsa.PublicKey
 	kid             []string
 	allowedAudience []string
-	aclRules        map[string][]string
+	aclRules        map[string][]AclRule
 }
 
 // MainJSON main structure of cloudflare JSON
@@ -44,6 +45,11 @@ type keys struct {
 	Use string `json:"use"`
 	E   string `json:"e"`
 	N   string `json:"n"`
+}
+
+type AclRule struct {
+	topic    string
+	subtopic []AclRule
 }
 
 // structure of both publicCert fields
@@ -81,7 +87,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 	}
 	//acl rule verify the user permissions based on role
 	if aclPath, ok := authOpts["jwt_go_acl_path"]; ok {
-		data, err := ExtractACLFromFile(aclPath)
+		data, err := ExtractACLFromFileNew(aclPath)
 		if err != nil {
 			return nil, err
 		}
@@ -150,54 +156,59 @@ func (o *goJWTChecker) GetSuperuser(token string) (bool, error) {
 }
 
 func (o *goJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
-	log.Debugf(topic)
+	log.Debugf("topic: " + topic)
+	log.Debugf("client id: " + clientid)
+	log.Debugf("acc: " + strconv.Itoa(int(acc)))
+	log.Debugf("token: tha same as the login")
+	if topic == "#" && acc == 4 {
+		return true, nil
+	}
 	_, parsedTokenReturn, err := VerifyJWTSignatureAndParse(token, o.pubCertRsa) //extract claims from parsed token
 	if err != nil {
 		return false, err
 	}
 	//extract claims from parsed token
-	if claims, ok := parsedTokenReturn.Claims.(jwtGo.MapClaims); ok {
-		//extract custom claim
-		if custom, ok := claims["custom"].(map[string]interface{}); ok {
-			//extract rules
-			if rules, ok := custom["rules"].([]interface{}); ok {
-				//loop through all the rules from the token
-				for _, currentRule := range rules {
-					//loop drought all the rules from the acl
-					for currentAllowedRole, rolePerTopic := range o.aclRules {
-						//if the rule from the token is equal to the rule from the acl
-						if currentRule == currentAllowedRole {
-							//loop through all the allowed roles from the acl
-							for _, allowedTopic := range rolePerTopic {
-								//if the allowed topic from the acl is 100% equal to the topic OR # for all topics
-								if allowedTopic == topic || allowedTopic == "#" {
-									return true, nil
-								}
-								//if the allowed topic contains a / it means that we are allowed only for some subtopics
-								if strings.Contains(allowedTopic, "/") {
-									mainTopicAllowed := strings.Split(allowedTopic, "/")
-									mainTopicRecived := strings.Split(topic, "/")
-									//if the main topic is equal
-									if mainTopicAllowed[0] == mainTopicRecived[0] {
-
-									}
-								}
-
-							}
-							log.Debugf("acl not passed, no allowed topic")
-						}
-					}
-				}
-			} else {
-				log.Debug("rules claim not found")
-				return false, fmt.Errorf("rules claim not found")
-			}
-		} else {
-			log.Debug("custom claim not found")
-			return false, fmt.Errorf("custom claim not found")
-		}
+	// Extract custom claims
+	claims, ok := parsedTokenReturn.Claims.(jwtGo.MapClaims)
+	if !ok {
+		log.Debug("invalid token claims format")
+		return false, fmt.Errorf("invalid token claims format")
 	}
 
+	// Extract rules from custom claims
+	rulesRaw, ok := claims["custom"].(map[string]interface{})["rules"].([]interface{})
+	if !ok {
+		log.Debug("rules claim not found or has invalid format")
+		return false, fmt.Errorf("rules claim not found or has invalid format")
+	}
+	// Convert rules to string slice
+	rules := make([]string, len(rulesRaw))
+	for i, r := range rulesRaw {
+		if s, ok := r.(string); ok {
+			rules[i] = s
+		} else {
+			log.Debug("invalid rule format")
+			return false, fmt.Errorf("invalid rule format")
+		}
+	}
+	//divide the topic in parts
+	topicParts := strings.Split(topic, "/")
+	//now we have the rules from the token
+	//we have to check if the rule we have is in the acl
+	//if it is we have to check if the topic is in the rule
+	//loop over the rules saved
+	for role, aclStruct := range o.aclRules {
+		//loop over the rules from the token
+		for _, rule := range rules {
+			//if the rule from the token is in the acl
+			if role == rule {
+				if checkSubtopics(topicParts, aclStruct) {
+					log.Debugf("User Allowed Via ACL!!!!!")
+					return true, nil
+				}
+			}
+		}
+	}
 	return false, nil
 }
 
@@ -367,64 +378,104 @@ func ExtractDataFromFile(path string) ([]string, error) {
 	return stringSlice, nil
 }
 
-/*
-ExtractACLFromFile , returns map[string][]string divider between role and topic is :, the divider between topics is ,
-data example: role1:$SYS/#, topic1, topic2/#
-
-	role2:topic1/uno, topic1/due
-
-data structure saved: map[
-
-			role1:[$SYS/# topic1 topic2/#]
-			role2:[topic1 topic2]
-	   ]
-
-data structure to implement now
-
-	topics := map[string]map[string][]string{
-	        "$SYS": {
-	            "status":     {"#"},
-	            "connections": {"#"},
-	        },
-	        "luci": {
-	            "soggiorno":  {"on", "off"},
-	            "cucina":     {"on", "off", "dimmer"},
-	            "camera letto": {"on", "off", "intensita"},
-	        },
-	        "prese": {
-	            "soggiorno":  {"on", "off"},
-	            "cucina":     {"on", "off"},
-	            "camera letto": {"on", "off", "timer"},
-	        },
-	    }
-
-			source string:
-				user1:$SYS/status/
-*/
-func ExtractACLFromFile(path string) (map[string]interface{}, error) {
-	data, err := os.ReadFile(path)
+// ExtractACLFromFileNew , extracts the topics from a file and adds them to the map
+func ExtractACLFromFileNew(path string) (map[string][]AclRule, error) {
+	textExtracted, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	str := string(data)
-	roleToTopic := make(map[string][]string)
-	lines := strings.Split(str, "\n")
-	for _, line := range lines {
-		if line != "" {
-			//Split the linr by the colon separator
-			parts := strings.Split(line, ":")
-			//Exctract the role and trim the spaces
-			role := strings.TrimSpace(parts[0])
-			//Extract the topics and trim the spaces
-			topics := strings.Split(strings.TrimSpace(parts[1]), ",")
-			//Trim the spaces from the topics
-			for i, topic := range topics {
-				topics[i] = strings.TrimSpace(topic)
-			}
-			//add the role and the topics to the map
-			roleToTopic[role] = topics
+	buffer := make(map[string][]AclRule)
+	textExtractedString := string(textExtracted)
+	//split beteween lines
+	singleLines := strings.Split(textExtractedString, "\n")
+	for _, currentLine := range singleLines {
+		if currentLine != "" {
+			//split the role and the topics and trim the spaces
+			roleAndTopics := strings.Split(currentLine, ":")
+			role := strings.TrimSpace(roleAndTopics[0])
+			//extract the topics and trim the spaces
+			TopicsFromString(roleAndTopics[1], role, buffer)
+		}
+	}
+	return buffer, nil
+}
+
+// addSubtopic , adds a subtopic to a topic
+func addSubtopic(subtopics []AclRule, subtopic []string) []AclRule {
+	if len(subtopic) == 0 {
+		return subtopics
+	}
+
+	var topicExists bool
+	for i := range subtopics {
+		if subtopics[i].topic == subtopic[0] {
+			subtopics[i].subtopic = addSubtopic(subtopics[i].subtopic, subtopic[1:])
+			topicExists = true
+			break
 		}
 	}
 
-	return roleToTopic, nil
+	if !topicExists {
+		AclRuleBuffer := new(AclRule)
+		AclRuleBuffer.topic = subtopic[0]
+		AclRuleBuffer.subtopic = addSubtopic(nil, subtopic[1:])
+		subtopics = append(subtopics, *AclRuleBuffer)
+	}
+
+	return subtopics
+}
+
+// TopicsFromString , returns a map of topics and subtopics from a string example topic1/topic2/topic3,topic4/topic5
+func TopicsFromString(topic string, role string, buffer map[string][]AclRule) map[string][]AclRule {
+	//from here reusable if you have a string
+	topics := strings.Split(strings.TrimSpace(topic), ",")
+	for _, currentExaminedTopic := range topics {
+		//split the topic and the subtopics
+		currentExaminedTopicSplitted := strings.Split(currentExaminedTopic, "/")
+		//Add topic to buffer
+		if len(currentExaminedTopicSplitted) == 1 {
+			AclRuleBuffer := new(AclRule)
+			AclRuleBuffer.topic = currentExaminedTopicSplitted[0]
+			AclRuleBuffer.subtopic = nil
+			buffer[role] = append(buffer[role], *AclRuleBuffer)
+		} else {
+			//Add subtopic to buffer
+			subtopicBuffer := addSubtopic(buffer[role], currentExaminedTopicSplitted)
+			buffer[role] = subtopicBuffer
+		}
+	}
+	return buffer
+}
+
+// checkSubtopics checks if the given topics are covered by the given ACL rules
+func checkSubtopics(topics []string, aclStructs []AclRule) bool {
+	// Se la slice di topics è vuota, allora abbiamo trovato la regola corretta
+	if len(topics) == 0 {
+		return true
+	}
+	// Prendiamo il primo sotto-topic dalla slice
+	subtopic := topics[0]
+
+	// Controlliamo se c'è una regola che copre tutti i topic utilizzando il carattere jolly #
+	for _, aclStruct := range aclStructs {
+		if aclStruct.topic == "#" {
+			return true
+		}
+	}
+	// Cerchiamo il sotto-topic all'interno delle strutture AclRule
+	for _, aclStruct := range aclStructs {
+		// Se il sotto-topic corrisponde alla wildcard "#", allora tutti i sotto-topics successivi sono permessi
+		if aclStruct.topic == "#" {
+			return true
+		}
+
+		// Se il sotto-topic corrisponde, continuamo a cercare nella gerarchia dei sotto-topics
+		if aclStruct.topic == subtopic {
+			// Continuiamo la ricerca nella gerarchia dei sotto-topics
+			return checkSubtopics(topics[1:], aclStruct.subtopic)
+		}
+	}
+
+	// Se non abbiamo trovato il sotto-topic corrispondente, allora la regola non è valida
+	return false
 }

@@ -199,6 +199,7 @@ func (o *Checker) readAcls() (int, error) {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	// Split on newlines.
 	scanner.Split(bufio.ScanLines)
 
 	index := 0

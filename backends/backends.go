@@ -457,6 +457,9 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 		}
 	}
 
+	if backend.GetName() == "JWT" {
+		username = "'inserted token'"
+	}
 	log.Debugf("Acl is %t for user %s", aclCheck, username)
 	return aclCheck, err
 }
@@ -486,6 +489,9 @@ func (b *Backends) checkAcl(username, topic, clientid string, acc int) (bool, er
 
 			log.Debugf("Acl check with backend %s", backend.GetName())
 			if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
+				if backend.GetName() == "JWT" {
+					username = "inserted token"
+				}
 				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
 				aclCheck = true
 				break
