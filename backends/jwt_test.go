@@ -1688,7 +1688,7 @@ func TestJWTGo(t *testing.T) {
 }
 
 func TestNewGoBckChecker(t *testing.T) {
-	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgyNzgyNzM4LCJpYXQiOjE2ODI2OTYzMzgsIm5iZiI6MTY4MjY5NjMzOCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkpIb3R3U2M4d1lROHhGYmUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwibXF0dF9saWdodHMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.SOIJGAX-pPuks9zrdF_E7yoqaC2TrApe9vK6tvH7h7KadJ3uSYeHzsWdiT62RtRURS-Hwww_JlxBy-tKf7yz7ALGGbJHPhofnhYYUtR_wPTC9MnegpQvZ5Zs6T8LiKCZQQlTsKl6Qcy7ihxS6csBtYAQx9KSBN171GywPbCxWe7gR_oOnyiGVui2RputzRS3Y1areq37ic4LNahgI4eYObE8Ipuo1o-_ohihJ5P0fA32TOZhrrYxfdLGlEruFupjGdP51LRPa-mSHN64HDbr2t5LNiK9FKQ4rmVcj76N_6WljatloxorOpWBx2YwWLIME2qc3I2gZa-6SxLv1AJK0g"
+	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgyODcwMTE3LCJpYXQiOjE2ODI3ODM3MTcsIm5iZiI6MTY4Mjc4MzcxNywiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6InQwQTN5eVpjSnhkcEpib3MiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwibXF0dF9saWdodHMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.Vhe7yLmJUwNbzBt9ZtEijwyQ0mb6e7yfI9Hci_m3McTkFo7uhOsGvvV9zUJda2St_VnWJ2nnnCZ-KpzbuXs3gNtSU2GTq0X_cnCVOSTGZenkUVSREQqeJaCSDl4vY8lvj9x2ISF4espRateBW56yJ-vCz7WaNYAhkG69Fhru-bxOz2Uxjm8aj9j5ISaPbIZOLTZf42sZgOUmhDWTnl6-pj76mc4CloXzoV9GJzjkQriL0S5s0s8tDeR_uOGmfL9Gd9yLNjkO2nE9DZst9b9m7-cTtH-SDCcK0EI41W1IDYDOpjCyR3SxEANJbMROYxpi8KCmeSLkLQvvXnh3DBCVFA"
 	var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
 	authOpts := make(map[string]string)
 	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert.pem"
@@ -1734,14 +1734,16 @@ func TestNewGoBckChecker(t *testing.T) {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
 		userResponse, err := checker.GetUser(token)
-		userResponse, err = checker.CheckAcl(token, "maddoread/casa", "1", 1)
+		userResponse, err = checker.CheckAcl(token, "marameoread/casa", "1", 1)
 		So(err, ShouldBeNil)
 		So(userResponse, ShouldBeTrue)
 		userResponse, _ = checker.CheckAcl(token, "maddowrite/casa", "1", 2)
 		So(userResponse, ShouldBeTrue)
-		userResponse, _ = checker.CheckAcl(token, "#", "1", 4)
+		userResponse, _ = checker.CheckAcl(token, "marameoread/ciao", "1", 2)
 		So(userResponse, ShouldBeFalse)
-		userResponse, _ = checker.CheckAcl(token, "marameowrite/#", "1", 2)
+		userResponse, _ = checker.CheckAcl(token, "parappa/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "marameowrite/ciao", "1", 1)
 		So(userResponse, ShouldBeTrue)
 	})
 }

@@ -50,6 +50,7 @@ type keys struct {
 type AclRule struct {
 	topic      string
 	permission int32
+	canPubSub  bool
 	subtopic   []AclRule
 }
 
@@ -391,6 +392,7 @@ func ExtractACLFromFileNew(path string) (map[string][]AclRule, error) {
 	buffer := make(map[string][]AclRule)
 	textExtractedString := string(textExtracted)
 	var selectedPermission int32
+	var canPubSub bool
 	//split beteween lines
 	singleLines := strings.Split(textExtractedString, "\n")
 	for _, currentLine := range singleLines {
@@ -407,49 +409,30 @@ func ExtractACLFromFileNew(path string) (map[string][]AclRule, error) {
 			case "W":
 				selectedPermission = 2
 				break
-			case "RW":
-				selectedPermission = 4
-				break
 			default:
 				log.Debugf("error, permission %s not valid", permission)
 				return nil, fmt.Errorf("permission not valid")
 
 			}
+			if len(roleAndPermission) == 3 {
+				if strings.TrimSpace(roleAndPermission[2]) == "PS" {
+					canPubSub = true
+				} else {
+					log.Debugf("error, PUBSub permission %s not valid", permission)
+					return nil, fmt.Errorf("permission not valid")
+				}
+			} else {
+				canPubSub = false
+			}
 			//extract the topics and trim the spaces
-			TopicsFromString(rolePermisisonAndTopics[1], role, selectedPermission, buffer)
+			TopicsFromString(rolePermisisonAndTopics[1], role, selectedPermission, canPubSub, buffer)
 		}
 	}
 	return buffer, nil
 }
 
-// addSubtopic , adds a subtopic to a topic
-func addSubtopic(subtopics []AclRule, subtopic []string, permission int32) []AclRule {
-	if len(subtopic) == 0 {
-		return subtopics
-	}
-	var topicExists bool
-	for i := range subtopics {
-		if subtopics[i].topic == subtopic[0] {
-			subtopics[i].subtopic = addSubtopic(subtopics[i].subtopic, subtopic[1:], permission)
-			topicExists = true
-			break
-		}
-	}
-
-	if !topicExists {
-		strings.TrimSpace(subtopic[0])
-		AclRuleBuffer := new(AclRule)
-		AclRuleBuffer.topic = subtopic[0]
-		AclRuleBuffer.permission = permission
-		AclRuleBuffer.subtopic = addSubtopic(nil, subtopic[1:], permission)
-		subtopics = append(subtopics, *AclRuleBuffer)
-	}
-
-	return subtopics
-}
-
 // TopicsFromString , returns a map of topics and subtopics from a string example topic1/topic2/topic3,topic4/topic5
-func TopicsFromString(topic string, role string, permission int32, buffer map[string][]AclRule) map[string][]AclRule {
+func TopicsFromString(topic string, role string, permission int32, canPubSub bool, buffer map[string][]AclRule) map[string][]AclRule {
 	//from here reusable if you have a string
 	topics := strings.Split(strings.TrimSpace(topic), ",")
 	for _, currentExaminedTopic := range topics {
@@ -463,14 +446,42 @@ func TopicsFromString(topic string, role string, permission int32, buffer map[st
 			AclRuleBuffer.topic = currentExaminedTopicSplitted[0]
 			AclRuleBuffer.subtopic = nil
 			AclRuleBuffer.permission = permission
+			AclRuleBuffer.canPubSub = canPubSub
 			buffer[role] = append(buffer[role], *AclRuleBuffer)
 		} else {
 			//if we have subtopics
-			subtopicBuffer := addSubtopic(buffer[role], currentExaminedTopicSplitted, permission)
+			subtopicBuffer := addSubtopic(buffer[role], currentExaminedTopicSplitted, permission, canPubSub)
 			buffer[role] = subtopicBuffer
 		}
 	}
 	return buffer
+}
+
+// addSubtopic , adds a subtopic to a topic
+func addSubtopic(subtopics []AclRule, subtopic []string, permission int32, canPubSub bool) []AclRule {
+	if len(subtopic) == 0 {
+		return subtopics
+	}
+	var topicExists bool
+	for i := range subtopics {
+		if subtopics[i].topic == subtopic[0] {
+			subtopics[i].subtopic = addSubtopic(subtopics[i].subtopic, subtopic[1:], permission, canPubSub)
+			topicExists = true
+			break
+		}
+	}
+
+	if !topicExists {
+		strings.TrimSpace(subtopic[0])
+		AclRuleBuffer := new(AclRule)
+		AclRuleBuffer.topic = subtopic[0]
+		AclRuleBuffer.permission = permission
+		AclRuleBuffer.canPubSub = canPubSub
+		AclRuleBuffer.subtopic = addSubtopic(nil, subtopic[1:], permission, canPubSub)
+		subtopics = append(subtopics, *AclRuleBuffer)
+	}
+
+	return subtopics
 }
 
 // checkSubtopics checks if the given topics are covered by the given ACL rules
@@ -483,19 +494,19 @@ func checkSubtopics(topics []string, aclStructs []AclRule, requiredPermission in
 	subtopic := topics[0]
 	//check if there is a rule that covers all the topic #
 	for _, aclStruct := range aclStructs {
-		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission) {
+		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission, aclStruct.canPubSub) {
 			return true
 		}
 	}
 	//search in the aclrule the subtopic
 	for _, aclStruct := range aclStructs {
 		//if # is found all the subtopic is ok
-		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission) {
+		if aclStruct.topic == "#" && checkPermission(requiredPermission, aclStruct.permission, aclStruct.canPubSub) {
 			return true
 		}
 
 		//if the subtopic matches we can continue the research
-		if aclStruct.topic == subtopic && checkPermission(requiredPermission, aclStruct.permission) {
+		if aclStruct.topic == subtopic && checkPermission(requiredPermission, aclStruct.permission, aclStruct.canPubSub) {
 			// Continue the research in the subtopic
 			return checkSubtopics(topics[1:], aclStruct.subtopic, requiredPermission)
 		}
@@ -505,20 +516,21 @@ func checkSubtopics(topics []string, aclStructs []AclRule, requiredPermission in
 	return false
 }
 
-func checkPermission(required int32, given int32) bool {
+// checkPermission checks if the given permission is covered by the given ACL rule if can write can also read
+func checkPermission(required int32, given int32, canPubSub bool) bool {
 	switch required {
 	case 1:
-		if given == 1 || given == 4 {
+		if given == 1 || given == 2 {
 			return true
 		}
 		break
 	case 2:
-		if given == 2 || given == 4 {
+		if given == 2 {
 			return true
 		}
 		break
 	case 4:
-		if given == 4 {
+		if canPubSub {
 			return true
 		}
 		break
