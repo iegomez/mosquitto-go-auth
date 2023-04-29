@@ -516,16 +516,16 @@ func checkSubtopics(topics []string, aclStructs []AclRule, requiredPermission in
 	return false
 }
 
-// checkPermission checks if the given permission is covered by the given ACL rule if can write can also read
-func checkPermission(required int32, given int32, canPubSub bool) bool {
-	switch required {
+// checkPermission checks if the given permission is covered by the given ACL rule, if can write can also read
+func checkPermission(requiredPermission int32, givenPermission int32, canPubSub bool) bool {
+	switch requiredPermission {
 	case 1:
-		if given == 1 || given == 2 {
+		if givenPermission == 1 || givenPermission == 2 {
 			return true
 		}
 		break
 	case 2:
-		if given == 2 {
+		if givenPermission == 2 {
 			return true
 		}
 		break
