@@ -1688,15 +1688,15 @@ func TestJWTGo(t *testing.T) {
 }
 
 func TestNewGoBckChecker(t *testing.T) {
-	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgyODcwMTE3LCJpYXQiOjE2ODI3ODM3MTcsIm5iZiI6MTY4Mjc4MzcxNywiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6InQwQTN5eVpjSnhkcEpib3MiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwibXF0dF9saWdodHMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.Vhe7yLmJUwNbzBt9ZtEijwyQ0mb6e7yfI9Hci_m3McTkFo7uhOsGvvV9zUJda2St_VnWJ2nnnCZ-KpzbuXs3gNtSU2GTq0X_cnCVOSTGZenkUVSREQqeJaCSDl4vY8lvj9x2ISF4espRateBW56yJ-vCz7WaNYAhkG69Fhru-bxOz2Uxjm8aj9j5ISaPbIZOLTZf42sZgOUmhDWTnl6-pj76mc4CloXzoV9GJzjkQriL0S5s0s8tDeR_uOGmfL9Gd9yLNjkO2nE9DZst9b9m7-cTtH-SDCcK0EI41W1IDYDOpjCyR3SxEANJbMROYxpi8KCmeSLkLQvvXnh3DBCVFA"
+	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgzMDE3NzQ5LCJpYXQiOjE2ODI5MzEzNDksIm5iZiI6MTY4MjkzMTM0OSwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6ImJPdjgydGFMWDI2b2MxNkQiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwibXF0dF9saWdodHMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.ZLaZBZZhJKL3GzC-uCfurzazWij-JCQw5NkRDj3WkrZMwHpCWC1kQ5Al71kVbj8QqRDOKtJKkl5s-hHqpnmRKflhHjWIXXzGcKws9-KWij2E-3Lq4FtC3vqefRX9WUpVWfLW13CH8QMpVjlAg4kqjAErQNVBKgurDAUYeft-Ey_t0BADPvgC7bnRlZqGc7icRJ6QNWgMQUZwqccIvy_CPrV0Dfsn68O25zjDBx8_c5Z3lzj5GQTNvOWfHZTa88lufYf-rCv8R2CeJD9gEn7_gb5dobGTxYqSG-Si2sdd0VN--SmNlfKmtzxki_0-BppL0ih4G_Z8rqAT6kEskaPqag"
 	var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
 	authOpts := make(map[string]string)
-	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert.pem"
-	authOpts["jwt_go_allowed_role"] = "user"
-	authOpts["jwt_go_allowed_iss_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/iss"
-	authOpts["jwt_go_kid_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/kid"
-	authOpts["jwt_go_audience_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/aud"
-	authOpts["jwt_go_acl_path"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/acl"
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/cert.pem")
+	authOpts["jwt_cloudflare_allowed_role"] = "user"
+	authOpts["jwt_cloudflare_allowed_iss_path"], _ = filepath.Abs("../test-files/cloudflare/iss")
+	authOpts["jwt_cloudflare_kid_path"], _ = filepath.Abs("../test-files/cloudflare/kid")
+	authOpts["jwt_cloudflare_audience_path"], _ = filepath.Abs("../test-files/cloudflare/aud")
+	authOpts["jwt_cloudflare_acl_path"], _ = filepath.Abs("../test-files/cloudflare/acl")
 	Convey("Creating Go Cheker should succeed usign expired token", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
@@ -1705,7 +1705,7 @@ func TestNewGoBckChecker(t *testing.T) {
 		So(userResponse, ShouldBeFalse)
 
 	})
-	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/cert_err.pem"
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/cert_err.pem")
 	Convey("Creating Go Cheker should succeed using corrupted cert file", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
@@ -1715,19 +1715,26 @@ func TestNewGoBckChecker(t *testing.T) {
 
 	})
 
-	//tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE2ODE4MzUxMDAsImlhdCI6MTY4MTc0ODcwMCwibmJmIjoxNjgxNzQ4NzAwLCJpc3MiOiJodHRwczovL3NlcnZlcjIxLmNsb3VkZmxhcmVhY2Nlc3MuY29tIiwidHlwZSI6ImFwcCIsImlkZW50aXR5X25vbmNlIjoiaWN1QnpjMFBtMFFRcHN3MCIsInN1YiI6ImVjYzc5N2MyLTJmODUtNTU5Zi04NGQzLTQ5MGE1NzEzOGY0YiIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.G-PVvKtz7RUEXbKtdf1gURBGLoUjg4a4ij1xqcMeofaw0OOHYhOJSPd7pQ4JfH_2-8iNAD4UyVNoeLVJTzsxNQMuBeHt5STFRHQszWEAy7-77ZV9nhDlJmIOPgO8IfWddOKvq1DlqiW8QoHz0J0zMBAnkMaq_RXd-Peh29ubMtyAIjsoCRHa8ZaY3qaE9Q7dcjJW9lwIPy0K_E5OWLHaIa3bVGRwLlxuzMRURDEO7J0_qpSw2IMoDDLWT7hpfYWWMFSJZHPzgev6qTt8NtuCHWLwtOELL1NfsHtagqyLgXkvLIxxE1CjnIAH_e_ypJOB7JqxkVddb1E8W9VtN1E4vw"
-	authOpts["jwt_go_pubcert_path_RSA"] = "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/secondcertificete.pem" //token anotherpubkey
-	authOpts["jwt_go_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+	tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im15b3dua2lkIn0.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE3Nzc2MTg4MTIsImlhdCI6MTY4MjkzMTM0OSwibmJmIjoxNjgyOTMxMzQ5LCJpc3MiOiJkZWRkeTIxSG9tZVNSViIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiXX0sImNvdW50cnkiOiJJVCJ9.btDP_Kt5AHOjGcU2QxZGQsr7SVfa5793O9U4rKElze5o7QbNVWJLHj4An79zLj0FigpbJjSaNa8uMDZEK98kRS3t7iJgdyB8SLyr05rUjwD_s_M2JjJuF9dR083IFO46WabRBNc5G-fytPvVNDXZ628VnWB2oCYMdrk_rcvKYfdtSdghfgtGMwb5hcJ_gErMJcnwMNPer_hQwLs37jnpQK-gqvjISz_4Msp85gbZFFfSL-hNqq9Dxg2wmMzKTeuApEpvp8OqAt4nS3frEC7aUPb7pPkcDO__jCv_-DYySHucd8pnHCPC1haxicCddIFRnEiCYn6YafoFvcoWeH1olQ"
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/secondcertificate.pem") //token anotherpubkey
+	authOpts["jwt_cloudflare_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
 	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
 		checker, err := NewGoBckChecker(authOpts, tkOptions)
 		So(err, ShouldBeNil)
-		userResponse, err := checker.GetUser(token)
+		userResponse, err := checker.GetUser(tokenAnotherPubKey)
 		So(err, ShouldBeNil)
 		So(userResponse, ShouldBeTrue)
-		/*
-			userResponse, err = checker.GetUser(tokenAnotherPubKey)
-			So(err, ShouldBeNil)
-			So(userResponse, ShouldBeTrue)*/
+		userResponse, err = checker.CheckAcl(token, "marameoread/casa", "1", 1)
+		So(err, ShouldBeNil)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "maddowrite/casa", "1", 2)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "marameoread/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "parappa/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "marameowrite/ciao", "1", 1)
+		So(userResponse, ShouldBeTrue)
 	})
 
 	Convey("Cecking if a user is allowed to access a topic", t, func() {

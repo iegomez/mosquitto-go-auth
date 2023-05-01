@@ -65,7 +65,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		options: options,
 	}
 	//kid to load the public certificate
-	if kidPath, ok := authOpts["jwt_go_kid_path"]; ok {
+	if kidPath, ok := authOpts["jwt_cloudflare_kid_path"]; ok {
 		//extract data from file
 		data, err := ExtractDataFromFile(kidPath)
 		if err != nil {
@@ -77,7 +77,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		return nil, fmt.Errorf("not specified kid")
 	}
 	//audience to verify if the certificate is for me
-	if audPath, ok := authOpts["jwt_go_audience_path"]; ok {
+	if audPath, ok := authOpts["jwt_cloudflare_audience_path"]; ok {
 		data, err := ExtractDataFromFile(audPath)
 		if err != nil {
 			return nil, err
@@ -88,7 +88,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		return nil, fmt.Errorf("not specified audience")
 	}
 	//acl rule verify the user permissions based on role
-	if aclPath, ok := authOpts["jwt_go_acl_path"]; ok {
+	if aclPath, ok := authOpts["jwt_cloudflare_acl_path"]; ok {
 		data, err := ExtractACLFromFileNew(aclPath)
 		if err != nil {
 			return nil, err
@@ -99,7 +99,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		return nil, fmt.Errorf("not specified acl")
 	}
 	//public certificate path has to be in the pem format
-	if pubCertPath, ok := authOpts["jwt_go_pubcert_path_RSA"]; ok {
+	if pubCertPath, ok := authOpts["jwt_cloudflare_pubcert_path_RSA"]; ok {
 		log.Debugf("Path given to go-auth: -> " + pubCertPath)
 		data, err := os.ReadFile(pubCertPath)
 		if err != nil {
@@ -116,7 +116,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		}
 	}
 	//link to public certificate
-	if link, ok := authOpts["jwt_go_pubcert_link"]; ok {
+	if link, ok := authOpts["jwt_cloudflare_pubcert_link"]; ok {
 		checker.issuerURL = link
 		pubCertExtracted, err := GetPubCertFromURL(link, checker.kid)
 		if err != nil {
@@ -140,7 +140,7 @@ func NewGoBckChecker(authOpts map[string]string, options tokenOptions) (jwtCheck
 		}
 	*/
 	//allowed issuer
-	if issPath, ok := authOpts["jwt_go_allowed_iss_path"]; ok {
+	if issPath, ok := authOpts["jwt_cloudflare_allowed_iss_path"]; ok {
 		data, err := ExtractDataFromFile(issPath)
 		if err != nil {
 			return nil, err
@@ -295,12 +295,11 @@ func CheckAudiIssClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowe
 	if claims, ok = parsedToken.Claims.(jwtGo.MapClaims); ok {
 		if aud, ok := claims["aud"].([]interface{}); ok {
 			for _, allowedAud := range allowedAudience {
-				if aud[0] == allowedAud { //implement audition key
-					audok = true
-					log.Debug("audience ok")
-				} else {
-					log.Debug("audience ! ok")
-					return false, fmt.Errorf("not allowed audience")
+				for _, audClaim := range aud {
+					if audClaim == allowedAud { //implement audition key
+						audok = true
+						log.Debug("audience ok")
+					}
 				}
 			}
 		}
@@ -315,7 +314,6 @@ func CheckAudiIssClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowe
 				log.Debug("iss claim ok")
 			} else {
 				log.Debug("iss claim ! ok")
-				return false, nil
 			}
 		}
 	} else {
@@ -325,6 +323,7 @@ func CheckAudiIssClaims(parsedToken *jwtGo.Token, allowedIssuer []string, allowe
 	if issok && audok {
 		return true, nil
 	}
+	log.Debugf("audition or issuer not ok")
 	return false, fmt.Errorf("unpredict exit")
 }
 
@@ -431,7 +430,7 @@ func ExtractACLFromFileNew(path string) (map[string][]AclRule, error) {
 	return buffer, nil
 }
 
-// TopicsFromString , returns a map of topics and subtopics from a string example topic1/topic2/topic3,topic4/topic5
+// TopicsFromString , returns a map of topics and subtopics from a string, example: topic1/topic2/topic3,topic4/topic5
 func TopicsFromString(topic string, role string, permission int32, canPubSub bool, buffer map[string][]AclRule) map[string][]AclRule {
 	//from here reusable if you have a string
 	topics := strings.Split(strings.TrimSpace(topic), ",")

@@ -1108,21 +1108,29 @@ If `prefixes` are enabled the client should prefix their JWT tokens with the `pr
 
 This backend expects the same test DBs from the Postgres and Mysql test suites.
 
-### go-bckn mode
+### cloudflare mode
 
-when `auth_opt_jwt_mode = go-bkn` is selected the following mode is enabled.
+When `auth_opt_jwt_mode = cloudflare` is selected the following mode is enabled.
 This mode allows you to use JWT token signed with RS256 algorithm, this auth mode is optimized to be used with 
 cloudflare Access, but you can also enter local X509 certificate to check the signature of the provided JWT
 
-| Option                           | default   | Mandatory | Meaning                                    |
-|----------------------------------| --------- |:---------:|--------------------------------------------|
-| auth_opt_jwt_go_pubcert_path_RSA |           |    Y/N    | Path to local PEM X509 certificate         |
-| auth_opt_jwt_go_pubcert_link     |           |    Y/N    | Path to cloudflare access certificate page |
-| auth_opt_jwt_go_allowed_iss_path |           |     Y     | Allowed issuers, \n separeted values       |
-| auth_opt_jwt_go_kid_path         |           |     Y     | Allowed Kid, \n separeted values           |
-| auth_opt_jwt_go_audience_path    |           |     Y     | Audience Tag, \n separeted values          |
+| Option                                   | default   | Mandatory | Meaning                                   |
+|------------------------------------------| --------- |:---------:|-------------------------------------------|
+| auth_opt_jwt_cloudflare_pubcert_path_RSA |           |    Y/N    | Path to local PEM X509 certificate        |
+| auth_opt_jwt_cloudflare_pubcert_link             |           |    Y/N    | Url to cloudflare access certificate page |
+| auth_opt_jwt_cloudflare_allowed_iss_path         |           |     Y     | Allowed issuers, \n separeted values      |
+| auth_opt_jwt_gcloudflare_kid_path                 |           |     Y     | Allowed Kid, \n separeted values          |
+| auth_opt_jwt_cloudflare_audience_path            |           |     Y     | Audience Tag, \n separeted values         |
+| auth_opt_jwt_cloudflare_acl_path                 |           |     Y     | Acl path for user acl rule checking       |
 
-You have to specify at least one of `auth_opt_jwt_go_pubcert_path_RSA` `jwt_go_pubcert_link` if not the program does not start
+
+You have to specify at least one of `auth_opt_jwt_cloudflare_pubcert_path_RSA` `jwt_cloudflare_pubcert_link` if not the program does not start
+The certificates must be provided in x509 format, you can download the certificate from the cloudflare access page, or you can use the local certificate
+
+```
+example of all config file is given in the test-file directory under cloudflare subdirectory 
+
+```
 
 ### HTTP
 
