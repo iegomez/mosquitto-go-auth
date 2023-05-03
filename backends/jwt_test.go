@@ -1715,7 +1715,7 @@ func TestNewGoBckChecker(t *testing.T) {
 
 	})
 
-	tokenAnotherPubKey := "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Im15b3dua2lkIn0.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJleHAiOjE3Nzc2MTg4MTIsImlhdCI6MTY4MjkzMTM0OSwibmJmIjoxNjgyOTMxMzQ5LCJpc3MiOiJkZWRkeTIxSG9tZVNSViIsImN1c3RvbSI6eyJydWxlcyI6WyJhZG1pbnMiXX0sImNvdW50cnkiOiJJVCJ9.btDP_Kt5AHOjGcU2QxZGQsr7SVfa5793O9U4rKElze5o7QbNVWJLHj4An79zLj0FigpbJjSaNa8uMDZEK98kRS3t7iJgdyB8SLyr05rUjwD_s_M2JjJuF9dR083IFO46WabRBNc5G-fytPvVNDXZ628VnWB2oCYMdrk_rcvKYfdtSdghfgtGMwb5hcJ_gErMJcnwMNPer_hQwLs37jnpQK-gqvjISz_4Msp85gbZFFfSL-hNqq9Dxg2wmMzKTeuApEpvp8OqAt4nS3frEC7aUPb7pPkcDO__jCv_-DYySHucd8pnHCPC1haxicCddIFRnEiCYn6YafoFvcoWeH1olQ"
+	tokenAnotherPubKey := ""
 	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/secondcertificate.pem") //token anotherpubkey
 	authOpts["jwt_cloudflare_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
 	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
