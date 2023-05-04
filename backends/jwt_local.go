@@ -41,15 +41,15 @@ func NewLocalJWTChecker(authOpts map[string]string, logLevel log.Level, hasher h
 		return nil, errors.New("JWT backend error: missing JWT secret")
 	}
 
-	if db, ok := authOpts["JWT_db"]; ok {
+	if db, ok := authOpts["jwt_db"]; ok {
 		checker.db = db
 	}
 
-	if userQuery, ok := authOpts["JWT_userquery"]; ok {
+	if userQuery, ok := authOpts["jwt_userquery"]; ok {
 		checker.userQuery = userQuery
 	} else {
 		localOk = false
-		missingOpts += " JWT_userquery"
+		missingOpts += " jwt_userquery"
 	}
 
 	if !localOk {
@@ -198,11 +198,11 @@ func extractOpts(authOpts map[string]string, db string) map[string]string {
 		dbPrefix := "pg"
 	}
 
-	prefix := "JWT_" + dbPrefix
+	prefix := "jwt_" + dbPrefix
 
 	for k, v := range authOpts {
 		if strings.HasPrefix(k, prefix) {
-			dbAuthOpts[strings.TrimPrefix(k, "JWT_")] = v
+			dbAuthOpts[strings.TrimPrefix(k, "jwt_")] = v
 		}
 	}
 
