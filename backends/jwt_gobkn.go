@@ -261,7 +261,7 @@ func VerifyJWTSignatureAndParse(tokenStr string, publicKey []*rsa.PublicKey) (bo
 		}
 
 		if err != nil {
-			log.Debug("error from looping the pub certs: ", err)
+			log.Debug("error from looping the pub certs: ( probably next one is the good one)", err)
 		}
 	}
 	return false, nil, err
