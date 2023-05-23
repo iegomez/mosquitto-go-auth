@@ -2,6 +2,7 @@ name: Build docker images and publish to DockerHub
 
 on:
   push:
+    branches: [master]
   release:
     types: [published]
 env:
@@ -44,7 +45,7 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}:${{ github.event.release.tag_name }}${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION_1) }}
       -
         name: Build and push on push
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.event.pull_request.merged == true
         uses: docker/build-push-action@v2
         with:
           context: .
@@ -84,7 +85,7 @@ jobs:
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKERHUB_REPO }}:${{ github.event.release.tag_name }}${{ format('{0}{1}', env.MOSQUITTO_VERSION_SUFFIX, env.MOSQUITTO_VERSION_2) }}
       -
         name: Build and push on push
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && github.event.pull_request.merged == true
         uses: docker/build-push-action@v2
         with:
           context: .
