@@ -1,11 +1,15 @@
 
-#Use debian:stable-slim as a builder and then copy everything.
-FROM debian:stable-slim as builder
+# Define Mosquitto version, see also .github/workflows/build_and_push_docker_images.yml for
+# the automatically built images
+ARG MOSQUITTO_VERSION=1.6.14
+# Define libwebsocket version
+ARG LWS_VERSION=4.2.2
 
-#Set mosquitto and plugin versions.
-#Change them for your needs.
-ENV MOSQUITTO_VERSION=1.6.10
-ENV PLUGIN_VERSION=0.6.1
+# Use debian:stable-slim as a builder for Mosquitto and dependencies.
+FROM debian:stable-slim as mosquitto_builder
+ARG MOSQUITTO_VERSION
+ARG LWS_VERSION
+
 ENV GO_VERSION=1.18
 # Used in run-test-in-docker.sh to check if the script
 # is actually run in a container
@@ -14,40 +18,42 @@ ENV MOSQUITTO_GO_AUTH_TEST_RUNNING_IN_A_CONTAINER=true
 WORKDIR /app
 
 #Get mosquitto build dependencies.
-RUN apt-get update && apt-get install -y libc-ares2 libc-ares-dev openssl uuid uuid-dev wget build-essential git
+RUN apt-get update && apt-get install -y libc-ares2 libc-ares-dev cmake libssl-dev uuid uuid-dev wget build-essential git libcjson-dev
 
-RUN if [ "$(echo $MOSQUITTO_VERSION | head -c 1)" != 2 ]; then \
-        apt install -y libwebsockets-dev ; \
-    else \
-        export LWS_VERSION=2.4.2  && \
-        wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz && \
-        mkdir -p /build/lws && \
-        tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws && \
-        rm /tmp/lws.tar.gz && \
-        cd /build/lws && \
-        cmake . \
-            -DCMAKE_BUILD_TYPE=MinSizeRel \
-            -DCMAKE_INSTALL_PREFIX=/usr \
-            -DLWS_IPV6=ON \
-            -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
-            -DLWS_WITHOUT_CLIENT=ON \
-            -DLWS_WITHOUT_EXTENSIONS=ON \
-            -DLWS_WITHOUT_TESTAPPS=ON \
-            -DLWS_WITH_HTTP2=OFF \
-            -DLWS_WITH_SHARED=OFF \
-            -DLWS_WITH_ZIP_FOPS=OFF \
-            -DLWS_WITH_ZLIB=OFF && \
-        make -j "$(nproc)" && \
-        rm -rf /root/.cmake ; \
-    fi
+# Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
+RUN set -ex; \
+    wget https://github.com/warmcat/libwebsockets/archive/v${LWS_VERSION}.tar.gz -O /tmp/lws.tar.gz; \
+    mkdir -p /build/lws; \
+    tar --strip=1 -xf /tmp/lws.tar.gz -C /build/lws; \
+    rm /tmp/lws.tar.gz; \
+    cd /build/lws; \
+    cmake . \
+        -DCMAKE_BUILD_TYPE=MinSizeRel \
+        -DCMAKE_INSTALL_PREFIX=/usr \
+        -DLWS_IPV6=ON \
+        -DLWS_WITHOUT_BUILTIN_GETIFADDRS=ON \
+        -DLWS_WITHOUT_CLIENT=ON \
+        -DLWS_WITHOUT_EXTENSIONS=ON \
+        -DLWS_WITHOUT_TESTAPPS=ON \
+        -DLWS_WITH_HTTP2=OFF \
+        -DLWS_WITH_SHARED=OFF \
+        -DLWS_WITH_ZIP_FOPS=OFF \
+        -DLWS_WITH_ZLIB=OFF \
+        -DLWS_WITH_EXTERNAL_POLL=ON; \
+    make -j "$(nproc)"; \
+    rm -rf /root/.cmake
 
 RUN mkdir -p mosquitto/auth mosquitto/conf.d
 
 RUN wget http://mosquitto.org/files/source/mosquitto-${MOSQUITTO_VERSION}.tar.gz
 RUN tar xzvf mosquitto-${MOSQUITTO_VERSION}.tar.gz && rm mosquitto-${MOSQUITTO_VERSION}.tar.gz
 
-#Build mosquitto.
-RUN cd mosquitto-${MOSQUITTO_VERSION} && make WITH_WEBSOCKETS=yes && make install && cd ..
+# Build mosquitto.
+RUN set -ex; \
+    cd mosquitto-${MOSQUITTO_VERSION}; \
+    make CFLAGS="-Wall -O2 -I/build/lws/include" LDFLAGS="-L/build/lws/lib" WITH_WEBSOCKETS=yes; \
+    make install; \
+    cd ..;
 
 #Get Go.
 RUN wget https://dl.google.com/go/go${GO_VERSION}.linux-amd64.tar.gz && tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz

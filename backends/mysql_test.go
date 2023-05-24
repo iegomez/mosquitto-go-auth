@@ -226,7 +226,7 @@ func TestMysqlTls(t *testing.T) {
 	Convey("Given custom ssl disabled, it should fail", t, func() {
 		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
 		So(err, ShouldBeError)
-		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(err.Error(), ShouldContainSubstring, "Access denied for user")
 		So(mysql.DB, ShouldBeNil)
 	})
 
@@ -271,7 +271,7 @@ func TestMysqlMutualTls(t *testing.T) {
 	Convey("Given custom ssl enabled and no client certificate is given, it should fail", t, func() {
 		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
 		So(err, ShouldBeError)
-		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(err.Error(), ShouldContainSubstring, "Access denied for user")
 		So(mysql.DB, ShouldBeNil)
 	})
 
@@ -281,7 +281,7 @@ func TestMysqlMutualTls(t *testing.T) {
 	Convey("Given custom ssl enabled and unauthorized client certificate is given, it should fail", t, func() {
 		mysql, err := NewMysql(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "mysql"))
 		So(err, ShouldBeError)
-		So(err.Error(), ShouldContainSubstring, "Error 1045: Access denied for user")
+		So(err.Error(), ShouldContainSubstring, "Access denied for user")
 		So(mysql.DB, ShouldBeNil)
 	})
 

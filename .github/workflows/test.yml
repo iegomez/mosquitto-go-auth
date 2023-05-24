@@ -1,0 +1,49 @@
+name: Test
+
+on:
+  push:
+env:
+  MOSQUITTO_VERSION_1: 1.6.14
+  MOSQUITTO_VERSION_2: 2.0.15
+  DOCKERFILE_MOSQUITTO_VERSION: 1.6.14
+  DOCKERHUB_REPO: mosquitto-go-auth
+jobs:
+  mosq_1:
+    name: Test with Mosquitto version 1.x
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Set Mosquitto version
+        run: sed -i 's/ARG MOSQUITTO_VERSION=${{ env.DOCKERFILE_MOSQUITTO_VERSION }}/ARG MOSQUITTO_VERSION=${{ env.MOSQUITTO_VERSION_1 }}/' Dockerfile.runtest
+      -
+        name: Test
+        run: |
+          docker build -t mosquitto-go-auth.test -f Dockerfile.runtest .
+          docker run --rm mosquitto-go-auth.test ./run-test-in-docker.sh
+  mosq_2:
+    name: Test with Mosquitto version 2.x
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Set Mosquitto version
+        run: sed -i 's/ARG MOSQUITTO_VERSION=${{ env.DOCKERFILE_MOSQUITTO_VERSION }}/ARG MOSQUITTO_VERSION=${{ env.MOSQUITTO_VERSION_2 }}/' Dockerfile.runtest
+      -
+        name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+      -
+        name: Test
+        run: |
+          docker build -t mosquitto-go-auth.test -f Dockerfile.runtest .
+          docker run --rm mosquitto-go-auth.test ./run-test-in-docker.sh
+
+
+
