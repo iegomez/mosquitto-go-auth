@@ -1457,6 +1457,10 @@ message NameResponse {
 }
 ```
 
+Notice that `GetName` will only be used on client initialization in case you want to give your service a custom name,
+and on failure to request it the name will default to `gRPC`.
+The retrieved name will be used through out the lifecycle of the plugin until it's relaunched.
+
 #### Testing gRPC
 
 This backend has no special requirements as a gRPC server is mocked to test different scenarios.

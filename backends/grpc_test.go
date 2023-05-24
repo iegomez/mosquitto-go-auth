@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"io/ioutil"
+	"net"
+	"testing"
+
 	"github.com/golang/protobuf/ptypes/empty"
 	gs "github.com/iegomez/mosquitto-go-auth/grpc"
 	log "github.com/sirupsen/logrus"
 	. "github.com/smartystreets/goconvey/convey"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-	"io/ioutil"
-	"net"
-	"testing"
 )
 
 const (
@@ -112,6 +113,9 @@ func TestGRPC(t *testing.T) {
 					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
 					So(err, ShouldNotBeNil)
 					c.So(auth, ShouldBeFalse)
+
+					name := g.GetName()
+					So(name, ShouldEqual, "gRPC")
 				})
 
 				Convey("it should work after the service comes back up", func(c C) {
@@ -124,6 +128,9 @@ func TestGRPC(t *testing.T) {
 					auth, err := g.GetUser(grpcUsername, grpcPassword, grpcClientId)
 					So(err, ShouldBeNil)
 					c.So(auth, ShouldBeTrue)
+
+					name := g.GetName()
+					So(name, ShouldEqual, "MyGRPCBackend")
 				})
 			})
 		})

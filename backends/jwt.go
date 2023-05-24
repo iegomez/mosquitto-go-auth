@@ -1,6 +1,8 @@
 package backends
 
 import (
+	"fmt"
+
 	jwtGo "github.com/golang-jwt/jwt"
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	"github.com/pkg/errors"
@@ -9,6 +11,7 @@ import (
 
 type JWT struct {
 	mode    string
+	name    string
 	checker jwtChecker
 }
 
@@ -90,32 +93,34 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 		return nil, err
 	}
 
+	jwt.name = fmt.Sprintf("JWT %s", authOpts["jwt_mode"])
+
 	jwt.checker = checker
 
 	return jwt, nil
 }
 
-//GetUser authenticates a given user.
+// GetUser authenticates a given user.
 func (o *JWT) GetUser(token, password, clientid string) (bool, error) {
 	return o.checker.GetUser(token)
 }
 
-//GetSuperuser checks if the given user is a superuser.
+// GetSuperuser checks if the given user is a superuser.
 func (o *JWT) GetSuperuser(token string) (bool, error) {
 	return o.checker.GetSuperuser(token)
 }
 
-//CheckAcl checks user authorization.
+// CheckAcl checks user authorization.
 func (o *JWT) CheckAcl(token, topic, clientid string, acc int32) (bool, error) {
 	return o.checker.CheckAcl(token, topic, clientid, acc)
 }
 
-//GetName returns the backend's name
+// GetName returns the backend's name
 func (o *JWT) GetName() string {
-	return "JWT"
+	return o.name
 }
 
-//Halt closes any db connection.
+// Halt closes any db connection.
 func (o *JWT) Halt() {
 	o.checker.Halt()
 }
