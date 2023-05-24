@@ -909,6 +909,7 @@ func TestJWTJsonStatusOnlyServer(t *testing.T) {
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
+		So(hb.GetName(), ShouldEqual, "JWT remote")
 
 		Convey("Given correct password/username, get user should return true", func() {
 
@@ -1054,6 +1055,7 @@ func TestJWTJsonTextResponseServer(t *testing.T) {
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
+		So(hb.GetName(), ShouldEqual, "JWT remote")
 
 		Convey("Given correct password/username, get user should return true", func() {
 
@@ -1209,6 +1211,7 @@ func TestJWTFormJsonResponseServer(t *testing.T) {
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
+		So(hb.GetName(), ShouldEqual, "JWT remote")
 
 		Convey("Given correct password/username, get user should return true", func() {
 
@@ -1347,6 +1350,7 @@ func TestJWTFormStatusOnlyServer(t *testing.T) {
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
+		So(hb.GetName(), ShouldEqual, "JWT remote")
 
 		Convey("Given correct password/username, get user should return true", func() {
 

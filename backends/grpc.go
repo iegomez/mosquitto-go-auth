@@ -5,10 +5,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"google.golang.org/grpc/credentials/insecure"
 	"io/ioutil"
 	"strconv"
 	"time"
+
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	grpc_logrus "github.com/grpc-ecosystem/go-grpc-middleware/logging/logrus"
@@ -27,6 +28,7 @@ type GRPC struct {
 	dialOptions      []grpc.DialOption
 	hostname         string
 	timeout          int
+	name             string
 }
 
 const defaultGRPCTimeoutMs = 500
@@ -139,11 +141,17 @@ func (o *GRPC) CheckAcl(username, topic, clientid string, acc int32) (bool, erro
 
 // GetName gets the gRPC backend's name.
 func (o *GRPC) GetName() string {
-	resp, err := o.client.GetName(context.Background(), &empty.Empty{})
-	if err != nil {
-		return "grpc get name error"
+	if len(o.name) == 0 {
+		resp, err := o.client.GetName(context.Background(), &empty.Empty{})
+
+		if err != nil {
+			o.name = "gRPC"
+		} else {
+			o.name = resp.Name
+		}
 	}
-	return resp.Name
+
+	return o.name
 }
 
 // Halt signals the gRPC backend that mosquitto is halting.
