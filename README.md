@@ -1201,12 +1201,12 @@ Finally, options for Redis are the following:
 | auth_opt_redis_password           |           |     N     | Redis DB password                    |
 | auth_opt_redis_disable_superuser  | true      |     N     | Disable query to check for superuser |
 | auth_opt_redis_mode               |           |     N     | See `Cluster` section below          |
-| auth_opt_redis_addresses          |           |     N     | See `Cluster` section below          |
+| auth_opt_redis_cluster_addresses  |           |     N     | See `Cluster` section below          |
 
 
 #### Cluster
 
-If you want to use a Redis Cluster as your backend, you need to set `auth_opt_redis_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_redis_addresses` options.
+If you want to use a Redis Cluster as your backend, you need to set `auth_opt_redis_mode` to `cluster` and provide the different addresses as a list of comma separated `host:port` strings with the `auth_opt_redis_cluster_addresses` options.
 If `auth_opt_redis_mode` is set to another value or not set, Redis defaults to single instance behaviour. If it is correctly set but no addresses are given, the backend will fail to initialize.
 
 #### Password hashing
