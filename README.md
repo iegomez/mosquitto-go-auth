@@ -846,15 +846,15 @@ There are no requirements, as the tests create (and later delete) the DB and tab
 
 The `jwt` backend is for auth with a JWT remote API, a local DB, a JavaScript VM interpreter or an ACL file. Global otions for JWT are:
 
-| Option                            | default   | Mandatory | Meaning                                                 |
-| --------------------------------- | --------- | :-------: | ------------------------------------------------------- |
-| auth_opt_jwt_mode                 |           |     Y     | local, remote, js, files                                |
-| auth_opt_jwt_parse_token          |   false   |     N     | Parse token in remote/js modes                          |
+| Option                            | default   | Mandatory | Meaning                                               |
+| --------------------------------- | --------- | :-------: |-------------------------------------------------------|
+| auth_opt_jwt_mode                 |           |     Y     | local, remote, js, files, go-bkn                            |
+| auth_opt_jwt_parse_token          |   false   |     N     | Parse token in remote/js modes                        |
 | auth_opt_jwt_secret               |           |    Y/N    | JWT secret, required for local mode, optional otherwise |
-| auth_opt_jwt_userfield            |           |     N     | When `Username`, expect `username` as part of claims    |
-| auth_opt_jwt_skip_user_expiration |   false   |     N     | Skip token expiration in user/superuser checks          |
-| auth_opt_jwt_skip_acl_expiration  |   false   |     N     | Skip token expiration in ACL checks                     |
-| auth_opt_jwt_user_agent           | mosquitto |     N     | User agent for requests                                 |
+| auth_opt_jwt_userfield            |           |     N     | When `Username`, expect `username` as part of claims  |
+| auth_opt_jwt_skip_user_expiration |   false   |     N     | Skip token expiration in user/superuser checks        |
+| auth_opt_jwt_skip_acl_expiration  |   false   |     N     | Skip token expiration in ACL checks                   |
+| auth_opt_jwt_user_agent           | mosquitto |     N     | User agent for requests                               |
 
 #### Remote mode
 
@@ -1107,6 +1107,30 @@ If `prefixes` are enabled the client should prefix their JWT tokens with the `pr
 #### Testing JWT
 
 This backend expects the same test DBs from the Postgres and Mysql test suites.
+
+### cloudflare mode
+
+When `auth_opt_jwt_mode = cloudflare` is selected the following mode is enabled.
+This mode allows you to use JWT token signed with RS256 algorithm, this auth mode is optimized to be used with 
+cloudflare Access, but you can also enter local X509 certificate to check the signature of the provided JWT
+
+| Option                                   | default   | Mandatory | Meaning                                   |
+|------------------------------------------| --------- |:---------:|-------------------------------------------|
+| auth_opt_jwt_cloudflare_pubcert_path_RSA |           |    Y/N    | Path to local PEM X509 certificate        |
+| auth_opt_jwt_cloudflare_pubcert_link             |           |    Y/N    | Url to cloudflare access certificate page |
+| auth_opt_jwt_cloudflare_allowed_iss_path         |           |     Y     | Allowed issuers, \n separeted values      |
+| auth_opt_jwt_gcloudflare_kid_path                 |           |     Y     | Allowed Kid, \n separeted values          |
+| auth_opt_jwt_cloudflare_audience_path            |           |     Y     | Audience Tag, \n separeted values         |
+| auth_opt_jwt_cloudflare_acl_path                 |           |     Y     | Acl path for user acl rule checking       |
+
+
+You have to specify at least one of `auth_opt_jwt_cloudflare_pubcert_path_RSA` `jwt_cloudflare_pubcert_link` if not the program does not start
+The certificates must be provided in x509 format, you can download the certificate from the cloudflare access page, or you can use the local certificate
+
+```
+example of all config file is given in the test-file directory under cloudflare subdirectory 
+
+```
 
 ### HTTP
 

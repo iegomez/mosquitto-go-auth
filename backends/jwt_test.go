@@ -1,8 +1,11 @@
 package backends
 
 import (
+	"crypto/rsa"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -1653,4 +1656,142 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 
 	})
 
+}
+
+func TestJWTGo(t *testing.T) {
+	Convey("Given a valid RSA Pub Key string", t, func() {
+		var pubKeyStr = "-----BEGIN CERTIFICATE-----\nMIIDUDCCAjigAwIBAgIQTfFivS/O8uw4dxjvpvtKojANBgkqhkiG9w0BAQsFADBi\nMQswCQYDVQQGEwJVUzEOMAwGA1UECBMFVGV4YXMxDzANBgNVBAcTBkF1c3RpbjET\nMBEGA1UEChMKQ2xvdWRmbGFyZTEdMBsGA1UEAxMUY2xvdWRmbGFyZWFjY2Vzcy5j\nb20wHhcNMjMwMzIyMTExOTM4WhcNMjQwNDA0MTExOTM4WjBiMQswCQYDVQQGEwJV\nUzEOMAwGA1UECBMFVGV4YXMxDzANBgNVBAcTBkF1c3RpbjETMBEGA1UEChMKQ2xv\ndWRmbGFyZTEdMBsGA1UEAxMUY2xvdWRmbGFyZWFjY2Vzcy5jb20wggEiMA0GCSqG\nSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDnOtT5VtJBhu9nrDsb4yRqhDC/nHAcv7Nj\njaAVMbL+StaOvvlb047fDLdK2q9EaFMrjLcHl19hsTNZM5UDhoPj+Z+mNghKf+4R\nNv89iY7h6/GOzC3eUs2g7+CpbdHaWo05n51LfWASFzi+b8RTVFpMzjjbPCJBm//I\n246OOvB/x+eS+k5rJONCPAay9dn98tA+aT3am0TLZPgtF/bRdyVvCD7BKx2Y3uuK\nbCdtdfV+z5Z/IQ1Brcl6LfUQ6YEaP6iyXUJ+h9skUHkEuTtXBraKSz8RdYUpjMM0\np/08+TBShC848cdK5hEz2G8yKdHCQs5dwNEK1730Ctt9I03oe77jAgMBAAGjAjAA\nMA0GCSqGSIb3DQEBCwUAA4IBAQB0XPwQpZtmKCrPxSN/43fEw5+sT1Gj7mTS9oog\nSztzYfyIimTbaw+wEjljNi1gko1zaBQEFI1Ztvidi6TlFIxdyLktcDC5yavFAu0c\nQhf2bjAKNM5aWTZdOKgojKJB3clF177/x7ocLfck+8cjfbeli/zeFUVJtXrqR/AL\n2+DnqVo0+tiY0C7zWQfVUIyfrntHWgXAPsZTCs2xOr0dYP/ySkTTbx2qrppLh0qM\nsSQfZe+QgsGHdPGspfrjCeky4E3kz21uWkkLlJ+9uRFLIRRPCem+mNFNs4NecBJG\nIZ3PaXEaFIkCMNvddpnOhoWni6H5g4WSfollPeJgDM60UGvn\n-----END CERTIFICATE-----"
+		nStr := "29190059552910642827432658773211830255807858291632810015149776126577167218327353411296205178146580951391121299399442977353863416078491835372559789982254391396155516074485511368414519588218100387301955833783983829490001101333339382649806680044107288515614243395330065811293837270239016477207679824396285121871761066723777814479604186724185005092882460946833509062503984967311882091567289039856164495115768659246024371285278436281428487878644862704778675598794895132437154646562582881529372308425181931718157769063895138107431449194736849615104249462676492871264690649204067255834633015532389777178190863288863240732387"
+		n := new(big.Int)
+		n.SetString(nStr, 10)
+		expectedPubKey := &rsa.PublicKey{
+			N: n,
+			E: 65537,
+		}
+		//var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
+
+		Convey("When StringTORSAPUBKey is called", func() {
+			pubKey, err := StringToRSAPublicKey([]byte(pubKeyStr))
+			Convey("There should be no error", func() {
+				So(err, ShouldBeNil)
+				Convey("And the returned public key should match the expected public key", func() {
+					So(pubKey, ShouldNotBeNil)
+					So(pubKey.N.Cmp(expectedPubKey.N), ShouldEqual, 0)
+					So(pubKey.E, ShouldEqual, expectedPubKey.E)
+				})
+			})
+		})
+		Convey("test of extractDataFromFile", func() {
+			path := "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/testExtractor"
+			data, err := ExtractDataFromFile(path)
+			So(data, ShouldBeNil)
+			So(err, ShouldBeNil)
+		})
+	})
+
+}
+
+func TestNewGoBckChecker(t *testing.T) {
+	var token = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgzMDE3NzQ5LCJpYXQiOjE2ODI5MzEzNDksIm5iZiI6MTY4MjkzMTM0OSwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6ImJPdjgydGFMWDI2b2MxNkQiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwibXF0dF9saWdodHMiLCJ1c2VyIl19LCJjb3VudHJ5IjoiSVQifQ.ZLaZBZZhJKL3GzC-uCfurzazWij-JCQw5NkRDj3WkrZMwHpCWC1kQ5Al71kVbj8QqRDOKtJKkl5s-hHqpnmRKflhHjWIXXzGcKws9-KWij2E-3Lq4FtC3vqefRX9WUpVWfLW13CH8QMpVjlAg4kqjAErQNVBKgurDAUYeft-Ey_t0BADPvgC7bnRlZqGc7icRJ6QNWgMQUZwqccIvy_CPrV0Dfsn68O25zjDBx8_c5Z3lzj5GQTNvOWfHZTa88lufYf-rCv8R2CeJD9gEn7_gb5dobGTxYqSG-Si2sdd0VN--SmNlfKmtzxki_0-BppL0ih4G_Z8rqAT6kEskaPqag"
+	var tokenExpired = "eyJhbGciOiJSUzI1NiIsImtpZCI6IjdkM2JiNjhhZTUzZmY1ZmRmMGVmMmFjYWYyZWUyYWY1NDM3MDU2NzI1YWQ2ZjhkNTQ1ZjdkNTNmMDY0MjM0NjEifQ.eyJhdWQiOlsiZmI5YTRjYjUyNTMzOGM3OTk2MmUxN2M3OWIyMGM3MDlkNjIzZThmNDViNWYzYWIwODkzMjVkNjg4YTkwOGVmMCJdLCJlbWFpbCI6ImRlZGR5QHNlcnZlcjIxLml0IiwiZXhwIjoxNjgxNTUzNzQwLCJpYXQiOjE2ODE0NjczNDAsIm5iZiI6MTY4MTQ2NzM0MCwiaXNzIjoiaHR0cHM6Ly9zZXJ2ZXIyMS5jbG91ZGZsYXJlYWNjZXNzLmNvbSIsInR5cGUiOiJhcHAiLCJpZGVudGl0eV9ub25jZSI6IkVGdG43aHNQWlJ4blN1YzUiLCJzdWIiOiJlY2M3OTdjMi0yZjg1LTU1OWYtODRkMy00OTBhNTcxMzhmNGIiLCJjdXN0b20iOnsicnVsZXMiOlsiYWRtaW5zIiwidXNlciJdfSwiY291bnRyeSI6IklUIn0.wIx4CB8xJtExJ8G62AGaMCKjrwg94NI37mqDFMOX3RNnY2MRudzEHSAFd0fm7dlUV59y21su9jGhjTaZhkSNOL5lbWP3YMF0RDaJ_rd3eikDMcR2aYmLOOo403eH0aGl4bAU1THMnBSgvNb-xEZt_WAMLL0QZqKnxy4iX-7oZy9wUZYyLvDpd3Hd5LsMh4rUyWuvQePkcsuhHh3v6aYBaarlfYGHMRg_HJ34SkC89kqPPZ0My0P9V71RhvS8WU8wTTr5oi-Hi9beK_Bw_pbHNLz15WHhnU6v-NDyTLVjvLmGgtraF4psi6plMHNQb98W0c9wRj8_9tBHGWuxU41ZNQ"
+	authOpts := make(map[string]string)
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/cert.pem")
+	authOpts["jwt_cloudflare_allowed_role"] = "user"
+	authOpts["jwt_cloudflare_allowed_iss_path"], _ = filepath.Abs("../test-files/cloudflare/iss")
+	authOpts["jwt_cloudflare_kid_path"], _ = filepath.Abs("../test-files/cloudflare/kid")
+	authOpts["jwt_cloudflare_audience_path"], _ = filepath.Abs("../test-files/cloudflare/aud")
+	authOpts["jwt_cloudflare_acl_path"], _ = filepath.Abs("../test-files/cloudflare/acl")
+	Convey("Creating Go Cheker should succeed usign expired token", t, func() {
+		checker, err := NewGoBckChecker(authOpts, tkOptions)
+		So(err, ShouldBeNil)
+		userResponse, err := checker.GetUser(tokenExpired)
+		So(err, ShouldNotBeNil)
+		So(userResponse, ShouldBeFalse)
+
+	})
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/cert_err.pem")
+	Convey("Creating Go Cheker should succeed using corrupted cert file", t, func() {
+		checker, err := NewGoBckChecker(authOpts, tkOptions)
+		So(err, ShouldBeNil)
+		userResponse, err := checker.GetUser(token)
+		So(err, ShouldNotBeNil)
+		So(userResponse, ShouldBeFalse)
+
+	})
+
+	tokenAnotherPubKey := ""
+	authOpts["jwt_cloudflare_pubcert_path_RSA"], _ = filepath.Abs("../test-files/cloudflare/secondcertificate.pem") //token anotherpubkey
+	authOpts["jwt_cloudflare_pubcert_link"] = "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+	Convey("Creating Go Cheker should succeed using cetificate url json", t, func() {
+		checker, err := NewGoBckChecker(authOpts, tkOptions)
+		So(err, ShouldBeNil)
+		userResponse, err := checker.GetUser(tokenAnotherPubKey)
+		So(err, ShouldBeNil)
+		So(userResponse, ShouldBeTrue)
+		userResponse, err = checker.CheckAcl(token, "marameoread/casa", "1", 1)
+		So(err, ShouldBeNil)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "maddowrite/casa", "1", 2)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "marameoread/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "parappa/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "marameowrite/ciao", "1", 1)
+		So(userResponse, ShouldBeTrue)
+	})
+
+	Convey("Cecking if a user is allowed to access a topic", t, func() {
+		checker, err := NewGoBckChecker(authOpts, tkOptions)
+		So(err, ShouldBeNil)
+		userResponse, err := checker.GetUser(token)
+		userResponse, err = checker.CheckAcl(token, "marameoread/casa", "1", 1)
+		So(err, ShouldBeNil)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "maddowrite/casa", "1", 2)
+		So(userResponse, ShouldBeTrue)
+		userResponse, _ = checker.CheckAcl(token, "marameoread/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "parappa/ciao", "1", 2)
+		So(userResponse, ShouldBeFalse)
+		userResponse, _ = checker.CheckAcl(token, "marameowrite/ciao", "1", 1)
+		So(userResponse, ShouldBeTrue)
+	})
+}
+
+func TestGetPublicCertFromURL(t *testing.T) {
+	url := "https://server21.cloudflareaccess.com/cdn-cgi/access/certs"
+	kid := []string{"7d3bb68ae53ff5fdf0ef2acaf2ee2af5437056725ad6f8d545f7d53f06423461"}
+	w_kid := []string{"8d3bb68ae53ff5fdf0ef2acaf2ee2af5437056725ad6f8d545f7d53f06423461"}
+	nStr := "29190059552910642827432658773211830255807858291632810015149776126577167218327353411296205178146580951391121299399442977353863416078491835372559789982254391396155516074485511368414519588218100387301955833783983829490001101333339382649806680044107288515614243395330065811293837270239016477207679824396285121871761066723777814479604186724185005092882460946833509062503984967311882091567289039856164495115768659246024371285278436281428487878644862704778675598794895132437154646562582881529372308425181931718157769063895138107431449194736849615104249462676492871264690649204067255834633015532389777178190863288863240732387"
+	n := new(big.Int)
+	n.SetString(nStr, 10)
+	expectedPubKey := &rsa.PublicKey{
+		N: n,
+		E: 65537,
+	}
+	Convey("getting certificate from url", t, func() {
+		certificate, err := GetPubCertFromURL(url, kid)
+		So(certificate, ShouldNotBeNil)
+		So(certificate.N.Cmp(expectedPubKey.N), ShouldEqual, 0)
+		So(certificate.E, ShouldEqual, expectedPubKey.E)
+		So(err, ShouldBeNil)
+	})
+	Convey("getting the certificate from url wrong kid", t, func() {
+		certificate, err := GetPubCertFromURL(url, w_kid)
+		So(certificate, ShouldBeNil)
+		So(err, ShouldResemble, fmt.Errorf("error kid not found"))
+	})
+
+}
+
+func TestExtractACLFromFile(t *testing.T) {
+	path := "/Users/davidepatrone/Downloads/mosquitto-go-auth-master/test-files/acl"
+	Convey("Extracting ACL from file", t, func() {
+		acl, err := ExtractACLFromFileNew(path)
+		So(err, ShouldBeNil)
+		So(acl, ShouldNotBeNil)
+		So(len(acl), ShouldEqual, 2)
+
+	})
 }

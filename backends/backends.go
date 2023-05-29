@@ -451,13 +451,17 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 		log.Debugf("Acl check with backend %s", backend.GetName())
 		if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
 			aclCheck = true
-			log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+			if backend.GetName() != "JWT" {
+				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+			} else {
+				log.Debugf("token acl authenticated with backend %s", backend.GetName())
+			}
+
 		} else if checkACLErr != nil && err == nil {
 			err = checkACLErr
 		}
 	}
-
-	log.Debugf("Acl is %t for user %s", aclCheck, username)
+	log.Debugf("Acl is %t for user ", aclCheck)
 	return aclCheck, err
 }
 
@@ -486,7 +490,14 @@ func (b *Backends) checkAcl(username, topic, clientid string, acc int) (bool, er
 
 			log.Debugf("Acl check with backend %s", backend.GetName())
 			if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
-				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+				if backend.GetName() == "JWT" {
+					username = "inserted token"
+				}
+				if backend.GetName() != "JWT" {
+					log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+				} else {
+					log.Debugf("token acl authenticated with backend %s", backend.GetName())
+				}
 				aclCheck = true
 				break
 			} else if checkACLErr != nil && err == nil {

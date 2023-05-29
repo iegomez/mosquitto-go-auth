@@ -38,6 +38,7 @@ const (
 	claimsSubjectKey  = "sub"
 	claimsUsernameKey = "username"
 	claimsIssKey      = "iss"
+	cloudflareMode    = "cloudflare" //added for go backend
 )
 
 func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashComparer, version string) (*JWT, error) {
@@ -85,6 +86,9 @@ func NewJWT(authOpts map[string]string, logLevel log.Level, hasher hashing.HashC
 	case filesMode:
 		jwt.mode = filesMode
 		checker, err = NewFilesJWTChecker(authOpts, logLevel, hasher, options)
+	case cloudflareMode:
+		jwt.mode = cloudflareMode
+		checker, err = NewGoBckChecker(authOpts, options) //mode for go bckend
 	default:
 		err = errors.New("unknown JWT mode")
 	}
