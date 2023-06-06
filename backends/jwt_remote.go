@@ -27,7 +27,7 @@ type remoteJWTChecker struct {
 	hostWhitelist []string
 	withTLS       bool
 	verifyPeer    bool
-
+  timeout				int
 	paramsMode   string
 	httpMethod   string
 	responseMode string
@@ -58,7 +58,6 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 
 	missingOpts := ""
 	remoteOk := true
-	clientTimeout := 5 * time.Second /* Client timeout. If not provided in the plugin configuration fallback to 5 seconds */
 
 	if responseMode, ok := authOpts["jwt_response_mode"]; ok {
 		if responseMode == "text" || responseMode == "json" {
@@ -153,11 +152,16 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		return nil, errors.Errorf("JWT backend error: missing remote options: %s", missingOpts)
 	}
 
-	if jwtHttpTimeout, ok := authOpts["jwt_http_timeout"]; ok && jwtTimeout {
-		clientTimeout = authOpts["jwt_http_timeout"] * time.Second
+	checker.timeout = 5  
+	if timeoutString, ok := authOpts["jwt_http_timeout"]; ok {
+		if timeout, err := strconv.Atoi(timeoutString); err == nil {
+			checker.timeout = timeout
+		} else {
+			log.Errorf("unable to parse timeout: %s", err)
+		}
 	}
 
-	checker.client = &h.Client{Timeout:  clientTimeout}
+	checker.client = &h.Client{Timeout:  time.Duration(checker.timeout ) * time.Second}
 
 	if !checker.verifyPeer {
 		tr := &h.Transport{
