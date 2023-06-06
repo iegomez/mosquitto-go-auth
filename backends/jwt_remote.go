@@ -58,6 +58,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 
 	missingOpts := ""
 	remoteOk := true
+	clientTimeout := 5 * time.Second /* Client timeout. If not provided in the plugin configuration fallback to 5 seconds */
 
 	if responseMode, ok := authOpts["jwt_response_mode"]; ok {
 		if responseMode == "text" || responseMode == "json" {
@@ -152,7 +153,11 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		return nil, errors.Errorf("JWT backend error: missing remote options: %s", missingOpts)
 	}
 
-	checker.client = &h.Client{Timeout: 5 * time.Second}
+	if jwtHttpTimeout, ok := authOpts["jwt_http_timeout"]; ok && jwtTimeout {
+		clientTimeout = authOpts["jwt_http_timeout"] * time.Second
+	}
+
+	checker.client = &h.Client{Timeout:  clientTimeout}
 
 	if !checker.verifyPeer {
 		tr := &h.Transport{
