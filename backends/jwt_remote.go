@@ -161,7 +161,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		}
 	}
 
-	checker.client = &h.Client{Timeout:  time.Duration(checker.timeout ) * time.Second}
+	checker.client = &h.Client{Timeout:  time.Duration(checker.timeout) * time.Second}
 
 	if !checker.verifyPeer {
 		tr := &h.Transport{
