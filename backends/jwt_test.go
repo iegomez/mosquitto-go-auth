@@ -1663,12 +1663,9 @@ func TestJWTHttpDelayedResponse(t *testing.T) {
 	// wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
 	version := "2.0.0"
-
 	rightToken := token
 
-
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		time.Sleep(5 * time.Second)
 
 		err := r.ParseForm()
 		if err != nil {
@@ -1687,6 +1684,7 @@ func TestJWTHttpDelayedResponse(t *testing.T) {
 
 		switch r.URL.Path {
 		case "/user", "/superuser":
+			time.Sleep(1200 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
 		case "/acl":
 			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
@@ -1701,7 +1699,6 @@ func TestJWTHttpDelayedResponse(t *testing.T) {
 
 	defer mockServer.Close()
 
-
 	authOpts := make(map[string]string)
 	authOpts["jwt_mode"] = "remote"
 	authOpts["jwt_params_mode"] = "form"
@@ -1711,20 +1708,20 @@ func TestJWTHttpDelayedResponse(t *testing.T) {
 	authOpts["jwt_getuser_uri"] = "/user"
 	authOpts["jwt_superuser_uri"] = "/superuser"
 	authOpts["jwt_aclcheck_uri"] = "/acl"
-	authOpts["jwt_http_timeout"] = "10"
+	authOpts["jwt_http_timeout"] = "1"
 
 	Convey("Given correct options an http backend instance should be returned", t, func() {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
 		So(hb.GetName(), ShouldEqual, "JWT remote")
 
-		Convey("Wait more then 5 seconds for acl check", func() {
+		Convey("Test timeout response ", func() {
 			authenticated, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
-			So(err, ShouldBeNil)
-			So(authenticated, ShouldBeTrue)
+			So(err, ShouldBeTrue)
 		})
 
 		hb.Halt()
+		
 	})
 }
 
