@@ -1654,3 +1654,77 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	})
 
 }
+
+func TestJWTHttpDelayedResponse(t *testing.T) {
+	topic := "test/topic"
+	var acc = int64(1)
+	clientID := "test_client"
+	token, _ := jwtToken.SignedString([]byte(jwtSecret))
+	// wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
+
+	version := "2.0.0"
+
+	rightToken := token
+
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(5 * time.Second)
+
+		err := r.ParseForm()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		var params = r.Form
+
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
+
+		if rightToken != gToken {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.WriteHeader(http.StatusOK)
+		case "/acl":
+			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
+			if params["topic"][0] == topic && params["clientid"][0] == clientID && paramsAcc <= acc {
+				w.WriteHeader(http.StatusOK)
+				break
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}
+
+	}))
+
+	defer mockServer.Close()
+
+
+	authOpts := make(map[string]string)
+	authOpts["jwt_mode"] = "remote"
+	authOpts["jwt_params_mode"] = "form"
+	authOpts["jwt_response_mode"] = "status"
+	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
+	authOpts["jwt_port"] = ""
+	authOpts["jwt_getuser_uri"] = "/user"
+	authOpts["jwt_superuser_uri"] = "/superuser"
+	authOpts["jwt_aclcheck_uri"] = "/acl"
+	authOpts["jwt_http_timeout"] = "10"
+
+	Convey("Given correct options an http backend instance should be returned", t, func() {
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+		So(hb.GetName(), ShouldEqual, "JWT remote")
+
+		Convey("Wait more then 5 seconds for acl check", func() {
+			authenticated, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+		})
+
+		hb.Halt()
+	})
+}
+

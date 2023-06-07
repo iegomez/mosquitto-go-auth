@@ -895,7 +895,7 @@ The following options are supported by the `jwt` backend when remote is set to t
 | --------------------------- | --------- | :-------: | ------------------------------------------------------------- |
 | auth_opt_jwt_host           |           |    Y/N    | API server host name or ip                                    |
 | auth_opt_jwt_port           |           |     Y     | TCP port number                                               |
-| auth_opt_jwt_http_timeout   | 5         |     N     | Timeout in seconds of the http client                         |
+| auth_opt_jwt_http_timeout   |     5     |     N     | Timeout in seconds for http client                            |
 | auth_opt_jwt_getuser_uri    |           |     Y     | URI for check username/password                               |
 | auth_opt_jwt_superuser_uri  |           |     N     | URI for check superuser                                       |
 | auth_opt_jwt_aclcheck_uri   |           |     Y     | URI for check acl                                             |

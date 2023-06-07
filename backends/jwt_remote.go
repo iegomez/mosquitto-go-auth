@@ -27,7 +27,7 @@ type remoteJWTChecker struct {
 	hostWhitelist []string
 	withTLS       bool
 	verifyPeer    bool
-  timeout				int
+	timeout       int
 	paramsMode   string
 	httpMethod   string
 	responseMode string
