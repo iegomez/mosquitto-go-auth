@@ -1716,7 +1716,7 @@ func TestJWTHttpTimeout(t *testing.T) {
 		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
 		So(err, ShouldBeNil)
 
-		Convey("JWT remote test timeout parameter", func() {
+		Convey("JWT remote test timeout parameter: YES TIMEOUT", func() {
 			_, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
 			So(err, ShouldBeError)
 			So(err.Error(), ShouldContainSubstring, "acl")
@@ -1724,4 +1724,19 @@ func TestJWTHttpTimeout(t *testing.T) {
 
 		hb.Halt()
 	})
+
+	authOpts["jwt_http_timeout"] = "2"
+
+	Convey("Given correct options an http backend instance should be returned", t, func() {
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("JWT remote test timeout parameter: NO TIMEOUT", func() {
+			_, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+		})
+
+		hb.Halt()
+	})
+
 }
