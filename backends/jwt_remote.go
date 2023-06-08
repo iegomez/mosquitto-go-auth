@@ -27,10 +27,10 @@ type remoteJWTChecker struct {
 	hostWhitelist []string
 	withTLS       bool
 	verifyPeer    bool
+	paramsMode    string
+	httpMethod    string
+	responseMode  string
 	timeout       int
-	paramsMode   string
-	httpMethod   string
-	responseMode string
 
 	options tokenOptions
 
@@ -152,7 +152,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		return nil, errors.Errorf("JWT backend error: missing remote options: %s", missingOpts)
 	}
 
-	checker.timeout = 5  
+	checker.timeout = 5
 	if timeoutString, ok := authOpts["jwt_http_timeout"]; ok {
 		if timeout, err := strconv.Atoi(timeoutString); err == nil {
 			checker.timeout = timeout
@@ -161,7 +161,7 @@ func NewRemoteJWTChecker(authOpts map[string]string, options tokenOptions, versi
 		}
 	}
 
-	checker.client = &h.Client{Timeout:  time.Duration(checker.timeout) * time.Second}
+	checker.client = &h.Client{Timeout: time.Duration(checker.timeout) * time.Second}
 
 	if !checker.verifyPeer {
 		tr := &h.Transport{
