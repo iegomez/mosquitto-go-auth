@@ -1654,3 +1654,88 @@ func TestJWTFormTextResponseServer(t *testing.T) {
 	})
 
 }
+
+func TestJWTHttpTimeout(t *testing.T) {
+
+	topic := "test/topic"
+	var acc = int64(1)
+	clientID := "test_client"
+	token, _ := jwtToken.SignedString([]byte(jwtSecret))
+
+	version := "2.0.0"
+
+	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+
+		err := r.ParseForm()
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		var params = r.Form
+
+		gToken := r.Header.Get("Authorization")
+		gToken = strings.TrimPrefix(gToken, "Bearer ")
+
+		if token != gToken {
+			w.Write([]byte("Wrong credentials."))
+			return
+		}
+
+		switch r.URL.Path {
+		case "/user", "/superuser":
+			w.Write([]byte("ok"))
+		case "/acl":
+			time.Sleep(time.Duration(1200) * time.Millisecond)
+			paramsAcc, _ := strconv.ParseInt(params["acc"][0], 10, 64)
+			if params["topic"][0] == topic && params["clientid"][0] == clientID && paramsAcc <= acc {
+				w.Write([]byte("ok"))
+				break
+			}
+			w.Write([]byte("Acl check failed."))
+		}
+
+	}))
+
+	defer mockServer.Close()
+
+	authOpts := make(map[string]string)
+	authOpts["jwt_mode"] = "remote"
+	authOpts["jwt_params_mode"] = "form"
+	authOpts["jwt_response_mode"] = "text"
+	authOpts["jwt_host"] = strings.Replace(mockServer.URL, "http://", "", -1)
+	authOpts["jwt_port"] = ""
+	authOpts["jwt_getuser_uri"] = "/user"
+	authOpts["jwt_superuser_uri"] = "/superuser"
+	authOpts["jwt_aclcheck_uri"] = "/acl"
+	authOpts["jwt_http_timeout"] = "1"
+
+	Convey("Given correct options an http backend instance should be returned", t, func() {
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("JWT remote test timeout parameter: YES TIMEOUT", func() {
+			_, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
+			So(err, ShouldBeError)
+			So(err.Error(), ShouldContainSubstring, "acl")
+		})
+
+		hb.Halt()
+	})
+
+	authOpts["jwt_http_timeout"] = "2"
+
+	Convey("Given correct options an http backend instance should be returned", t, func() {
+		hb, err := NewJWT(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, ""), version)
+		So(err, ShouldBeNil)
+
+		Convey("JWT remote test timeout parameter: NO TIMEOUT", func() {
+			_, err := hb.CheckAcl(token, topic, clientID, MOSQ_ACL_READ)
+			So(err, ShouldBeNil)
+		})
+
+		hb.Halt()
+	})
+
+}
