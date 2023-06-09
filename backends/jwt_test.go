@@ -1661,7 +1661,6 @@ func TestJWTHttpTimeout(t *testing.T) {
 	var acc = int64(1)
 	clientID := "test_client"
 	token, _ := jwtToken.SignedString([]byte(jwtSecret))
-	// wrongToken, _ := wrongJwtToken.SignedString([]byte(jwtSecret))
 
 	version := "2.0.0"
 
