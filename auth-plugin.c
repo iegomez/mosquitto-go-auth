@@ -38,15 +38,13 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
 
   GoInt32 opts_count = auth_opt_count;
   
-  GoString keys[auth_opt_count];
-  GoString values[auth_opt_count];
+  char *keys[auth_opt_count];
+  char *values[auth_opt_count];
   int i;
   struct mosquitto_auth_opt *o;
   for (i = 0, o = auth_opts; i < auth_opt_count; i++, o++) {
-    GoString opt_key = {o->key, strlen(o->key)};
-    GoString opt_value = {o->value, strlen(o->value)};
-    keys[i] = opt_key;
-    values[i] = opt_value;
+    keys[i] = o->key;
+    values[i] = o->value;
   }
 
   GoSlice keysSlice = {keys, auth_opt_count, auth_opt_count};
@@ -55,9 +53,8 @@ int mosquitto_auth_plugin_init(void **user_data, struct mosquitto_auth_opt *auth
   char versionArray[10];
   sprintf(versionArray, "%i.%i.%i", LIBMOSQUITTO_MAJOR, LIBMOSQUITTO_MINOR, LIBMOSQUITTO_REVISION);
 
-  GoString version = {versionArray, strlen(versionArray)};
 
-  AuthPluginInit(keysSlice, valuesSlice, opts_count, version);
+  AuthPluginInit(keysSlice, valuesSlice, opts_count, versionArray);
   return MOSQ_ERR_SUCCESS;
 }
 
@@ -93,11 +90,7 @@ int mosquitto_auth_unpwd_check(void *userdata, const char *username, const char 
     return MOSQ_ERR_AUTH;
   }
 
-  GoString go_username = {username, strlen(username)};
-  GoString go_password = {password, strlen(password)};
-  GoString go_clientid = {clientid, strlen(clientid)};
-
-  GoUint8 ret = AuthUnpwdCheck(go_username, go_password, go_clientid);
+  GoUint8 ret = AuthUnpwdCheck((char *)username, (char *)password, (char *)clientid);
 
   switch (ret)
   {
@@ -135,12 +128,7 @@ int mosquitto_auth_acl_check(void *userdata, const char *clientid, const char *u
     return MOSQ_ERR_ACL_DENIED;
   }
 
-  GoString go_clientid = {clientid, strlen(clientid)};
-  GoString go_username = {username, strlen(username)};
-  GoString go_topic = {topic, strlen(topic)};
-  GoInt32 go_access = access;
-
-  GoUint8 ret = AuthAclCheck(go_clientid, go_username, go_topic, go_access);
+  GoUint8 ret = AuthAclCheck((char *)clientid, (char *)username, (char *)topic, access);
 
   switch (ret)
   {
