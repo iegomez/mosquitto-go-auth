@@ -38,7 +38,7 @@ var authOpts map[string]string //Options passed by mosquitto.
 var authPlugin AuthPlugin      //General struct with options and conf.
 
 //export AuthPluginInit
-func AuthPluginInit(keys []string, values []string, authOptsNum int, version string) {
+func AuthPluginInit(keys []*C.char, values []*C.char, authOptsNum int, version *C.char) {
 	log.SetFormatter(&log.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -51,7 +51,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int, version str
 
 	authOpts = make(map[string]string)
 	for i := 0; i < authOptsNum; i++ {
-		authOpts[keys[i]] = values[i]
+		authOpts[C.GoString(keys[i])] = C.GoString(values[i])
 	}
 
 	if retryCount, ok := authOpts["retry_count"]; ok {
@@ -104,7 +104,7 @@ func AuthPluginInit(keys []string, values []string, authOptsNum int, version str
 
 	var err error
 
-	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel, version)
+	authPlugin.backends, err = bes.Initialize(authOpts, authPlugin.logLevel, C.GoString(version))
 	if err != nil {
 		log.Fatalf("error initializing backends: %s", err)
 	}
@@ -276,12 +276,12 @@ func setCache(authOpts map[string]string) {
 }
 
 //export AuthUnpwdCheck
-func AuthUnpwdCheck(username, password, clientid string) uint8 {
+func AuthUnpwdCheck(username, password, clientid *C.char) uint8 {
 	var ok bool
 	var err error
 
 	for try := 0; try <= authPlugin.retryCount; try++ {
-		ok, err = authUnpwdCheck(username, password, clientid)
+		ok, err = authUnpwdCheck(C.GoString(username), C.GoString(password), C.GoString(clientid))
 		if err == nil {
 			break
 		}
@@ -330,12 +330,12 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 }
 
 //export AuthAclCheck
-func AuthAclCheck(clientid, username, topic string, acc int) uint8 {
+func AuthAclCheck(clientid, username, topic *C.char, acc C.int) uint8 {
 	var ok bool
 	var err error
 
 	for try := 0; try <= authPlugin.retryCount; try++ {
-		ok, err = authAclCheck(clientid, username, topic, acc)
+		ok, err = authAclCheck(C.GoString(clientid), C.GoString(username), C.GoString(topic), int(acc))
 		if err == nil {
 			break
 		}
