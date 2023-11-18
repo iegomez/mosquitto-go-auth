@@ -376,7 +376,7 @@ func (o *remoteJWTChecker) getHost(token string) (string, error) {
 
 	// Actually this should never happen because of configuration sanity check. TODO: consider removing this condition.
 	if !o.options.parseToken {
-		errorString := fmt.Sprintf("impossible to obtain host for the authorization request - token parsing is turned off")
+		errorString := "impossible to obtain host for the authorization request - token parsing is turned off"
 		return "", errors.New(errorString)
 	}
 
