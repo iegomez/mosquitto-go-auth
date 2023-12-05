@@ -1275,9 +1275,10 @@ Options for `mongo` are the following:
 | ------------------------------------ | ------------ | :-------: | ------------------------------------ |
 | auth_opt_mongo_host                  | localhost    |     N     | IP address,will skip dns lookup      |
 | auth_opt_mongo_port                  | 27017        |     N     | TCP port number                      |
-| auth_opt_mongo_dbname                | mosquitto    |     N     | MogoDB DB name                       |
-| auth_opt_mongo_username              | ""           |     N     | MogoDB username                      |
-| auth_opt_mongo_password              | ""           |     N     | MogoDB password                      |
+| auth_opt_mongo_dbname                | mosquitto    |     N     | MongoDB DB name                      |
+| auth_opt_mongo_authsource            | ""           |     N     | MongoDB authsource DB name           |
+| auth_opt_mongo_username              | ""           |     N     | MongoDB username                     |
+| auth_opt_mongo_password              | ""           |     N     | MongoDB password                     |
 | auth_opt_mongo_users                 | users        |     N     | User collection                      |
 | auth_opt_mongo_acls                  | acls         |     N     | ACL collection                       |
 | auth_opt_mongo_disable_superuser     | true         |     N     | Disable query to check for superuser |
