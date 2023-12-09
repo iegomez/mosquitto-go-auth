@@ -5,11 +5,19 @@ The name is terrible, I know, but it's too late to change it. And, you know: nam
 
 # Current state
 
-- The plugin is up to date and is compatible with the recent [2.0 Mosquitto version](https://mosquitto.org/blog/2020/12/version-2-0-0-released/).
-- Bug reports will be attended as they appear and will take priority over any work in progress.
-- Reviewing ongoing PRs is my next priority.
-- Feature requests are the lowest priority. Unless they are a super easy win in importance and implementation effort, I'll accept contributions and review
-  PRs before considering implementing them myself.
+2023-12-09:
+
+I'm not working on this project anymore, consider it somewhat "archived" unless someone wants to maintain it.
+
+The only reason I don't properly archive it in the Github sense is because I know it's widely used.
+I haven't found maintainers to help me, so all I'll commit to is fixing bugs, but that`s most likely it.
+
+This may change eventually, but for the time being, I won't serve any requests for new features or enhancements.
+I might add a new Temporal based backend (or change the configuration file format, something I've always wanted to do), 
+but that's just me playing around with a "new toy" I have to use at work, nothing else.
+
+Sorry, but such is life, you're free to fork (See the license, but in short, MIT, be free!).
+
 
 ### Intro
 
