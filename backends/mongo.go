@@ -3,9 +3,11 @@ package backends
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"strings"
 	"time"
+	"os"
 
 	. "github.com/iegomez/mosquitto-go-auth/backends/constants"
 	"github.com/iegomez/mosquitto-go-auth/backends/topics"
@@ -30,8 +32,11 @@ type Mongo struct {
 	Conn               *mongo.Client
 	disableSuperuser   bool
 	hasher             hashing.HashComparer
-	withTLS            bool
 	insecureSkipVerify bool
+	withTLS            bool
+	TLSCa              string
+	TLSCert            string
+	TLSKey             string
 }
 
 type MongoAcl struct {
@@ -60,8 +65,11 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		UsersCollection:    "users",
 		AclsCollection:     "acls",
 		hasher:             hasher,
-		withTLS:            false,
 		insecureSkipVerify: false,
+		withTLS:            false,
+		TLSCa:              "",
+		TLSCert:            "",
+		TLSKey:             "",
 	}
 
 	if authOpts["mongo_disable_superuser"] == "true" {
@@ -100,13 +108,31 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.AclsCollection = aclsCollection
 	}
 
-	if authOpts["mongo_use_tls"] == "true" {
-		m.withTLS = true
-	}
-
 	if authOpts["mongo_insecure_skip_verify"] == "true" {
 		m.insecureSkipVerify = true
 	}
+
+	useTlsClientCertificate := false
+
+	if authOpts["mongo_tls"] == "true" {
+		m.withTLS = true
+	}
+
+	if TLSCa, ok := authOpts["mongo_tlsca"]; ok {
+		m.TLSCa = TLSCa
+		useTlsClientCertificate = true
+	}
+
+	if TLSCert, ok := authOpts["mongo_tlscert"]; ok {
+		m.TLSCert = TLSCert
+		useTlsClientCertificate = true
+	}
+
+	if TLSKey, ok := authOpts["mongo_tlskey"]; ok {
+		m.TLSKey = TLSKey
+		useTlsClientCertificate = true
+	}
+
 
 	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
 
@@ -117,7 +143,29 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	}
 
 	if m.withTLS {
-		opts.TLSConfig = &tls.Config{}
+		log.Infof("mongo backend: tls enabled")
+		opts.TLSConfig = &tls.Config{
+			InsecureSkipVerify: m.insecureSkipVerify,
+		}
+		if useTlsClientCertificate {
+			caCert, err := os.ReadFile(m.TLSCa)
+			if err != nil {
+				log.Errorf("mongo backend: tls error: %s", err)
+			}
+			caCertPool := x509.NewCertPool()
+			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
+				log.Errorf("mongo backend: tls error: CA file must be in PEM format")
+			}
+			cert, err := tls.LoadX509KeyPair(m.TLSCert, m.TLSKey)
+			if err != nil {
+				log.Errorf("mongo backend: tls error: %s", err)
+			}
+			opts.TLSConfig = &tls.Config{
+				RootCAs:            caCertPool,
+				Certificates:       []tls.Certificate{cert},
+				InsecureSkipVerify: m.insecureSkipVerify,
+			}
+		}
 	}
 
 	opts.ApplyURI(addr)

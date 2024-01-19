@@ -1275,8 +1275,11 @@ Options for `mongo` are the following:
 | auth_opt_mongo_users                 | users        |     N     | User collection                      |
 | auth_opt_mongo_acls                  | acls         |     N     | ACL collection                       |
 | auth_opt_mongo_disable_superuser     | true         |     N     | Disable query to check for superuser |
-| auth_opt_mongo_with_tls              | false        |     N     | Connect with TLS                     |
 | auth_opt_mongo_insecure_skip_verify  | false        |     N     | Verify server's certificate chain    |
+| auth_opt_mongo_tls                   | false        |     N     | Connect with TLS                     |
+| auth_opt_mongo_tlsca                 | ""           |     N     | TLS Certificate Authority (CA)       |
+| auth_opt_mongo_tlscert               | ""           |     N     | TLS Client Certificate               |
+| auth_opt_mongo_tlskey                | ""           |     N     | TLS Client Certificate Private Key   |
 
 
 If you experience any problem connecting to a replica set, please refer to [this issue](https://github.com/iegomez/mosquitto-go-auth/issues/32).
