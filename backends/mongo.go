@@ -114,7 +114,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 
 	useTlsClientCertificate := false
 
-	if authOpts["mongo_tls"] == "true" {
+	if authOpts["mongo_with_tls"] == "true" {
 		m.withTLS = true
 	}
 
@@ -143,23 +143,28 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	}
 
 	if m.withTLS {
-		log.Infof("mongo backend: tls enabled")
+		log.Info("mongo backend: tls enabled")
 		opts.TLSConfig = &tls.Config{
 			InsecureSkipVerify: m.insecureSkipVerify,
 		}
+
 		if useTlsClientCertificate {
 			caCert, err := os.ReadFile(m.TLSCa)
+
 			if err != nil {
 				log.Errorf("mongo backend: tls error: %s", err)
 			}
+
 			caCertPool := x509.NewCertPool()
 			if ok := caCertPool.AppendCertsFromPEM(caCert); !ok {
-				log.Errorf("mongo backend: tls error: CA file must be in PEM format")
+				log.Error("mongo backend: tls error: CA file must be in PEM format")
 			}
+
 			cert, err := tls.LoadX509KeyPair(m.TLSCert, m.TLSKey)
 			if err != nil {
 				log.Errorf("mongo backend: tls error: %s", err)
 			}
+
 			opts.TLSConfig = &tls.Config{
 				RootCAs:            caCertPool,
 				Certificates:       []tls.Certificate{cert},
