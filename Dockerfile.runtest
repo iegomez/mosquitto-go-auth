@@ -18,7 +18,7 @@ ENV MOSQUITTO_GO_AUTH_TEST_RUNNING_IN_A_CONTAINER=true
 WORKDIR /app
 
 #Get mosquitto build dependencies.
-RUN apt-get update && apt-get install -y libc-ares2 libc-ares-dev cmake libssl-dev uuid uuid-dev wget build-essential git libcjson-dev
+RUN apt-get update && apt-get install -y libc-ares2 libc-ares-dev cmake libssl-dev uuid uuid-dev wget build-essential git libcjson-dev gnupg lsb-release
 
 # Get libwebsocket. Debian's libwebsockets is too old for Mosquitto version > 2.x so it gets built from source.
 RUN set -ex; \
@@ -67,15 +67,21 @@ RUN export PATH=$PATH:/usr/local/go/bin && export CGO_CFLAGS="-I/usr/local/inclu
 
 ## Everything above, is the same as Dockerfile
 
-RUN apt-get update && apt-get install --no-install-recommends -y mariadb-server postgresql redis-server sudo
+RUN apt-get update && apt-get install --no-install-recommends -y mariadb-server postgresql sudo
 
-RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add - && \
-    echo "deb http://repo.mongodb.org/apt/debian buster/mongodb-org/4.4 main" > /etc/apt/sources.list.d/mongodb-org-4.4.list && \
+RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
+    echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list && \
     apt-get update && \
-# starting with MongoDB 4.3, the postinst for server includes "systemctl daemon-reload" (and we don't have "systemctl")
+# starting with MongoDB 7.0, the postinst for server includes "systemctl daemon-reload" (and we don't have "systemctl")
     ln -s /bin/true /usr/bin/systemctl && \
     apt-get install -y mongodb-org && \
     rm -f /usr/bin/systemctl
+
+#Install redis 6.2
+RUN wget -qO - https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list && \
+    apt-get update && \
+    apt-get install -y redis-tools=6:6.2.* redis-server=6:6.2.*
 
 # Install CFSSL to generate test certificates required for tests
 RUN export PATH=$PATH:/usr/local/go/bin && go install github.com/cloudflare/cfssl/cmd/cfssl@v1.6.2 && cp ~/go/bin/cfssl /usr/local/bin
