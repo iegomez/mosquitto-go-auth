@@ -6,8 +6,8 @@ on:
   pull_request:
     branches: [ master ]
 env:
-  MOSQUITTO_VERSION_1: 1.6.14
-  MOSQUITTO_VERSION_2: 2.0.15
+  MOSQUITTO_VERSION_1: 1.6.15
+  MOSQUITTO_VERSION_2: 2.0.18
   DOCKERFILE_MOSQUITTO_VERSION: 1.6.14
   DOCKERHUB_REPO: mosquitto-go-auth
 jobs:
