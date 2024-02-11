@@ -1,7 +1,10 @@
 name: Test
 
 on:
-  push
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 env:
   MOSQUITTO_VERSION_1: 1.6.14
   MOSQUITTO_VERSION_2: 2.0.15
