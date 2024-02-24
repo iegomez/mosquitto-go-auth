@@ -89,11 +89,7 @@ func (h argon2IDHasher) Compare(password string, passwordHash string) bool {
 	keylen := uint32(len(extractedHash))
 	newHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keylen)
 
-	if subtle.ConstantTimeCompare(newHash, extractedHash) == 1 {
-		return true
-	}
-
-	return false
+	return subtle.ConstantTimeCompare(newHash, extractedHash) == 1
 }
 
 func (h argon2IDHasher) hashWithSalt(password string, salt []byte, memory uint32, iterations int, parallelism uint8, keylen int) string {

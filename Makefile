@@ -43,3 +43,12 @@ clean:
 	rm -f go-auth.h
 	rm -f go-auth.so
 	rm -f pw
+
+docker-build:
+	docker build -t mosquitto-go-auth.test -f Dockerfile.runtest .
+
+docker-test:
+	docker run --rm mosquitto-go-auth.test ./run-test-in-docker.sh
+
+docker-test-local:
+	docker run -v $(pwd):/app --rm -ti mosquitto-go-auth.test ./run-test-in-docker.sh

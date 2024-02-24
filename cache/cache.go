@@ -18,23 +18,25 @@ import (
 
 // redisCache stores necessary values for Redis cache
 type redisStore struct {
-	authExpiration    time.Duration
-	aclExpiration     time.Duration
-	authJitter        time.Duration
-	aclJitter         time.Duration
-	refreshExpiration bool
-	client            bes.RedisClient
-	h                 hash.Hash
+	client  bes.RedisClient
+	h       hash.Hash
+	options Options
 }
 
 type goStore struct {
-	authExpiration    time.Duration
-	aclExpiration     time.Duration
-	authJitter        time.Duration
-	aclJitter         time.Duration
-	refreshExpiration bool
-	client            *goCache.Cache
-	h                 hash.Hash
+	client  *goCache.Cache
+	h       hash.Hash
+	options Options
+}
+
+type Options struct {
+	AuthExpiration      time.Duration
+	AclExpiration       time.Duration
+	SuperuserExpiration time.Duration
+	AuthJitter          time.Duration
+	AclJitter           time.Duration
+	SuperuserJitter     time.Duration
+	RefreshExpiration   bool
 }
 
 const (
@@ -46,47 +48,41 @@ type Store interface {
 	CheckAuthRecord(ctx context.Context, username, password string) (bool, bool)
 	SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error
 	CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool)
+	SetSuperuserRecord(ctx context.Context, username, password, granted string) error
+	CheckSuperuserRecord(ctx context.Context, username, password string) (bool, bool)
 	Connect(ctx context.Context, reset bool) bool
 	Close()
 }
 
 // NewGoStore initializes a cache using go-cache as the store.
-func NewGoStore(authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *goStore {
+func NewGoStore(options Options) *goStore {
 	// TODO: support hydrating the cache to retain previous values.
 
 	return &goStore{
-		authExpiration:    authExpiration,
-		aclExpiration:     aclExpiration,
-		authJitter:        authJitter,
-		aclJitter:         aclJitter,
-		refreshExpiration: refreshExpiration,
-		client:            goCache.New(time.Second*defaultExpiration, time.Second*(defaultExpiration*2)),
-		h:                 sha1.New(),
+		client:  goCache.New(time.Second*defaultExpiration, time.Second*(defaultExpiration*2)),
+		h:       sha1.New(),
+		options: options,
 	}
 }
 
 // NewSingleRedisStore initializes a cache using a single Redis instance as the store.
-func NewSingleRedisStore(host, port, password string, db int, authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *redisStore {
+func NewSingleRedisStore(host, port, password string, db int, options Options) *redisStore {
 	addr := fmt.Sprintf("%s:%s", host, port)
 	redisClient := goredis.NewClient(&goredis.Options{
 		Addr:     addr,
-		Password: password, // no password set
-		DB:       db,       // use default db
+		Password: password,
+		DB:       db,
 	})
-	//If cache is on, try to start redis.
+
 	return &redisStore{
-		authExpiration:    authExpiration,
-		aclExpiration:     aclExpiration,
-		authJitter:        authJitter,
-		aclJitter:         aclJitter,
-		refreshExpiration: refreshExpiration,
-		client:            bes.SingleRedisClient{redisClient},
-		h:                 sha1.New(),
+		client:  bes.SingleRedisClient{redisClient},
+		h:       sha1.New(),
+		options: options,
 	}
 }
 
 // NewSingleRedisStore initializes a cache using a Redis Cluster as the store.
-func NewRedisClusterStore(password string, addresses []string, authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *redisStore {
+func NewRedisClusterStore(password string, addresses []string, options Options) *redisStore {
 	clusterClient := goredis.NewClusterClient(
 		&goredis.ClusterOptions{
 			Addrs:    addresses,
@@ -94,13 +90,9 @@ func NewRedisClusterStore(password string, addresses []string, authExpiration, a
 		})
 
 	return &redisStore{
-		authExpiration:    authExpiration,
-		aclExpiration:     aclExpiration,
-		authJitter:        authJitter,
-		aclJitter:         aclJitter,
-		refreshExpiration: refreshExpiration,
-		client:            clusterClient,
-		h:                 sha1.New(),
+		client:  clusterClient,
+		h:       sha1.New(),
+		options: options,
 	}
 }
 
@@ -110,9 +102,15 @@ func toAuthRecord(username, password string, h hash.Hash) string {
 	return b64.StdEncoding.EncodeToString(sum)
 }
 
+func toSuperuserRecord(username, password string, h hash.Hash) string {
+	sum := h.Sum([]byte(fmt.Sprintf("superuser-%s-%s", username, password)))
+	log.Debugf("to superuser record: %v\n", sum)
+	return b64.StdEncoding.EncodeToString(sum)
+}
+
 func toACLRecord(username, topic, clientid string, acc int, h hash.Hash) string {
 	sum := h.Sum([]byte(fmt.Sprintf("acl-%s-%s-%s-%d", username, topic, clientid, acc)))
-	log.Debugf("to auth record: %v\n", sum)
+	log.Debugf("to acl record: %v\n", sum)
 	return b64.StdEncoding.EncodeToString(sum)
 }
 
@@ -179,13 +177,19 @@ func (s *redisStore) Close() {
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
 func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
 	record := toAuthRecord(username, password, s.h)
-	return s.checkRecord(ctx, record, expirationWithJitter(s.authExpiration, s.authJitter))
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 }
 
-//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
+// CheckAclRecord checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.checkRecord(ctx, record, expirationWithJitter(s.aclExpiration, s.aclJitter))
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.AclExpiration, s.options.AclJitter))
+}
+
+// CheckSuperuserRecord checks if the username is in the superuser cache. Return if it's present and, if so, if it was granted privileges.
+func (s *goStore) CheckSuperuserRecord(ctx context.Context, username, password string) (bool, bool) {
+	record := toSuperuserRecord(username, password, s.h)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.SuperuserExpiration, s.options.SuperuserJitter))
 }
 
 func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime time.Duration) (bool, bool) {
@@ -198,7 +202,7 @@ func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime
 			granted = true
 		}
 
-		if s.refreshExpiration {
+		if s.options.RefreshExpiration {
 			s.client.Set(record, value, expirationTime)
 		}
 	}
@@ -208,13 +212,19 @@ func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
 func (s *redisStore) CheckAuthRecord(ctx context.Context, username, password string) (bool, bool) {
 	record := toAuthRecord(username, password, s.h)
-	return s.checkRecord(ctx, record, s.authExpiration)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 }
 
-//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
+// CheckAclRecord checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *redisStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.checkRecord(ctx, record, s.aclExpiration)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.AclExpiration, s.options.AclJitter))
+}
+
+// CheckSuperuserRecord checks if the username is in the superuser cache. Return if it's present and, if so, if it was granted privileges.
+func (s *redisStore) CheckSuperuserRecord(ctx context.Context, username, password string) (bool, bool) {
+	record := toSuperuserRecord(username, password, s.h)
+	return s.checkRecord(ctx, record, expirationWithJitter(s.options.SuperuserExpiration, s.options.SuperuserJitter))
 }
 
 func (s *redisStore) checkRecord(ctx context.Context, record string, expirationTime time.Duration) (bool, bool) {
@@ -244,7 +254,7 @@ func (s *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 		return false, false, err
 	}
 
-	if s.refreshExpiration {
+	if s.options.RefreshExpiration {
 		_, err = s.client.Expire(ctx, record, expirationTime).Result()
 		if err != nil {
 			return false, false, err
@@ -261,15 +271,23 @@ func (s *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password, s.h)
-	s.client.Set(record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
+	s.client.Set(record, granted, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 
 	return nil
 }
 
-//SetAclCache sets a mix, granted option and expiration time.
+// SetAclRecord sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	s.client.Set(record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
+	s.client.Set(record, granted, expirationWithJitter(s.options.AclExpiration, s.options.AclJitter))
+
+	return nil
+}
+
+// SetSuperuserRecord sets a pair, granted option and expiration time.
+func (s *goStore) SetSuperuserRecord(ctx context.Context, username, password string, granted string) error {
+	record := toSuperuserRecord(username, password, s.h)
+	s.client.Set(record, granted, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 
 	return nil
 }
@@ -277,13 +295,19 @@ func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid st
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *redisStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password, s.h)
-	return s.setRecord(ctx, record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
+	return s.setRecord(ctx, record, granted, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 }
 
-//SetAclCache sets a mix, granted option and expiration time.
+// SetAclRecord sets a mix, granted option and expiration time.
 func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	return s.setRecord(ctx, record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
+	return s.setRecord(ctx, record, granted, expirationWithJitter(s.options.AclExpiration, s.options.AclJitter))
+}
+
+// SetSuperuserRecord sets a pair, granted option and expiration time.
+func (s *redisStore) SetSuperuserRecord(ctx context.Context, username, password string, granted string) error {
+	record := toSuperuserRecord(username, password, s.h)
+	return s.setRecord(ctx, record, granted, expirationWithJitter(s.options.AuthExpiration, s.options.AuthJitter))
 }
 
 func (s *redisStore) setRecord(ctx context.Context, record, granted string, expirationTime time.Duration) error {

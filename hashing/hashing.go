@@ -61,9 +61,9 @@ func preferredEncoding(saltEncoding string) string {
 
 // Empty backend: use whatever plugin wise hashing options are present by returning whole opts.
 // Backend present: check if there's a backend_hasher option:
-// 	- Yes: return a new map with whatever hashing options are present for the given backend and hasher
-//		   (defaults will be used for missing options).
-//	- No: use whatever plugin wise hashing options are present by returning whole opts.
+//   - Yes: return a new map with whatever hashing options are present for the given backend and hasher
+//     (defaults will be used for missing options).
+//   - No: use whatever plugin wise hashing options are present by returning whole opts.
 func processHashOpts(authOpts map[string]string, backend string) map[string]string {
 
 	// Return authOpts if no backend given.
@@ -145,6 +145,4 @@ func NewHasher(authOpts map[string]string, backend string) HashComparer {
 
 	saltEncoding := opts["hasher_salt_encoding"]
 	return NewPBKDF2Hasher(saltSize, iterations, algorithm, saltEncoding, keyLen)
-
-	return nil
 }

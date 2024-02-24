@@ -185,6 +185,14 @@ func setCache(authOpts map[string]string) {
 		refreshExpiration = true
 	}
 
+	options := cache.Options{
+		AclExpiration:     time.Duration(aclCacheSeconds) * time.Second,
+		AuthExpiration:    time.Duration(authCacheSeconds) * time.Second,
+		AuthJitter:        time.Duration(authJitterSeconds) * time.Second,
+		AclJitter:         time.Duration(aclJitterSeconds) * time.Second,
+		RefreshExpiration: refreshExpiration,
+	}
+
 	switch authOpts["cache_type"] {
 	case "redis":
 		host := "localhost"
@@ -219,11 +227,7 @@ func setCache(authOpts map[string]string) {
 			authPlugin.cache = cache.NewRedisClusterStore(
 				password,
 				addresses,
-				time.Duration(authCacheSeconds)*time.Second,
-				time.Duration(aclCacheSeconds)*time.Second,
-				time.Duration(authJitterSeconds)*time.Second,
-				time.Duration(aclJitterSeconds)*time.Second,
-				refreshExpiration,
+				options,
 			)
 
 		} else {
@@ -249,21 +253,13 @@ func setCache(authOpts map[string]string) {
 				port,
 				password,
 				db,
-				time.Duration(authCacheSeconds)*time.Second,
-				time.Duration(aclCacheSeconds)*time.Second,
-				time.Duration(authJitterSeconds)*time.Second,
-				time.Duration(aclJitterSeconds)*time.Second,
-				refreshExpiration,
+				options,
 			)
 		}
 
 	default:
 		authPlugin.cache = cache.NewGoStore(
-			time.Duration(authCacheSeconds)*time.Second,
-			time.Duration(aclCacheSeconds)*time.Second,
-			time.Duration(authJitterSeconds)*time.Second,
-			time.Duration(aclJitterSeconds)*time.Second,
-			refreshExpiration,
+			options,
 		)
 	}
 

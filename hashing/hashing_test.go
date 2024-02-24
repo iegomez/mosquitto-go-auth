@@ -28,7 +28,6 @@ func TestNewHasher(t *testing.T) {
 	assert.Equal(t, Base64, pHasher.saltEncoding)
 
 	// Check that options are set correctly.
-	authOpts = make(map[string]string)
 	authOpts = map[string]string{
 		"hasher":               Pbkdf2Opt,
 		"hasher_algorithm":     SHA256,
@@ -60,7 +59,6 @@ func TestNewHasher(t *testing.T) {
 	assert.Equal(t, defaultArgon2IDParallelism, aHasher.parallelism)
 	assert.Equal(t, defaultArgon2IDSaltSize, aHasher.saltSize)
 
-	authOpts = make(map[string]string)
 	authOpts = map[string]string{
 		"hasher":             Argon2IDOpt,
 		"hasher_iterations":  "100",
@@ -89,7 +87,6 @@ func TestNewHasher(t *testing.T) {
 	assert.Equal(t, bHasher.cost, defaultBcryptCost)
 
 	// Check that options are set correctly.
-	authOpts = make(map[string]string)
 	authOpts = map[string]string{
 		"hasher":      BcryptOpt,
 		"hasher_cost": "15",

@@ -23,8 +23,6 @@ func (h bcryptHasher) Hash(password string) (string, error) {
 // Compare checks that a bcrypt generated password matches the password hash.
 func (h bcryptHasher) Compare(password, passwordHash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password))
-	if err != nil {
-		return false
-	}
-	return true
+
+	return err != nil
 }
