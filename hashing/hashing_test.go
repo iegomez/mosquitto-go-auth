@@ -126,22 +126,29 @@ func TestArgon2ID(t *testing.T) {
 
 func TestPBKDF2(t *testing.T) {
 	password := "test-password"
+	b64Hasher := NewPBKDF2Hasher(defaultPBKDF2SaltSize, defaultPBKDF2Iterations, defaultPBKDF2Algorithm, Base64, defaultPBKDF2KeyLen)
+	utf8Hasher := NewPBKDF2Hasher(defaultPBKDF2SaltSize, defaultPBKDF2Iterations, defaultPBKDF2Algorithm, UTF8, defaultPBKDF2KeyLen)
 
-	// Test base64.
-	hasher := NewPBKDF2Hasher(defaultPBKDF2SaltSize, defaultPBKDF2Iterations, defaultPBKDF2Algorithm, Base64, defaultPBKDF2KeyLen)
+	t.Run("OlderFormat", func(t *testing.T) {
+		t.Run("Base64", func(t *testing.T) {
+			passwordHash, err := b64Hasher.Hash(password)
 
-	passwordHash, err := hasher.Hash(password)
+			assert.Nil(t, err)
+			assert.True(t, b64Hasher.Compare(password, passwordHash))
+			assert.False(t, b64Hasher.Compare("other", passwordHash))
+		})
+		t.Run("UTF8", func(t *testing.T) {
+			passwordHash, err := utf8Hasher.Hash(password)
 
-	assert.Nil(t, err)
-	assert.True(t, hasher.Compare(password, passwordHash))
-	assert.False(t, hasher.Compare("other", passwordHash))
+			assert.Nil(t, err)
+			assert.True(t, utf8Hasher.Compare(password, passwordHash))
+			assert.False(t, utf8Hasher.Compare("other", passwordHash))
+		})
+	})
 
-	// Test UTF8.
-	hasher = NewPBKDF2Hasher(defaultPBKDF2SaltSize, defaultPBKDF2Iterations, defaultPBKDF2Algorithm, UTF8, defaultPBKDF2KeyLen)
-
-	passwordHash, err = hasher.Hash(password)
-
-	assert.Nil(t, err)
-	assert.True(t, hasher.Compare(password, passwordHash))
-	assert.False(t, hasher.Compare("other", passwordHash))
+	t.Run("PHC-SF-Spec", func(t *testing.T) {
+		passwordHash := "$pbkdf2-sha512$i=10000,l=32$/DsNR8DBuoF/MxzLY+QVaw$YNfYNfT+6yT2blLrXKKR8Ll+aesgHYqSOtFTBsyscRM"
+		assert.True(t, b64Hasher.Compare(password, passwordHash))
+		assert.False(t, b64Hasher.Compare("other", passwordHash))
+	})
 }
