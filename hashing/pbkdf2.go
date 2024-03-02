@@ -8,7 +8,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"math/big"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -159,7 +158,16 @@ func (h pbkdf2Hasher) Compare(password string, passwordHash string) bool {
 		return false
 	}
 
-	return slices.Compare(hashedPassword, newHashedPassword) == 0
+	return h.compareBytes(hashedPassword, newHashedPassword)
+}
+
+func (h pbkdf2Hasher) compareBytes(a, b []byte) bool {
+	for i, x := range a {
+		if b[i] != x {
+			return false
+		}
+	}
+	return true
 }
 
 func (h pbkdf2Hasher) getFields(passwordHash string) []string {
