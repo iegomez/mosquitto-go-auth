@@ -16,15 +16,16 @@ import (
 )
 
 type AuthPlugin struct {
-	backends   *bes.Backends
-	useCache   bool
-	logLevel   log.Level
-	logDest    string
-	logFile    string
-	ctx        context.Context
-	cache      cache.Store
-	hasher     hashing.HashComparer
-	retryCount int
+	backends              *bes.Backends
+	useCache              bool
+	logLevel              log.Level
+	logDest               string
+	logFile               string
+	ctx                   context.Context
+	cache                 cache.Store
+	hasher                hashing.HashComparer
+	retryCount            int
+	useClientidAsUsername bool
 }
 
 // errors to signal mosquitto
@@ -61,6 +62,13 @@ func AuthPluginInit(keys []*C.char, values []*C.char, authOptsNum int, version *
 		} else {
 			log.Warningf("couldn't parse retryCount (err: %s), defaulting to 0", err)
 		}
+	}
+
+	if useClientidAsUsername, ok := authOpts["use_clientid_as_username"]; ok && strings.Replace(useClientidAsUsername, " ", "", -1) == "true" {
+		log.Info("clientid will be used as username on checks")
+		authPlugin.useClientidAsUsername = true
+	} else {
+		authPlugin.useClientidAsUsername = false
 	}
 
 	//Check if log level is given. Set level if any valid option is given.
@@ -304,6 +312,9 @@ func authUnpwdCheck(username, password, clientid string) (bool, error) {
 	var cached bool
 	var granted bool
 	var err error
+
+	username = setUsername(username, clientid)
+
 	if authPlugin.useCache {
 		log.Debugf("checking auth cache for %s", username)
 		cached, granted = authPlugin.cache.CheckAuthRecord(authPlugin.ctx, username, password)
@@ -358,6 +369,9 @@ func authAclCheck(clientid, username, topic string, acc int) (bool, error) {
 	var cached bool
 	var granted bool
 	var err error
+
+	username = setUsername(username, clientid)
+
 	if authPlugin.useCache {
 		log.Debugf("checking acl cache for %s", username)
 		cached, granted = authPlugin.cache.CheckACLRecord(authPlugin.ctx, username, topic, clientid, acc)
@@ -399,6 +413,14 @@ func AuthPluginCleanup() {
 	}
 
 	authPlugin.backends.Halt()
+}
+
+func setUsername(username, clientid string) string {
+	if authPlugin.useClientidAsUsername {
+		return clientid
+	}
+
+	return username
 }
 
 func main() {}
