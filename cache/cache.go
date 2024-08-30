@@ -182,7 +182,7 @@ func (s *goStore) CheckAuthRecord(ctx context.Context, username, password string
 	return s.checkRecord(ctx, record, expirationWithJitter(s.authExpiration, s.authJitter))
 }
 
-//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
+// CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.checkRecord(ctx, record, expirationWithJitter(s.aclExpiration, s.aclJitter))
@@ -211,7 +211,7 @@ func (s *redisStore) CheckAuthRecord(ctx context.Context, username, password str
 	return s.checkRecord(ctx, record, s.authExpiration)
 }
 
-//CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
+// CheckAclCache checks if the username/topic/clientid/acc mix is present in the cache. Return if it's present and, if so, if it was granted privileges.
 func (s *redisStore) CheckACLRecord(ctx context.Context, username, topic, clientid string, acc int) (bool, bool) {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.checkRecord(ctx, record, s.aclExpiration)
@@ -266,7 +266,7 @@ func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, 
 	return nil
 }
 
-//SetAclCache sets a mix, granted option and expiration time.
+// SetAclCache sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
 	s.client.Set(record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
@@ -280,7 +280,7 @@ func (s *redisStore) SetAuthRecord(ctx context.Context, username, password strin
 	return s.setRecord(ctx, record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
 }
 
-//SetAclCache sets a mix, granted option and expiration time.
+// SetAclCache sets a mix, granted option and expiration time.
 func (s *redisStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
 	return s.setRecord(ctx, record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))

@@ -245,6 +245,19 @@ auth_opt_backends files, postgres, jwt
 
 Set all other plugin options below in the same file.
 
+#### Using clientid as username
+
+You may choose to override chedk against `username` to be done against `clientid` by setting this option:
+
+```
+auth_opt_use_clientid_as_username true
+```
+
+Notice this will effectively change `username` to be the same as `clientid` at the top level, so every check,
+including cached ones, will drop Mosquitto's passed `username` and use `clientid` instead.
+
+This option default to false if not given or anything but `true` is set to its value.
+
 #### Cache
 
 There are 2 types of caches supported: an in memory one using [go-cache](https://github.com/patrickmn/go-cache), or a Redis backed one.
