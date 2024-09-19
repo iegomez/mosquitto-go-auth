@@ -28,7 +28,9 @@ type Backends struct {
 	stripPrefix bool
 	prefixes    map[string]string
 
-	disableSuperuser bool
+	disableSuperuser    bool
+	exhaustBackendFirst bool
+	sortedBackends      []string
 }
 
 const (
@@ -80,9 +82,15 @@ func Initialize(authOpts map[string]string, logLevel log.Level, version string) 
 		prefixes:          make(map[string]string),
 	}
 
-	//Disable superusers for all backends if option is set.
+	// Disable superusers for all backends if option is set.
 	if authOpts["disable_superuser"] == "true" {
 		b.disableSuperuser = true
+
+	}
+
+	// When set, a backend will be checked for superuser (if enabled) and ACL before checking another backend.
+	if authOpts["exhaust_backend_first"] == "true" {
+		b.exhaustBackendFirst = true
 
 	}
 
@@ -118,6 +126,16 @@ func Initialize(authOpts map[string]string, logLevel log.Level, version string) 
 }
 
 func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, backends []string, version string) error {
+	// Store given backends as given to order them when checking.
+	//
+	// This allows to sort user checking, and first exhaust superuser/acl checks of a given backend before checking the next one,
+	// instead of the default superuser of all backends before checking them again for ACLs.
+	//
+	// Neither option is a silver bullet, but at least give some more grained control when paired with
+	// checkers registering.
+	b.sortedBackends = make([]string, len(backends))
+	copy(b.sortedBackends, backends)
+
 	for _, bename := range backends {
 		var beIface Backend
 		var err error
@@ -224,7 +242,8 @@ func (b *Backends) setCheckers(authOpts map[string]string) error {
 	// We'll register which plugins will perform checks for user, superuser and acls.
 	// At least one backend must be registered for user and acl checks.
 	// When option auth_opt_backend_register is missing for the backend, we register all checks.
-	for name := range b.backends {
+	for _, name := range b.sortedBackends {
+
 		opt := fmt.Sprintf("%s_register", allowedBackendsOptsPrefix[name])
 		options, ok := authOpts[opt]
 
@@ -381,7 +400,6 @@ func (b *Backends) AuthUnpwdCheck(username, password, clientid string) (bool, er
 
 func (b *Backends) checkAuth(username, password, clientid string) (bool, error) {
 	var err error
-	authenticated := false
 
 	for _, bename := range b.userCheckers {
 		var backend = b.backends[bename]
@@ -389,21 +407,15 @@ func (b *Backends) checkAuth(username, password, clientid string) (bool, error) 
 		log.Debugf("checking user %s with backend %s", username, backend.GetName())
 
 		if ok, getUserErr := backend.GetUser(username, password, clientid); ok && getUserErr == nil {
-			authenticated = true
 			log.Debugf("user %s authenticated with backend %s", username, backend.GetName())
-			break
+
+			return true, nil
 		} else if getUserErr != nil && err == nil {
 			err = getUserErr
 		}
 	}
 
-	// If authenticated is true, it means at least one backend didn't fail and
-	// accepted the user. If so, honor the backend and clear the error.
-	if authenticated {
-		err = nil
-	}
-
-	return authenticated, err
+	return false, err
 }
 
 // AuthAclCheck checks user/topic/acc authorization.
@@ -462,46 +474,84 @@ func (b *Backends) AuthAclCheck(clientid, username, topic string, acc int) (bool
 }
 
 func (b *Backends) checkAcl(username, topic, clientid string, acc int) (bool, error) {
-	// Check superusers first
-	var err error
-	aclCheck := false
-	if !b.disableSuperuser {
-		for _, bename := range b.superuserCheckers {
-			var backend = b.backends[bename]
+	// Historically, the plugin checked all backends for superuser first (without order),
+	// and only then it checked for ACLs.
+	// If exhaust_backend_first is set, we check backends for both first following order.
+	if b.exhaustBackendFirst {
+		return b.exhaustBackendsInOrder(username, topic, clientid, acc)
+	}
 
-			log.Debugf("Superuser check with backend %s", backend.GetName())
+	return b.checkSuperuserThenACL(username, topic, clientid, acc)
+}
+
+func (b *Backends) exhaustBackendsInOrder(username, topic, clientid string, acc int) (bool, error) {
+	// Check every backend, in order, for superuser and ACL.
+	var err error
+
+	for _, bename := range b.sortedBackends {
+		var backend = b.backends[bename]
+
+		if !b.disableSuperuser && checkRegistered(bename, b.superuserCheckers) {
+			log.Debugf("superuser check with backend %s", backend.GetName())
 			if ok, getSuperuserErr := backend.GetSuperuser(username); ok && getSuperuserErr == nil {
 				log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
-				aclCheck = true
-				break
+
+				return true, nil
 			} else if getSuperuserErr != nil && err == nil {
 				err = getSuperuserErr
 			}
 		}
-	}
 
-	if !aclCheck {
-		for _, bename := range b.aclCheckers {
-			var backend = b.backends[bename]
-
-			log.Debugf("Acl check with backend %s", backend.GetName())
+		if checkRegistered(bename, b.aclCheckers) {
+			log.Debugf("acl check with backend %s", backend.GetName())
 			if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
 				log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
-				aclCheck = true
-				break
+
+				return true, nil
 			} else if checkACLErr != nil && err == nil {
 				err = checkACLErr
 			}
 		}
 	}
 
-	// If aclCheck is true, it means at least one backend didn't fail and
-	// accepted the access. In this case trust this backend and clear the error.
-	if aclCheck {
-		err = nil
+	// No backend authorized access.
+	return false, err
+}
+
+func (b *Backends) checkSuperuserThenACL(username, topic, clientid string, acc int) (bool, error) {
+	// Check superusers first
+	var err error
+
+	if !b.disableSuperuser {
+		for _, bename := range b.superuserCheckers {
+			var backend = b.backends[bename]
+
+			log.Debugf("superuser check with backend %s", backend.GetName())
+			if ok, getSuperuserErr := backend.GetSuperuser(username); ok && getSuperuserErr == nil {
+				log.Debugf("superuser %s acl authenticated with backend %s", username, backend.GetName())
+
+				return true, nil
+			} else if getSuperuserErr != nil && err == nil {
+				err = getSuperuserErr
+			}
+		}
 	}
 
-	return aclCheck, err
+	for _, bename := range b.aclCheckers {
+		var backend = b.backends[bename]
+
+		log.Debugf("Acl check with backend %s", backend.GetName())
+		if ok, checkACLErr := backend.CheckAcl(username, topic, clientid, int32(acc)); ok && checkACLErr == nil {
+			log.Debugf("user %s acl authenticated with backend %s", username, backend.GetName())
+
+			return true, nil
+		} else if checkACLErr != nil && err == nil {
+			err = checkACLErr
+		}
+	}
+
+	// No backend authorized access.
+	return false, err
 }
 
 func (b *Backends) Halt() {
