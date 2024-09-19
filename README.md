@@ -245,6 +245,22 @@ auth_opt_backends files, postgres, jwt
 
 Set all other plugin options below in the same file.
 
+#### Backends order
+
+By default, the plugin won't establish any order for checks (Go maps guarantee no order).
+In particular and importantly, when running ACL checks with `superuser` checks enabled,
+the plugin will first check them all for `superuser` and then check ACLs for all of them,
+*in any given order* as mentioned.
+
+You can override this behaviour by setting `exhaust_backend_first` option to `true`:
+```
+auth_opt_exhaust_backend_first true
+```
+
+When set, ACL checks will first try to check for `superuser` (if possible and enabled) in the backend, 
+and then run an ACL check against the same backend before moving to the next one.
+
+
 #### Using clientid as username
 
 You may choose to override chedk against `username` to be done against `clientid` by setting this option:
