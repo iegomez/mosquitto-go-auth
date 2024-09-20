@@ -1000,11 +1000,14 @@ auth_opt_jwt_userquery select count(*) from test_user where username = $1 limit 
 Thus, the following specific JWT local options are supported:
 
 
-| Option                  | default   | Mandatory | Meaning                                                  |
-| ----------------------- | --------- | :-------: | -------------------------------------------------------- |
-| auth_opt_jwt_db         |  postgres |     N     | The DB backend to be used, either `postgres` or `mysql`  |
-| auth_opt_jwt_userquery  |           |     Y     | SQL query for users                                      |
-
+| Option                        | default   | Mandatory | Meaning                                                  |
+| ----------------------------- | --------- | :-------: | -------------------------------------------------------- |
+| auth_opt_jwt_db               |  postgres |     N     | The DB backend to be used, either `postgres` or `mysql`  |
+| auth_opt_jwt_userquery        |           |     Y     | SQL query for users                                      |
+| auth_opt_jwt_mysql_dbname     |           |     Y/N   | must set if auth_opt_jwt_db set is `mysql`               |
+| auth_opt_jwt_mysql_user       |           |     Y/N   | must set if auth_opt_jwt_db set is `mysql`               |
+| auth_opt_jwt_mysql_password   |           |     Y/N   | must set if auth_opt_jwt_db set is `mysql`               |
+| auth_opt_jwt_mysql_aclquery   |           |     Y/N   | ACL query must set if auth_opt_jwt_db set is `mysql`     |
 
 Notice that general `jwt_secret` is mandatory when using this mode.
 `jwt_userfield` is still optional and serves as a mean to extract the username from either the claim's `Subject` (`sub` field),
@@ -1022,7 +1025,7 @@ auth_opt_jwt_userquery select count(*) from "user" where username = $1 and is_ac
 For mysql:
 
 ```
-auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_active = true limit 1
+auth_opt_jwt_mysql_aclquery select count(*) from "user" where username = ? and is_active = true limit 1
 ```
 
 *Important note:*
