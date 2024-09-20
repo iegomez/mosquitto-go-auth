@@ -132,15 +132,19 @@ func getJWTClaims(secret string, tokenStr string, skipExpiration bool) (*jwtGo.M
 	})
 
 	expirationError := false
-	if err != nil {
-		if !skipExpiration {
-			log.Debugf("jwt parse error: %s", err)
-			return nil, err
-		}
-
+	if err != nil {					
 		if v, ok := err.(*jwtGo.ValidationError); ok && v.Errors == jwtGo.ValidationErrorExpired {
-			expirationError = true
-		}
+			log.Debugf("token expired: %s", err)
+			if skipExpiration {
+				expirationError = true
+			}else{
+				log.Debugf("jwt parse error: %s", err)
+				return nil, err	
+			}
+		}else{
+			log.Debugf("jwt parse error: %s", err)
+			return nil, err	
+		}	
 	}
 
 	if !jwtToken.Valid && !expirationError {
