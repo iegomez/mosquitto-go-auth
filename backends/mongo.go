@@ -108,7 +108,13 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.insecureSkipVerify = true
 	}
 
-	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
+	var addr string
+
+	if mongoUri, ok := authOpts["mongo_uri"]; ok {
+		addr = mongoUri
+	} else {
+		addr = fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
+	}
 
 	to := 60 * time.Second
 
@@ -147,7 +153,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 
 }
 
-//GetUser checks that the username exists and the given password hashes to the same password.
+// GetUser checks that the username exists and the given password hashes to the same password.
 func (o Mongo) GetUser(username, password, clientid string) (bool, error) {
 
 	uc := o.Conn.Database(o.DBName).Collection(o.UsersCollection)
@@ -173,7 +179,7 @@ func (o Mongo) GetUser(username, password, clientid string) (bool, error) {
 
 }
 
-//GetSuperuser checks that the key username:su exists and has value "true".
+// GetSuperuser checks that the key username:su exists and has value "true".
 func (o Mongo) GetSuperuser(username string) (bool, error) {
 
 	if o.disableSuperuser {
@@ -199,7 +205,7 @@ func (o Mongo) GetSuperuser(username string) (bool, error) {
 
 }
 
-//CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
+// CheckAcl gets all acls for the username and tries to match against topic, acc, and username/clientid if needed.
 func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
 
 	//Get user and check his acls.
@@ -255,12 +261,12 @@ func (o Mongo) CheckAcl(username, topic, clientid string, acc int32) (bool, erro
 
 }
 
-//GetName returns the backend's name
+// GetName returns the backend's name
 func (o Mongo) GetName() string {
 	return "Mongo"
 }
 
-//Halt closes the mongo session.
+// Halt closes the mongo session.
 func (o Mongo) Halt() {
 	if o.Conn != nil {
 		err := o.Conn.Disconnect(context.TODO())
