@@ -114,7 +114,12 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.insecureSkipVerify = true
 	}
 
-	addr := fmt.Sprintf("%s://%s:%s", m.HostPrefix, m.Host, m.Port)
+	var addr = ""
+	if m.HostPrefix != "mongodb+srv" {
+		addr = fmt.Sprintf("%s://%s:%s", m.HostPrefix, m.Host, m.Port)
+	} else {
+		addr = fmt.Sprintf("%s://%s", m.HostPrefix, m.Host)
+	}
 
 	to := 60 * time.Second
 
