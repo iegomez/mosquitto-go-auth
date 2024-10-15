@@ -18,6 +18,7 @@ import (
 )
 
 type Mongo struct {
+	HostPrefix         string
 	Host               string
 	Port               string
 	Username           string
@@ -51,6 +52,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 	log.SetLevel(logLevel)
 
 	var m = Mongo{
+		HostPrefix:         "mongodb",
 		Host:               "localhost",
 		Port:               "27017",
 		Username:           "",
@@ -66,6 +68,10 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 
 	if authOpts["mongo_disable_superuser"] == "true" {
 		m.disableSuperuser = true
+	}
+
+	if prefix, ok := authOpts["mongo_host_prefix"]; ok {
+		m.HostPrefix = prefix
 	}
 
 	if mongoHost, ok := authOpts["mongo_host"]; ok {
@@ -108,7 +114,7 @@ func NewMongo(authOpts map[string]string, logLevel log.Level, hasher hashing.Has
 		m.insecureSkipVerify = true
 	}
 
-	addr := fmt.Sprintf("mongodb://%s:%s", m.Host, m.Port)
+	addr := fmt.Sprintf("%s://%s:%s", m.HostPrefix, m.Host, m.Port)
 
 	to := 60 * time.Second
 
