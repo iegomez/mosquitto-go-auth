@@ -8,9 +8,110 @@ import (
 
 	"github.com/iegomez/mosquitto-go-auth/hashing"
 	log "github.com/sirupsen/logrus"
+	log_test "github.com/sirupsen/logrus/hooks/test"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestBackendsOrder(t *testing.T) {
+	authOpts := make(map[string]string)
+
+	pwPath, _ := filepath.Abs("../test-files/passwords")
+	aclPath, _ := filepath.Abs("../test-files/acls")
+
+	authOpts["files_password_path"] = pwPath
+	authOpts["files_acl_path"] = aclPath
+
+	authOpts["redis_host"] = "localhost"
+	authOpts["redis_port"] = "6379"
+	authOpts["redis_db"] = "2"
+	authOpts["redis_password"] = ""
+
+	username := "test1"
+	password := "test1"
+	passwordHash := "PBKDF2$sha512$100000$2WQHK5rjNN+oOT+TZAsWAw==$TDf4Y6J+9BdnjucFQ0ZUWlTwzncTjOOeE00W4Qm8lfPQyPCZACCjgfdK353jdGFwJjAf6vPAYaba9+z4GWK7Gg=="
+	clientid := "clientid"
+
+	version := "2.0.0"
+
+	Convey("When exhaust_backend_first is set, backends should be fully checked for superuser and acl first", t, func() {
+		authOpts["backends"] = "files, redis"
+		authOpts["exhaust_backend_first"] = "true"
+
+		hook := log_test.NewGlobal()
+
+		redis, err := NewRedis(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "redis"))
+		assert.Nil(t, err)
+
+		ctx := context.Background()
+
+		// Make one of files users a Redis superuser and assert ACL is granted by Files because of order.
+		username = "test1"
+		redis.conn.Set(ctx, username, passwordHash, 0)
+
+		b, err := Initialize(authOpts, log.DebugLevel, version)
+		So(err, ShouldBeNil)
+
+		tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
+
+		So(err1, ShouldBeNil)
+		So(tt1, ShouldBeTrue)
+
+		redis.conn.Set(ctx, "test1:su", "true", 0)
+
+		aclCheck, err := b.AuthAclCheck(clientid, username, "test/topic/1", 2)
+
+		// Files should be checked for ACL first even if it's a superuser in Redis.
+		lastEntry := hook.LastEntry()
+
+		So(lastEntry.Level, ShouldEqual, log.DebugLevel)
+		So(lastEntry.Message, ShouldEqual, "user test1 acl authenticated with backend Files")
+
+		So(err, ShouldBeNil)
+		So(aclCheck, ShouldBeTrue)
+
+		redis.Halt()
+	})
+
+	Convey("When exhaust_backend_first is not set, all backends should be checked for superuser first and acl later", t, func() {
+		authOpts["backends"] = "files, redis"
+		authOpts["exhaust_backend_first"] = "false"
+
+		hook := log_test.NewGlobal()
+
+		redis, err := NewRedis(authOpts, log.DebugLevel, hashing.NewHasher(authOpts, "redis"))
+		assert.Nil(t, err)
+
+		ctx := context.Background()
+
+		// Make one of files users a Redis superuser and assert ACL is granted by Files because of order.
+		username = "test1"
+		redis.conn.Set(ctx, username, passwordHash, 0)
+
+		b, err := Initialize(authOpts, log.DebugLevel, version)
+		So(err, ShouldBeNil)
+
+		tt1, err1 := b.AuthUnpwdCheck(username, password, clientid)
+
+		So(err1, ShouldBeNil)
+		So(tt1, ShouldBeTrue)
+
+		redis.conn.Set(ctx, "test1:su", "true", 0)
+
+		aclCheck, err := b.AuthAclCheck(clientid, username, "test/topic/1", 2)
+
+		// Redis should auth the superuser.
+		lastEntry := hook.LastEntry()
+
+		So(lastEntry.Level, ShouldEqual, log.DebugLevel)
+		So(lastEntry.Message, ShouldEqual, "superuser test1 acl authenticated with backend Redis")
+
+		So(err, ShouldBeNil)
+		So(aclCheck, ShouldBeTrue)
+
+		redis.Halt()
+	})
+}
 
 func TestBackends(t *testing.T) {
 	/*
