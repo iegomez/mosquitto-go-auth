@@ -49,7 +49,7 @@ func (o *filesJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bo
 
 	if err != nil {
 		log.Printf("jwt get user error: %s", err)
-		return false, err
+		return false, nil
 	}
 
 	return o.checker.CheckAcl(username, topic, clientid, acc)
