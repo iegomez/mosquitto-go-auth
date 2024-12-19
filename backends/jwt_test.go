@@ -218,6 +218,59 @@ func TestFilesJWTChecker(t *testing.T) {
 		token, err := notPresentJwtToken.SignedString([]byte(jwtSecret))
 		So(err, ShouldBeNil)
 
+		invalidToken, err := notPresentJwtToken.SignedString([]byte("badsecret"))
+		So(err, ShouldBeNil)
+
+		expiredToken, err := expiredToken.SignedString([]byte(jwtSecret))
+		So(err, ShouldBeNil)
+
+		Convey("Given a valid token, it should correctly authenticate it", func() {
+			authenticated, err := filesChecker.GetUser(token)
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+		})
+
+		Convey("Given an invalid token, it should not authenticate it", func() {
+			authenticated, err := filesChecker.GetUser(invalidToken)
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
+		Convey("Given an expired token, it should not authenticate it", func() {
+			authenticated, err := filesChecker.GetUser(expiredToken)
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
+		Convey("Given an expired token with skip user expiration, it should anyway authenticate it", func() {
+			skipExpirationOptions := tkOptions
+			skipExpirationOptions.skipUserExpiration = true
+			filesChecker, err := NewFilesJWTChecker(authOpts, logLevel, hasher, skipExpirationOptions)
+			So(err, ShouldBeNil)
+
+			authenticated, err := filesChecker.GetUser(expiredToken)
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeTrue)
+		})
+
+		Convey("Given a plain non-token format valid username, it should not authenticate it", func() {
+			authenticated, err := filesChecker.GetUser(username)
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
+		Convey("Given a plain non-token format random username, it should not authenticate it", func() {
+			authenticated, err := filesChecker.GetUser("somerandomuser")
+
+			So(err, ShouldBeNil)
+			So(authenticated, ShouldBeFalse)
+		})
+
 		Convey("Access should be granted for ACL mentioned users", func() {
 			tt, err := filesChecker.CheckAcl(token, "test/not_present", "id", 1)
 
