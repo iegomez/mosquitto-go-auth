@@ -1000,12 +1000,16 @@ initMqttClient(applicationID, mode, devEUI) {
 #### Local mode
 
 When set to `local` mode, the backend will try to validate JWT tokens against a DB backend, either `postgres` or `mysql`, given by the `jwt_db option`.
-Options for the DB connection are the almost the same as the ones given in the Postgres and Mysql backends but prefixed with `jwt_`, e.g.:
+Options for the DB connection are the almost the same as the ones given in the [Postgres](#postgresql) and [Mysql](#mysql) backends but prefixed with `jwt_`, e.g.:
 
+for Postgres:
 ```
 auth_opt_jwt_pg_host localhost
 ```
-
+for Mysql:
+```
+auth_opt_jwt_mysql_host localhost
+```
 The difference is that a specific `jwt_userquery` returning a count must be given since JWT backend won't use the `password` passed along by `mosquitto`,
 but instead should only use the `username` derived from the JWT token, e.g.:
 
@@ -1045,9 +1049,27 @@ auth_opt_jwt_userquery select count(*) from "user" where username = ? and is_act
 
 Since local JWT follows the underlying DB backend's way of working, both of these hold true:
 
-- When option jwt_superquery is not present, Superuser check will always return false, hence there'll be no superusers.
-- When option jwt_aclquery is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
+- When option `jwt_superquery` is not present, Superuser check will always return false, hence there'll be no superusers.
+- When option `jwt_aclquery` is not present, AclCheck will always return true, hence all authenticated users will be authorized to pub/sub to any topic.
 
+*example:*
+
+- this is an example for Mysql:
+```
+auth_opt_jwt_mode local
+auth_opt_jwt_parse_token true
+auth_opt_jwt_secret 𝑦𝑜𝑢𝑟_𝑠𝑒𝑐𝑟𝑒𝑡_𝑘𝑒𝑦
+auth_opt_jwt_userfield Username
+auth_opt_jwt_skip_user_expiration true
+auth_opt_jwt_skip_acl_expiration true
+
+auth_opt_jwt_db mysql
+auth_opt_jwt_mysql_dbname 𝑑𝑏
+auth_opt_jwt_mysql_user 𝑑𝑏_𝑢𝑠𝑒𝑟𝑛𝑎𝑚𝑒
+auth_opt_jwt_mysql_password 𝑑𝑏_𝑝𝑎𝑠𝑠𝑤𝑜𝑟𝑑
+auth_opt_jwt_userquery SELECT count(*) FROM 𝑑𝑏.𝑢𝑠𝑒𝑟𝑠 WHERE username = ? LIMIT 1
+auth_opt_jwt_mysql_aclquery SELECT topic FROM 𝑑𝑏.𝑎𝑐𝑙𝑠 WHERE username = ? AND (rw >= ?) LIMIT 1
+```
 
 #### JS mode
 
