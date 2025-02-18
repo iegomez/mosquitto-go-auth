@@ -35,6 +35,8 @@ const defaultGRPCTimeoutMs = 500
 
 // NewGRPC tries to connect to the gRPC service at the given host.
 func NewGRPC(authOpts map[string]string, logLevel log.Level) (*GRPC, error) {
+	log.SetLevel(logLevel)
+
 	g := &GRPC{
 		timeout: defaultGRPCTimeoutMs,
 	}
