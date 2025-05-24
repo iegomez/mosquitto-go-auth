@@ -89,6 +89,9 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 This package uses `Go modules` to manage dependencies.
 As it interacts with `mosquitto`, it makes use of `cgo`. Also, it (optionally) uses Redis for cache purposes.
 
+*Important*: as of 23/05/2025, or May 23, 2025, I've switched Go cache backing package to https://github.com/jellydator/ttlcache, which makes use of generics.
+Following this change, I've bumped Go version to 1.24.3 and might explore opportunities to refactor code using additions since the last set version in this lib which was 1.18.
+
 
 ### Build
 
@@ -97,6 +100,11 @@ Before building, you need to build `mosquitto`. For completeness, we'll build it
 First, install dependencies (tested on Debian 9 and later, Linux Mint 18, 19 and 20):
 
 `sudo apt-get install libwebsockets8 libwebsockets-dev libc-ares2 libc-ares-dev openssl uuid uuid-dev`
+
+Newer Mosquitto versions also depend on `cJson` for their dynamic-security plugin, so you should either install the deps or compile Mosquitto without it by changing `WITCH_CJSON` var at `config.mk` when building:
+```
+sudo apt-get install libcjson1 libcjson-dev
+```
 
 Download mosquitto and extract it (**change versions accordingly**):
 

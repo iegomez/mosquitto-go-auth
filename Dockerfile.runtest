@@ -10,7 +10,7 @@ FROM debian:stable-slim as mosquitto_builder
 ARG MOSQUITTO_VERSION
 ARG LWS_VERSION
 
-ENV GO_VERSION=1.18
+ENV GO_VERSION=1.24.3
 # Used in run-test-in-docker.sh to check if the script
 # is actually run in a container
 ENV MOSQUITTO_GO_AUTH_TEST_RUNNING_IN_A_CONTAINER=true

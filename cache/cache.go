@@ -12,7 +12,7 @@ import (
 
 	goredis "github.com/go-redis/redis/v8"
 	bes "github.com/iegomez/mosquitto-go-auth/backends"
-	goCache "github.com/patrickmn/go-cache"
+	"github.com/jellydator/ttlcache/v3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -33,7 +33,7 @@ type goStore struct {
 	authJitter        time.Duration
 	aclJitter         time.Duration
 	refreshExpiration bool
-	client            *goCache.Cache
+	client            *ttlcache.Cache[string, bool]
 	h                 hash.Hash
 }
 
@@ -54,13 +54,19 @@ type Store interface {
 func NewGoStore(authExpiration, aclExpiration, authJitter, aclJitter time.Duration, refreshExpiration bool) *goStore {
 	// TODO: support hydrating the cache to retain previous values.
 
+	localCache := ttlcache.New[string, bool](
+		ttlcache.WithTTL[string, bool](time.Second * (defaultExpiration * 2)),
+	)
+
+	go localCache.Start()
+
 	return &goStore{
 		authExpiration:    authExpiration,
 		aclExpiration:     aclExpiration,
 		authJitter:        authJitter,
 		aclJitter:         aclJitter,
 		refreshExpiration: refreshExpiration,
-		client:            goCache.New(time.Second*defaultExpiration, time.Second*(defaultExpiration*2)),
+		client:            localCache,
 		h:                 sha1.New(),
 	}
 }
@@ -145,7 +151,7 @@ func expirationWithJitter(expiration, jitter time.Duration) time.Duration {
 func (s *goStore) Connect(ctx context.Context, reset bool) bool {
 	log.Infoln("started go-cache")
 	if reset {
-		s.client.Flush()
+		s.client.DeleteAll()
 		log.Infoln("flushed go-cache")
 	}
 	return true
@@ -189,20 +195,20 @@ func (s *goStore) CheckACLRecord(ctx context.Context, username, topic, clientid 
 }
 
 func (s *goStore) checkRecord(ctx context.Context, record string, expirationTime time.Duration) (bool, bool) {
-	granted := false
-	v, present := s.client.Get(record)
+	var item *ttlcache.Item[string, bool]
+	present := s.client.Has(record)
 
-	if present {
-		value, ok := v.(string)
-		if ok && value == "true" {
-			granted = true
-		}
-
-		if s.refreshExpiration {
-			s.client.Set(record, value, expirationTime)
-		}
+	if !present {
+		return false, false
 	}
-	return present, granted
+
+	if !s.refreshExpiration {
+		item = s.client.Get(record, ttlcache.WithDisableTouchOnHit[string, bool]())
+	} else {
+		item = s.client.Get(record)
+	}
+
+	return present, item.Value()
 }
 
 // CheckAuthRecord checks if the username/password pair is present in the cache. Return if it's present and, if so, if it was granted privileges
@@ -261,7 +267,13 @@ func (s *redisStore) getAndRefresh(ctx context.Context, record string, expiratio
 // SetAuthRecord sets a pair, granted option and expiration time.
 func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, granted string) error {
 	record := toAuthRecord(username, password, s.h)
-	s.client.Set(record, granted, expirationWithJitter(s.authExpiration, s.authJitter))
+	recordGranted := false
+
+	if granted == "true" {
+		recordGranted = true
+	}
+
+	s.client.Set(record, recordGranted, expirationWithJitter(s.authExpiration, s.authJitter))
 
 	return nil
 }
@@ -269,7 +281,13 @@ func (s *goStore) SetAuthRecord(ctx context.Context, username, password string, 
 // SetAclCache sets a mix, granted option and expiration time.
 func (s *goStore) SetACLRecord(ctx context.Context, username, topic, clientid string, acc int, granted string) error {
 	record := toACLRecord(username, topic, clientid, acc, s.h)
-	s.client.Set(record, granted, expirationWithJitter(s.aclExpiration, s.aclJitter))
+	recordGranted := false
+
+	if granted == "true" {
+		recordGranted = true
+	}
+
+	s.client.Set(record, recordGranted, expirationWithJitter(s.aclExpiration, s.aclJitter))
 
 	return nil
 }
