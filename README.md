@@ -89,6 +89,9 @@ Please open an issue with the `feature` or `enhancement` tag to request new back
 This package uses `Go modules` to manage dependencies.
 As it interacts with `mosquitto`, it makes use of `cgo`. Also, it (optionally) uses Redis for cache purposes.
 
+*Important*: as of 23/05/2025, or May 23, 2025, I've switched Go cache backing package to https://github.com/jellydator/ttlcache, which makes use of generics.
+Following this change, I've bumped Go version to 1.24.3 and might explore opportunities to refactor code using additions since the last set version in this lib which was 1.18.
+
 
 ### Build
 
