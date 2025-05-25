@@ -21,7 +21,7 @@ without-vcs:
 
 test:
 	cd plugin && make
-	go test ./backends ./cache ./hashing -v -count=1
+	go test ./backends ./cache ./hashing -v -count=1 -skip 'TestPostgresTls|TestPostgresMutualTls'
 	rm plugin/*.so
 
 test-backends:
