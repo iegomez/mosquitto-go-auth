@@ -144,6 +144,28 @@ EOF
       --cluster-replicas 1
 }
 
+function prepareAndStartOpenLDAP() {
+  echo "slapd slapd/domain string example.org" | debconf-set-selections
+  echo "slapd shared/organization string Example Org" | debconf-set-selections
+  echo "slapd slapd/password1 password admin" | debconf-set-selections
+  echo "slapd slapd/password2 password admin" | debconf-set-selections
+  echo "slapd slapd/internal/adminpw password admin" | debconf-set-selections
+  echo "slapd slapd/internal/generated_adminpw password admin" | debconf-set-selections
+
+  # Run dpkg-reconfigure non-interactively
+  DEBIAN_FRONTEND=noninteractive dpkg-reconfigure slapd
+
+  service slapd start
+
+  ldapwhoami -x -D "cn=admin,dc=example,dc=org" -w admin
+
+  ldapmodify -Y EXTERNAL -H ldapi:/// -f /app/test-files/ldap/load_modules.ldif
+  ldapadd -Y EXTERNAL -H ldapi:/// -f /app/test-files/ldap/add_overlays.ldif
+  ldapadd -Y EXTERNAL -H ldapi:/// -f /app/test-files/ldap/schema.ldif
+  ldapadd -x -D cn=admin,dc=example,dc=org -w admin -f /app/test-files/ldap/data.ldif
+  ldapmodify -Y EXTERNAL -H ldapi:/// -f /app/test-files/ldap/access.ldif
+}
+
 checkIfContainer
 
 # Copy certificates structure to container so we
@@ -158,6 +180,7 @@ rm -rf /test-files/certificates/**/*.pem && rm -rf /test-files/certificates/**/*
 prepareAndStartPostgres
 prepareAndStartMariaDb
 prepareAndStartRedis
+prepareAndStartOpenLDAP
 sudo -u mongodb mongod --config /etc/mongod.conf &
 
 cd /app

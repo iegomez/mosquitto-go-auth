@@ -3,10 +3,10 @@ package backends
 import (
 	"fmt"
 	"github.com/go-ldap/ldap/v3"
+	"github.com/iegomez/mosquitto-go-auth/backends/topics"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"strconv"
-	"strings"
 )
 
 type LDAPClientFactory func(LDAP) (LDAPClient, error)
@@ -18,11 +18,11 @@ type LDAPClient interface {
 }
 
 type LDAP struct {
-	LDAPClientFactory        LDAPClientFactory
-	LDAPClient               LDAPClient
+	factory                  LDAPClientFactory
+	client                   LDAPClient
 	Url                      string
-	BaseDN                   string
-	GroupBaseDN              string
+	UserDN                   string
+	GroupDN                  string
 	BindDN                   string
 	BindPass                 string
 	UserFilter               string
@@ -50,9 +50,9 @@ func NewLDAPWithFactory(authOpts map[string]string, logLevel log.Level, ldapClie
 	missingOptions := ""
 
 	var l = LDAP{
-		LDAPClientFactory:        ldapClientFactory,
+		factory:                  ldapClientFactory,
 		Url:                      "ldap://localhost:389",
-		GroupBaseDN:              "",
+		GroupDN:                  "",
 		GroupFilter:              "(member=%s)",
 		SuperuserFilter:          "",
 		AclTopicPatternAttribute: "",
@@ -63,15 +63,15 @@ func NewLDAPWithFactory(authOpts map[string]string, logLevel log.Level, ldapClie
 		l.Url = host
 	}
 
-	if baseDN, ok := authOpts["ldap_base_dn"]; ok {
-		l.BaseDN = baseDN
+	if baseDN, ok := authOpts["ldap_user_dn"]; ok {
+		l.UserDN = baseDN
 	} else {
 		ldapOk = false
-		missingOptions += " ldap_base_dn"
+		missingOptions += " ldap_user_dn"
 	}
 
-	if groupBaseDN, ok := authOpts["ldap_group_base_dn"]; ok {
-		l.GroupBaseDN = groupBaseDN
+	if groupBaseDN, ok := authOpts["ldap_group_dn"]; ok {
+		l.GroupDN = groupBaseDN
 	}
 
 	if bindDN, ok := authOpts["ldap_bind_dn"]; ok {
@@ -117,16 +117,27 @@ func NewLDAPWithFactory(authOpts map[string]string, logLevel log.Level, ldapClie
 	}
 
 	//Check if the LDAP server is reachable
-	ldapClient, err := l.LDAPClientFactory(l)
+	ldapClient, err := l.factory(l)
+
 	if err != nil {
-		log.Debugf("LDAP connection error: %s", err)
+		log.Errorf("LDAP connection error: %s", err)
+
 		return l, err
 	}
-	l.LDAPClient = ldapClient
 
-	err = l.LDAPClient.Bind(l.BindDN, l.BindPass)
+	l.client = ldapClient
+
+	err = l.client.Bind(l.BindDN, l.BindPass)
+
 	if err != nil {
-		log.Debugf("LDAP bind error: %s", err)
+		log.Errorf("LDAP bind error: %s", err)
+
+		closeErr := l.client.Close()
+
+		if closeErr != nil {
+			log.Errorf("LDAP cleanup error: %s", closeErr)
+		}
+
 		return l, err
 	}
 
@@ -136,7 +147,7 @@ func NewLDAPWithFactory(authOpts map[string]string, logLevel log.Level, ldapClie
 func (l LDAP) GetUser(username, password, clientid string) (bool, error) {
 
 	searchRequest := ldap.NewSearchRequest(
-		l.BaseDN,
+		l.UserDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
 		0,
@@ -147,33 +158,49 @@ func (l LDAP) GetUser(username, password, clientid string) (bool, error) {
 		nil,
 	)
 
-	searchResult, err := l.LDAPClient.Search(searchRequest)
+	searchResult, err := l.client.Search(searchRequest)
+
 	if err != nil {
-		log.Debugf("LDAP user search error: %s", err)
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
+			log.Debugf("LDAP user search returned no such object (code 32)")
+
+			return false, nil
+		}
+
+		log.Errorf("LDAP user search error: %s", err)
+
 		return false, err
 	}
+
 	if len(searchResult.Entries) != 1 {
 		log.Debugf("LDAP user search returned %d entries", len(searchResult.Entries))
+
 		return false, nil
 	}
 
 	userDN := searchResult.Entries[0].DN
 
-	userLdapClient, err := l.LDAPClientFactory(l)
+	userLdapClient, err := l.factory(l)
+
 	if err != nil {
-		log.Debugf("LDAP user connection error: %s", err)
+		log.Errorf("LDAP user connection error: %s", err)
+
 		return false, err
 	}
+
 	defer func(ldapClient LDAPClient) {
 		err := ldapClient.Close()
+
 		if err != nil {
 			log.Errorf("LDAP user cleanup error: %s", err)
 		}
 	}(userLdapClient)
 
 	err = userLdapClient.Bind(userDN, password)
+
 	if err != nil {
-		log.Debugf("LDAP user bind error: %s", err)
+		log.Errorf("LDAP user bind error: %s", err)
+
 		return false, nil
 	}
 
@@ -182,13 +209,13 @@ func (l LDAP) GetUser(username, password, clientid string) (bool, error) {
 
 func (l LDAP) GetSuperuser(username string) (bool, error) {
 
-	//If there's no superuser filter, assume all privileges for all users.
+	//If there's no superuser filter, return false.
 	if l.SuperuserFilter == "" {
 		return false, nil
 	}
 
 	searchRequest := ldap.NewSearchRequest(
-		l.BaseDN,
+		l.UserDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
 		0,
@@ -199,51 +226,27 @@ func (l LDAP) GetSuperuser(username string) (bool, error) {
 		nil,
 	)
 
-	searchResult, err := l.LDAPClient.Search(searchRequest)
+	searchResult, err := l.client.Search(searchRequest)
+
 	if err != nil {
-		log.Debugf("LDAP superuser search error: %s", err)
-		return false, nil
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
+			log.Debugf("LDAP superuser search returned no such object (code 32)")
+
+			return false, nil
+		}
+
+		log.Errorf("LDAP superuser search error: %s", err)
+
+		return false, err
 	}
+
 	if len(searchResult.Entries) != 1 {
 		log.Debugf("LDAP superuser search returned %d entries", len(searchResult.Entries))
+
 		return false, err
 	}
 
 	return true, nil
-}
-
-// checks whether an MQTT topic matches a pattern with wildcards (+, #) according to MQTT spec rules.
-func matchMQTT(topic, pattern string) bool {
-	topicLevels := strings.Split(topic, "/")
-	patternLevels := strings.Split(pattern, "/")
-
-	for i := 0; i < len(patternLevels); i++ {
-		// If we've run out of topic levels but pattern still has more
-		if i >= len(topicLevels) {
-			// Only valid if current pattern is '#' AND it's the last part
-			// '#' can match zero or more topic levels, so it can match "nothing"
-			return patternLevels[i] == "#" && i == len(patternLevels)-1
-		}
-
-		switch patternLevels[i] {
-		case "#":
-			// '#' must be last in pattern; if so, it matches all remaining topic levels
-			return i == len(patternLevels)-1
-
-		case "+":
-			// '+' matches exactly one topic level, so we just continue to next
-			continue
-
-		default:
-			// If it's not a wildcard, it must match the topic level exactly
-			if patternLevels[i] != topicLevels[i] {
-				return false
-			}
-		}
-	}
-
-	// After processing pattern, topic must not have any extra levels
-	return len(topicLevels) == len(patternLevels)
 }
 
 func (l LDAP) CheckAcl(username, topic, clientid string, acc int32) (bool, error) {
@@ -264,13 +267,13 @@ func (l LDAP) CheckAcl(username, topic, clientid string, acc int32) (bool, error
 	}
 
 	//If there is no groupBaseDN, return false.
-	if l.GroupBaseDN == "" {
-		log.Debugf("ldap_group_base_dn not set, cannot check ACL")
+	if l.GroupDN == "" {
+		log.Errorf("ldap_group_base_dn not set, cannot check ACL")
 		return false, nil
 	}
 
 	searchRequest := ldap.NewSearchRequest(
-		l.GroupBaseDN,
+		l.GroupDN,
 		ldap.ScopeWholeSubtree,
 		ldap.NeverDerefAliases,
 		0,
@@ -281,13 +284,22 @@ func (l LDAP) CheckAcl(username, topic, clientid string, acc int32) (bool, error
 		nil,
 	)
 
-	searchResult, err := l.LDAPClient.Search(searchRequest)
+	searchResult, err := l.client.Search(searchRequest)
+
 	if err != nil {
-		log.Debugf("LDAP acl search error: %s", err)
+		if ldapErr, ok := err.(*ldap.Error); ok && ldapErr.ResultCode == ldap.LDAPResultNoSuchObject {
+			log.Debugf("LDAP acl search returned no such object (code 32)")
+
+			return false, nil
+		}
+
+		log.Errorf("LDAP acl search error: %s", err)
+
 		return false, err
 	}
+
 	if len(searchResult.Entries) == 0 {
-		log.Debugf("LDAP acl search returned 0 entries")
+		log.Debugf("LDAP acl search returned no entries")
 	}
 
 	// Iterate through the results and check for topic access
@@ -295,10 +307,13 @@ func (l LDAP) CheckAcl(username, topic, clientid string, acc int32) (bool, error
 		// If there is an acc attribute, check if the access level matches.
 		if l.AclAccAttribute != "" {
 			accessStr := entry.GetAttributeValue(l.AclAccAttribute)
+
 			if accessStr != "" {
 				access, err := strconv.ParseInt(accessStr, 10, 32)
+
 				if err != nil {
-					log.Debugf("LDAP acl failed to parse %s as int32: %s", accessStr, err)
+					log.Errorf("LDAP acl failed to parse %s as int32: %s", accessStr, err)
+
 					continue
 				}
 
@@ -317,7 +332,7 @@ func (l LDAP) CheckAcl(username, topic, clientid string, acc int32) (bool, error
 
 		// Check the access levels and topic patterns for a match
 		for _, pattern := range topicPatterns {
-			if matchMQTT(topic, pattern) {
+			if topics.Match(pattern, topic) {
 				return true, nil
 			}
 		}
@@ -334,8 +349,10 @@ func (l LDAP) GetName() string {
 
 // Halt closes the ldap connection.
 func (l LDAP) Halt() {
-	if l.LDAPClient != nil {
-		err := l.LDAPClient.Close()
+
+	if l.client != nil {
+		err := l.client.Close()
+
 		if err != nil {
 			log.Errorf("LDAP cleanup error: %s", err)
 		}

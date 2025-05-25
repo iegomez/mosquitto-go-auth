@@ -21,6 +21,7 @@ These are the backends that this plugin implements right now:
 * Mysql
 * SQLite3
 * MongoDB
+* LDAP
 * Custom (experimental)
 * gRPC
 * Javascript interpreter
@@ -1351,8 +1352,8 @@ Options for `ldap` are the following:
 | Option                                    | default              | Mandatory | Meaning                                                            |
 |-------------------------------------------|----------------------|:---------:|--------------------------------------------------------------------|
 | auth_opt_ldap_url                         | ldap://localhost:389 |     N     | LDAP Server URL                                                    |
-| auth_opt_ldap_base_dn                     |                      |     Y     | LDAP Base DN                                                       |
-| auth_opt_ldap_group_base_dn               |                      |     N     | LDAP Group Base DN, Required for acl checks                        |
+| auth_opt_ldap_user_dn                     |                      |     Y     | LDAP User DN                                                       |
+| auth_opt_ldap_group_dn                    |                      |     N     | LDAP Group DN, Required for acl checks                        |
 | auth_opt_ldap_bind_dn                     |                      |     Y     | LDAP Bind DN                                                       |
 | auth_opt_ldap_bind_password               |                      |     Y     | LDAP Bind Password                                                 |
 | auth_opt_ldap_user_filter                 |                      |     Y     | LDAP User Filter, `%s` will be a placeholder for the username      |
@@ -1367,8 +1368,8 @@ Default Config for `ldap` with [lldap](https://github.com/lldap/lldap):
 
 ```
 auth_opt_ldap_url ldap://lldap:3890
-auth_opt_ldap_base_dn dc=example,dc=com
-auth_opt_ldap_group_base_dn ou=groups,dc=example,dc=com
+auth_opt_ldap_user_dn ou=people,dc=example,dc=com
+auth_opt_ldap_group_dn ou=groups,dc=example,dc=com
 auth_opt_ldap_bind_dn uid=mosquitto,ou=people,dc=example,dc=com
 auth_opt_ldap_bind_password changeit
 auth_opt_ldap_user_filter (&(uid=%s)(objectClass=person)(memberOf=mqtt))

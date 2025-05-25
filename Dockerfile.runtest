@@ -67,7 +67,7 @@ RUN export PATH=$PATH:/usr/local/go/bin && export CGO_CFLAGS="-I/usr/local/inclu
 
 ## Everything above, is the same as Dockerfile
 
-RUN apt-get update && apt-get install --no-install-recommends -y mariadb-server postgresql sudo
+RUN apt-get update && apt-get install --no-install-recommends -y ldap-utils mariadb-server postgresql slapd sudo
 
 RUN wget -qO - https://www.mongodb.org/static/pgp/server-7.0.asc | gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor && \
     echo "deb [signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg] https://repo.mongodb.org/apt/debian $(lsb_release -cs)/mongodb-org/7.0 main" | tee /etc/apt/sources.list.d/mongodb-org-7.0.list && \

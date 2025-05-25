@@ -1,0 +1,39 @@
+dn: ou=people,dc=example,dc=org
+objectClass: organizationalUnit
+ou: people
+
+dn: ou=groups,dc=example,dc=org
+objectClass: organizationalUnit
+ou: groups
+
+dn: cn=mosquitto,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: mosquitto
+sn: mosquitto
+userPassword: test_bind_pw
+description: Mosquitto bind user
+
+dn: cn=user,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: user
+sn: user
+userPassword: test_user_pw
+
+dn: cn=superuser,ou=people,dc=example,dc=org
+objectClass: inetOrgPerson
+cn: superuser
+sn: superuser
+userPassword: test_superuser_pw
+
+dn: cn=superuser,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+cn: superuser
+member: cn=superuser,ou=people,dc=example,dc=org
+
+dn: cn=topic_test,ou=groups,dc=example,dc=org
+objectClass: groupOfNames
+objectClass: mqttAccessAux
+cn: superuser
+mqttTopicPattern: test/+
+mqttTopicAcc: 1
+member: cn=user,ou=people,dc=example,dc=org
