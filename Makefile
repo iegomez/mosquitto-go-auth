@@ -21,7 +21,7 @@ without-vcs:
 
 test:
 	cd plugin && make
-	go test ./backends ./cache ./hashing -v -count=1 -skip 'TestPostgresTls|TestPostgresMutualTls'
+	go test ./backends ./cache ./hashing -v -count=1 -buildvcs=false
 	rm plugin/*.so
 
 test-backends:
@@ -34,6 +34,12 @@ test-cache:
 
 test-hashing:
 	go test ./hashing -v -failfast -count=1
+
+build-docker-test:
+	docker build -t mosquitto-go-auth.test -f Dockerfile.runtest .
+
+run-docker-test:
+	docker run --rm -ti mosquitto-go-auth.test ./run-test-in-docker.sh
 
 service:
 	@echo "Generating gRPC code from .proto files"
