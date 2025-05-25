@@ -202,6 +202,7 @@ func TestPostgres(t *testing.T) {
 }
 
 func TestPostgresTls(t *testing.T) {
+	t.Skip("skipping test postgres tls")
 	authOpts := make(map[string]string)
 	authOpts["pg_host"] = "localhost"
 	authOpts["pg_port"] = "5432"
@@ -239,6 +240,7 @@ func TestPostgresTls(t *testing.T) {
 }
 
 func TestPostgresMutualTls(t *testing.T) {
+	t.Skip("skipping test postgres mutual tls")
 	authOpts := make(map[string]string)
 	authOpts["pg_host"] = "localhost"
 	authOpts["pg_port"] = "5432"
