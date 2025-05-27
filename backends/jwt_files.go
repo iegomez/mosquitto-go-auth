@@ -17,7 +17,7 @@ func NewFilesJWTChecker(authOpts map[string]string, logLevel log.Level, hasher h
 
 	/*	We could ask for a file listing available users with no password, but that gives very little value
 		versus just assuming users in the ACL file are valid ones, while general rules apply to any user.
-		Thus, padswords file makes no sense for JWT, we only need to check ACLs.
+		Thus, passwords file makes no sense for JWT, we only need to check ACLs.
 	*/
 	aclPath, ok := authOpts["jwt_acl_path"]
 	if !ok || aclPath == "" {
@@ -36,7 +36,8 @@ func NewFilesJWTChecker(authOpts map[string]string, logLevel log.Level, hasher h
 }
 
 func (o *filesJWTChecker) GetUser(token string) (bool, error) {
-	return false, nil
+	_, err := getUsernameForToken(o.options, token, o.options.skipUserExpiration)
+	return err == nil, nil
 }
 
 func (o *filesJWTChecker) GetSuperuser(token string) (bool, error) {
@@ -48,7 +49,7 @@ func (o *filesJWTChecker) CheckAcl(token, topic, clientid string, acc int32) (bo
 
 	if err != nil {
 		log.Printf("jwt get user error: %s", err)
-		return false, err
+		return false, nil
 	}
 
 	return o.checker.CheckAcl(username, topic, clientid, acc)
