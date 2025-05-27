@@ -1,0 +1,6 @@
+dn: olcDatabase={1}mdb,cn=config
+changetype: modify
+add: olcAccess
+olcAccess: to dn.subtree="dc=example,dc=org"
+  by dn.exact="cn=mosquitto,ou=people,dc=example,dc=org" read
+  by * none

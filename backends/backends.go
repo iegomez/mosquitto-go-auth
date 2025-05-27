@@ -46,6 +46,7 @@ const (
 	pluginBackend   = "plugin"
 	grpcBackend     = "grpc"
 	jsBackend       = "js"
+	ldapBackend     = "ldap"
 
 	// checks
 	aclCheck       = "acl"
@@ -69,6 +70,7 @@ var allowedBackendsOptsPrefix = map[string]string{
 	pluginBackend:   "plugin",
 	grpcBackend:     "grpc",
 	jsBackend:       "js",
+	ldapBackend:     "ldap",
 }
 
 // Initialize sets general options, tries to build the backends and register their checkers.
@@ -221,6 +223,14 @@ func (b *Backends) addBackends(authOpts map[string]string, logLevel log.Level, b
 			} else {
 				log.Infof("Backend registered: %s", beIface.GetName())
 				b.backends[jsBackend] = beIface.(*Javascript)
+			}
+		case ldapBackend:
+			beIface, err = NewLDAP(authOpts, logLevel)
+			if err != nil {
+				log.Fatalf("Backend register error: couldn't initialize %s backend with error %s.", bename, err)
+			} else {
+				log.Infof("Backend registered: %s", beIface.GetName())
+				b.backends[ldapBackend] = beIface.(LDAP)
 			}
 		case pluginBackend:
 			beIface, err = NewCustomPlugin(authOpts, logLevel)
